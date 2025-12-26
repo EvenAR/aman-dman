@@ -30,6 +30,10 @@ class GuiDataHandler : DataUpdateListener {
     override fun onMinimumSpacingUpdated(airportIcao: String, minimumSpacingNm: Double) {
         presenter.onMinimumSpacingUpdated(airportIcao, minimumSpacingNm)
     }
+
+    override fun onWeatherFetchStatusUpdated(airportIcao: String, status: WeatherFetchStatus) {
+        presenter.onWeatherFetchStatusUpdated(airportIcao, status)
+    }
 }
 
 /**
@@ -61,5 +65,9 @@ class DataUpdatesServerSender(
 
     override fun onMinimumSpacingUpdated(airportIcao: String, minimumSpacingNm: Double) {
         sharedState.sendMinimumSpacing(airportIcao, minimumSpacingNm)
+    }
+
+    override fun onWeatherFetchStatusUpdated(airportIcao: String, status: WeatherFetchStatus) {
+        // No need to send fetch status to server
     }
 }

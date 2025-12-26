@@ -18,6 +18,7 @@ import no.vaccsca.amandman.model.domain.service.DataUpdateListener
 import no.vaccsca.amandman.model.domain.service.DataUpdatesServerSender
 import no.vaccsca.amandman.model.domain.service.PlannerServiceMaster
 import no.vaccsca.amandman.model.domain.service.PlannerServiceSlave
+import no.vaccsca.amandman.model.domain.service.WeatherFetchStatus
 import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
 import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
@@ -49,7 +50,7 @@ class Presenter(
     private var controllerInfo: ControllerInfoData? = null
     private val myMasterRoles = mutableSetOf<String>()
 
-    private val euroScopeClient by lazy {
+    private val atcClient by lazy {
         AtcClientEuroScope(
             controllerInfoCallback = { info -> handleControllerInfoUpdate(info) }
         )
@@ -78,6 +79,14 @@ class Presenter(
             view.updateTime(NtpClock.now())
 
             updateViewFromCachedData()
+
+            // Update EuroScope connection status
+            val lastReceivedTimestamp = atcClient.getLastReceivedTimestamp()
+            view.updateAtcClientConnectionStatus(
+                isConnected = atcClient.isClientConnected,
+                hasStarted = atcClient.hasStarted,
+                lastReceivedTimestamp = lastReceivedTimestamp,
+            )
 
             myMasterRoles.forEach { airportIcao ->
                 if (!sharedState.checkMasterRoleStatus(airportIcao)) {
@@ -162,6 +171,16 @@ class Presenter(
 
     override fun onWeatherDataUpdated(airportIcao: String, data: VerticalWeatherProfile?) {
         view.updateWeatherData(airportIcao, data)
+    }
+
+    override fun onWeatherFetchStatusUpdated(airportIcao: String, status: WeatherFetchStatus) {
+        val metStatus = when (status) {
+            WeatherFetchStatus.NOT_STARTED -> ViewInterface.MetStatus.GREY
+            WeatherFetchStatus.FETCHING -> ViewInterface.MetStatus.YELLOW
+            WeatherFetchStatus.SUCCESS -> ViewInterface.MetStatus.GREEN
+            WeatherFetchStatus.FAILED -> ViewInterface.MetStatus.RED
+        }
+        view.updateMetStatus(airportIcao, metStatus)
     }
 
     private fun updateViewFromCachedData() {
@@ -267,9 +286,9 @@ class Presenter(
             val remainingMasterServices = plannerManager.getAllServices()
                 .filterIsInstance<PlannerServiceMaster>()
 
-            if (remainingMasterServices.isEmpty() && euroScopeClient.isClientConnected) {
+            if (remainingMasterServices.isEmpty()) {
                 // No more services using the AtcClient, clean it up
-                euroScopeClient.close()
+                atcClient.close()
             }
         }
 
@@ -410,7 +429,7 @@ class Presenter(
                 PlannerServiceMaster(
                     airport = airport,
                     weatherDataRepository = weatherDataRepository,
-                    atcClient = euroScopeClient,
+                    atcClient = atcClient,
                     cdmClient = cdmClient,
                     dataUpdateListeners = arrayOf(guiUpdater, dataUpdatesServerSender),
                 )
@@ -419,7 +438,7 @@ class Presenter(
                 PlannerServiceMaster(
                     airport = airport,
                     weatherDataRepository = weatherDataRepository,
-                    atcClient = euroScopeClient,
+                    atcClient = atcClient,
                     cdmClient = cdmClient,
                     dataUpdateListeners = arrayOf(guiUpdater),
                 )

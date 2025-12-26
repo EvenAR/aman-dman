@@ -265,6 +265,40 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
         }
     }
 
+    override fun updateAtcClientConnectionStatus(isConnected: Boolean, hasStarted: Boolean, lastReceivedTimestamp: Instant?) = runOnUiThread {
+        val status = if (!hasStarted) {
+            // In slave mode, data comes from the server, not EuroScope
+            Footer.TrafficLightPanel.Status.GREY
+        } else {
+            val now = currentTime ?: return@runOnUiThread
+
+            when {
+                // If started but not connected, connection has failed - show RED
+                !isConnected -> Footer.TrafficLightPanel.Status.RED
+                // If never received data and not started, show YELLOW (waiting/initializing)
+                lastReceivedTimestamp == null -> Footer.TrafficLightPanel.Status.YELLOW
+                // If data is very stale (>30 seconds), show RED
+                now - lastReceivedTimestamp > 30.seconds -> Footer.TrafficLightPanel.Status.RED
+                // If data is somewhat stale (10-30 seconds), show YELLOW
+                now - lastReceivedTimestamp > 10.seconds -> Footer.TrafficLightPanel.Status.YELLOW
+                // If receiving fresh data (<10 seconds), show GREEN
+                else -> Footer.TrafficLightPanel.Status.GREEN
+            }
+        }
+
+        footer?.setAtcClientStatus(status)
+    }
+
+    override fun updateMetStatus(airportIcao: String, status: ViewInterface.MetStatus) = runOnUiThread {
+        val footerStatus = when (status) {
+            ViewInterface.MetStatus.GREY -> Footer.TrafficLightPanel.Status.GREY
+            ViewInterface.MetStatus.YELLOW -> Footer.TrafficLightPanel.Status.YELLOW
+            ViewInterface.MetStatus.GREEN -> Footer.TrafficLightPanel.Status.GREEN
+            ViewInterface.MetStatus.RED -> Footer.TrafficLightPanel.Status.RED
+        }
+        footer?.setMetStatus(footerStatus)
+    }
+
     private fun runOnUiThread(block: () -> Unit) {
         if (SwingUtilities.isEventDispatchThread()) {
             block()

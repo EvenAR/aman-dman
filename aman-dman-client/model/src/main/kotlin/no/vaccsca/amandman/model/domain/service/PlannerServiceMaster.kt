@@ -212,10 +212,26 @@ class PlannerServiceMaster(
 
     override fun refreshWeatherData(): Result<Unit> {
         scope.launch {
-            val weather = weatherDataRepository.getWindData(airport.location.lat, airport.location.lon)
-            withStateLock { state.weatherData = weather }
+            // Notify that we're starting to fetch
             dataUpdateListeners.forEach { listener ->
-                listener.onWeatherDataUpdated(airportIcao, weather)
+                listener.onWeatherFetchStatusUpdated(airportIcao, WeatherFetchStatus.FETCHING)
+            }
+
+            try {
+                val weather = weatherDataRepository.getWindData(airport.location.lat, airport.location.lon)
+                withStateLock { state.weatherData = weather }
+
+                // Notify success
+                dataUpdateListeners.forEach { listener ->
+                    listener.onWeatherDataUpdated(airportIcao, weather)
+                    listener.onWeatherFetchStatusUpdated(airportIcao, WeatherFetchStatus.SUCCESS)
+                }
+            } catch (e: Exception) {
+                // Notify failure
+                println("Failed to fetch weather data for $airportIcao: ${e.message}")
+                dataUpdateListeners.forEach { listener ->
+                    listener.onWeatherFetchStatusUpdated(airportIcao, WeatherFetchStatus.FAILED)
+                }
             }
         }
         return Result.success(Unit)

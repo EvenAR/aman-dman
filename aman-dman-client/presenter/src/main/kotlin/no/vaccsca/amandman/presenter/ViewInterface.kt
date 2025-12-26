@@ -43,4 +43,13 @@ interface ViewInterface {
     fun openTimelineConfigForm(groupId: String, availableTagLayoutsDep: Set<String>, availableTagLayoutsArr: Set<String>, existingConfig: TimelineConfig? = null)
     fun closeTimelineForm()
     fun showMinimumSpacingDialog(icao: String, d: Double)
+    fun updateAtcClientConnectionStatus(isConnected: Boolean, hasStarted: Boolean, lastReceivedTimestamp: Instant?)
+    fun updateMetStatus(airportIcao: String, status: MetStatus)
+
+    enum class MetStatus {
+        GREY,    // Initial state - not started
+        YELLOW,  // Fetching data
+        GREEN,   // Data fetched successfully
+        RED      // Failed to fetch data
+    }
 }

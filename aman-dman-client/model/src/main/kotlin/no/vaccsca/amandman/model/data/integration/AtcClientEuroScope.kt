@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.core.JsonFactory
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.data.dto.euroscope.ArrivalJson
 import no.vaccsca.amandman.model.data.dto.euroscope.ArrivalsUpdateFromServerJson
@@ -53,6 +54,18 @@ class AtcClientEuroScope(
 
     val isClientConnected: Boolean
         get() = isConnected
+
+    val hasStarted: Boolean
+        get() = isRunning
+
+    @Volatile
+    private var lastReceivedTimestamp: Instant? = null
+
+    /**
+     * Get the timestamp of the last received data from EuroScope.
+     * Returns null if no data has been received yet.
+     */
+    fun getLastReceivedTimestamp(): Instant? = lastReceivedTimestamp
 
     override fun start(onControllerInfoData: (ControllerInfoData) -> Unit) {
         if (isRunning) return
@@ -134,6 +147,10 @@ class AtcClientEuroScope(
             // Cancel all coroutines in the scope
             scope.cancel()
 
+            if (!isConnected) {
+                println("Client already disconnected.")
+                return
+            }
             // Synchronized block to safely close the socket and streams
             synchronized(this) {
                 try {
@@ -269,6 +286,9 @@ class AtcClientEuroScope(
     }
 
     private fun handleMessage(messageFromServerJson: MessageFromServerJson) {
+        // Update last received timestamp
+        lastReceivedTimestamp = NtpClock.now()
+
         when (messageFromServerJson) {
             is ArrivalsUpdateFromServerJson -> {
                 messageFromServerJson.inbounds.groupBy { it.arrivalAirportIcao }.forEach { (arrivalAirportIcao, arrivals) ->

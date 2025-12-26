@@ -28,4 +28,16 @@ interface DataUpdateListener {
      * Called when weather data is updated
      */
     fun onWeatherDataUpdated(airportIcao: String, data: VerticalWeatherProfile?)
+
+    /**
+     * Called when weather data fetch status changes
+     */
+    fun onWeatherFetchStatusUpdated(airportIcao: String, status: WeatherFetchStatus)
+}
+
+enum class WeatherFetchStatus {
+    NOT_STARTED,  // Initial state
+    FETCHING,     // Currently fetching
+    SUCCESS,      // Fetched successfully
+    FAILED        // Failed to fetch
 }
