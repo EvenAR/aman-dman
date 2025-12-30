@@ -3,13 +3,16 @@ package no.vaccsca.amandman.view
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.data.dto.TabData
-import no.vaccsca.amandman.model.domain.TimelineGroup
-import no.vaccsca.amandman.model.domain.valueobjects.Airport
-import no.vaccsca.amandman.model.domain.valueobjects.SequenceStatus
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.common.domain.TabData
+import no.vaccsca.amandman.common.domain.valueobjects.RunwayStatus
+import no.vaccsca.amandman.presenter.TimelineGroup
+import no.vaccsca.amandman.common.domain.valueobjects.SequenceStatus
+import no.vaccsca.amandman.common.domain.valueobjects.TrajectoryPoint
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.RunwayArrivalEvent
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.common.domain.valueobjects.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
+import no.vaccsca.amandman.presenter.AirportViewInterface
 import no.vaccsca.amandman.view.airport.TimeRangeScrollBarVertical
 import no.vaccsca.amandman.view.airport.TimelineScrollPane
 import no.vaccsca.amandman.view.airport.TopBar
@@ -24,9 +27,9 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 class AirportView(
-    private val presenter: PresenterInterface,
-    val airport: Airport,
-) : JPanel(BorderLayout()) {
+    private val presenter: AirportPresenterInterface,
+    val airportIcao: String,
+) : JPanel(BorderLayout()), AirportViewInterface {
 
     private val maxHistory = 20.minutes
     private val maxFuture = 2.hours
@@ -47,15 +50,15 @@ class AirportView(
 
     val timeWindowScrollbar = TimeRangeScrollBarVertical(selectedTimeRange, availableTimeRange)
     val reloadButton = ReloadButton("Recalculate sequence for all arrivals") {
-        presenter.onRecalculateSequenceClicked(airport.icao)
+        presenter.onRecalculateSequenceClicked()
     }
     val westPanel = JPanel(BorderLayout()).apply {
         add(timeWindowScrollbar, BorderLayout.CENTER)
         add(reloadButton, BorderLayout.SOUTH)
     }
 
-    val timelineScrollPane = TimelineScrollPane(selectedTimeRange, availableTimeRange, presenter, airport)
-    val topBar = TopBar(presenter, airport.icao)
+    val timelineScrollPane = TimelineScrollPane(selectedTimeRange, availableTimeRange, presenter)
+    val topBar = TopBar(presenter)
 
     init {
         add(topBar, BorderLayout.NORTH)
@@ -86,15 +89,34 @@ class AirportView(
         topBar.updateNonSeqNumbers(numberOfNonSeq)
     }
 
-    fun updateDraggedLabel(
+    override fun updateDraggedLabel(
         timelineEvent: TimelineEvent,
-        proposedTime: Instant,
+        newInstant: Instant,
         isAvailable: Boolean,
     ) {
         val items = timelineScrollPane.viewport.view as JPanel
         items.components.filterIsInstance<TimelineView>().forEach { timelineView ->
-            timelineView.updateDraggedLabel(timelineEvent, proposedTime, isAvailable)
+            timelineView.updateDraggedLabel(timelineEvent, newInstant, isAvailable)
         }
+    }
+
+    override fun updateTab(tabData: TabData) {
+        TODO("Not yet implemented")
+    }
+
+    override fun updateWeatherData(weather: VerticalWeatherProfile?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun updateDescentTrajectory(
+        callsign: String,
+        trajectory: List<TrajectoryPoint>
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override fun showMinimumSpacingDialog(d: Double) {
+        TODO("Not yet implemented")
     }
 
     fun updateVisibleTimelines(timelineGroup: TimelineGroup) {
@@ -115,8 +137,19 @@ class AirportView(
         timelineScrollPane.updateMinimumSpacingSelection(minSpacingNm)
     }
 
-    fun updateRunwayModes(runwayModes: List<Pair<String, Boolean>>) {
+    override fun updateMinimumSpacing(minimumSpacingNm: Double) {
+        TODO("Not yet implemented")
+    }
+
+    override fun updateRunwayModes(runwayModes: Map<String, RunwayStatus>) {
         topBar.setRunwayModes(runwayModes)
+    }
+
+    override fun showAirportContextMenu(
+        availableTimelines: List<TimelineConfig>,
+        screenPos: Point
+    ) {
+        TODO("Not yet implemented")
     }
 
     fun openPopupMenu(availableTimelines: List<TimelineConfig>, screenPos: Point) {

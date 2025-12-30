@@ -1,0 +1,6 @@
+ktor:
+  application:
+    modules:
+      - no.vaccsca.amandman.backend.ApplicationKt.module
+  deployment:
+    port: 3000

@@ -1,5 +1,5 @@
 import no.vaccsca.amandman.model.domain.util.NavigationUtils.isBehind
-import no.vaccsca.amandman.model.domain.valueobjects.LatLng
+import no.vaccsca.amandman.common.domain.valueobjects.LatLng
 import kotlin.test.Test
 
 class NavigationUtilTest {

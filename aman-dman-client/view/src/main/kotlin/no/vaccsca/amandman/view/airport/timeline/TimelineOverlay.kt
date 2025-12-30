@@ -2,11 +2,11 @@ package no.vaccsca.amandman.view.airport.timeline
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.*
-import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
-import no.vaccsca.amandman.model.domain.valueobjects.SequenceStatus
-import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.*
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.common.domain.valueobjects.LabelItem
+import no.vaccsca.amandman.common.domain.valueobjects.SequenceStatus
+import no.vaccsca.amandman.common.domain.valueobjects.TimelineData
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.*
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.labels.ArrivalLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.DepartureLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.TimelineLabel
@@ -22,7 +22,7 @@ import javax.swing.SwingUtilities
 class TimelineOverlay(
     val timelineConfig: TimelineConfig,
     val timelineView: TimelineView,
-    val presenterInterface: PresenterInterface,
+    val presenter: AirportPresenterInterface,
     val arrivalLabelLayout: List<LabelItem>,
     val departureLabelLayout: List<LabelItem>,
 ) : JPanel(null) {
@@ -262,7 +262,7 @@ class TimelineOverlay(
     private fun TimelineEvent.createLabel(): TimelineLabel {
         val label = when (this) {
             is DepartureEvent -> DepartureLabel(departureLabelLayout, this, hBorder = labelHBorder, vBorder = labelVBorder)
-            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, this, presenterInterface, hBorder = labelHBorder, vBorder = labelVBorder)
+            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, this, presenter, hBorder = labelHBorder, vBorder = labelVBorder)
             else -> throw IllegalArgumentException("Unsupported occurrence type")
         }
         label.font = baseFont
@@ -307,14 +307,14 @@ class TimelineOverlay(
             }
             val pointInView = SwingUtilities.convertPoint(e.component, e.point, timelineView)
             val newInstant = timelineView.calculateInstantForYPosition(pointInView.y)
-            presenterInterface.onLabelDrag(timelineConfig.airportIcao, label.timelineEvent, newInstant)
+            presenter.onLabelDrag(label.timelineEvent, newInstant)
         }
     }
 
     private fun createLabelCopy(label: TimelineLabel): TimelineLabel? {
         val copy = when (label.timelineEvent) {
             is DepartureEvent -> DepartureLabel(departureLabelLayout, label.timelineEvent as DepartureEvent, hBorder = labelHBorder, vBorder = labelVBorder)
-            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, label.timelineEvent as RunwayArrivalEvent, presenterInterface, hBorder = labelHBorder, vBorder = labelVBorder)
+            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, label.timelineEvent as RunwayArrivalEvent, presenter, hBorder = labelHBorder, vBorder = labelVBorder)
             else -> return null
         }
         copy.font = label.font
@@ -326,13 +326,13 @@ class TimelineOverlay(
     }
 
     private fun handleLabelClick(label: TimelineLabel) {
-        label.timelineEvent.getFlight()?.let { presenterInterface.onAircraftSelected(it.callsign) }
+        label.timelineEvent.getFlight()?.let { presenter.onAircraftSelected(it.callsign) }
     }
 
     private fun onLabelDropped(timelineEvent: TimelineEvent, newTime: Instant) {
         if (timelineEvent is RunwayArrivalEvent) {
-            presenterInterface.beginRunwaySelection(timelineEvent) { selectedRunway ->
-                presenterInterface.onLabelDragEnd(timelineConfig.airportIcao, timelineEvent, newTime, selectedRunway)
+            presenter.beginRunwaySelection(timelineEvent) { selectedRunway ->
+                presenter.onLabelDragEnd(timelineEvent, newTime, selectedRunway)
             }
         }
     }

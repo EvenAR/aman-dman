@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.view.airport
 
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.common.domain.valueobjects.RunwayStatus
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.components.WrapLayout
 import java.awt.*
 import java.awt.event.ComponentAdapter
@@ -8,8 +9,7 @@ import java.awt.event.ComponentEvent
 import javax.swing.*
 
 class TopBar(
-    private val presenter: PresenterInterface,
-    private val airportIcao: String,
+    private val presenter: AirportPresenterInterface,
 ) : JPanel() {
     private val showDepartures = JCheckBox("Departures")
     private val nonSequencedButton = JButton("NonSeq")
@@ -21,7 +21,7 @@ class TopBar(
         layout = BorderLayout()
 
         showDepartures.addActionListener {
-            presenter.onToggleShowDepartures(airportIcao, showDepartures.isSelected)
+            presenter.onToggleShowDepartures(showDepartures.isSelected)
         }
 
         landingRatesButton.addActionListener {
@@ -59,14 +59,28 @@ class TopBar(
         }
     }
 
-    fun setRunwayModes(runwayModes: List<Pair<String, Boolean>>) {
+    fun setRunwayModes(runwayModes: Map<String, RunwayStatus>) {
+        val possibleRunwayModes = inferPossibleRunwayModes(runwayModes)
+        val runwayModesWithStatus = possibleRunwayModes.associateWith { mode ->
+            runwayModes.containsKey(mode)
+        }
         runwayModeList.removeAll()
-        runwayModes.forEach { (modeName, isActive) ->
+        runwayModesWithStatus.forEach { (modeName, isActive) ->
             val label = JLabel(modeName)
             label.foreground = if (isActive) Color.WHITE else Color.GRAY
             runwayModeList.add(label)
         }
         runwayModeList.revalidate()
         runwayModeList.repaint()
+    }
+
+    private fun inferPossibleRunwayModes(runwayStatuses: Map<String, RunwayStatus>): List<String> {
+        val allRunwayIds = runwayStatuses.keys.sorted()
+        val runwaysWithSameDirection = allRunwayIds
+            .groupBy { it.take(2) } // Assumes first two characters denote direction
+            .filter { it.value.size >= 2 } // Two or more runways in same direction
+            .map { it.value.joinToString("/") }
+
+        return allRunwayIds + runwaysWithSameDirection
     }
 }

@@ -1,0 +1,113 @@
+---
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$defs:
+  AircraftPerformanceYaml:
+    type: "object"
+    properties:
+      approachIAS:
+        type: "integer"
+        description: "Approach indicated airspeed in knots"
+        minimum: 0
+      approachMCS:
+        type: "integer"
+        description: "Approach Mach number"
+      approachROD:
+        type: "integer"
+        description: "Approach rate of descent in ft/min"
+      climb150IAS:
+        type: "integer"
+        description: "Climb speed at 1500 ft in IAS knots"
+        minimum: 0
+      climb150ROC:
+        type: "integer"
+        description: "Climb rate at 1500 ft in ft/min"
+      climb240IAS:
+        type: "integer"
+        description: "Climb speed at 2400 ft in IAS knots"
+        minimum: 0
+      climb240ROC:
+        type: "integer"
+        description: "Climb rate at 2400 ft in ft/min"
+      cruiseCeiling:
+        type: "integer"
+        description: "Cruise ceiling in feet"
+        minimum: 0
+      cruiseMACH:
+        type: "number"
+        description: "Cruise Mach number"
+      cruiseRange:
+        type: "integer"
+        description: "Cruise range in nautical miles"
+        minimum: 0
+      cruiseTAS:
+        type: "integer"
+        description: "Cruise True Airspeed in knots"
+        minimum: 0
+      descentIAS:
+        type: "integer"
+        description: "Descent indicated airspeed in knots"
+        minimum: 0
+      descentROD:
+        type: "integer"
+        description: "Descent rate of descent in ft/min"
+      initialClimbIAS:
+        type: "integer"
+        description: "Initial climb indicated airspeed in knots"
+        minimum: 0
+      initialClimbROC:
+        type: "integer"
+        description: "Initial climb rate of climb in ft/min"
+      initialDescentMACH:
+        type: "number"
+        description: "Initial descent Mach number"
+      initialDescentROD:
+        type: "integer"
+        description: "Initial descent rate of descent in ft/min"
+      landingAPC:
+        type: "string"
+        description: "Landing APC code"
+      landingDistance:
+        type: "integer"
+        description: "Landing distance in meters"
+        minimum: 0
+      landingVat:
+        type: "integer"
+        description: "Landing VAT speed in knots"
+        minimum: 0
+      machClimbMACH:
+        type: "number"
+        description: "Climb Mach number"
+      machClimbROC:
+        type: "integer"
+        description: "Climb rate of climb at Mach"
+      takeOffDistance:
+        type: "integer"
+        description: "Takeoff distance in meters"
+        minimum: 0
+      takeOffMTOW:
+        type: "integer"
+        description: "Maximum Takeoff Weight in kg"
+        minimum: 0
+      takeOffRECAT:
+        type: "string"
+        description: "RECAT code for takeoff weight"
+      takeOffV2:
+        type: "integer"
+        description: "Takeoff V2 speed in knots"
+        minimum: 0
+      takeOffWTC:
+        type: "string"
+        description: "Takeoff Weight Category (A/B/C/D)"
+    additionalProperties: false
+  Map(String,AircraftPerformanceYaml):
+    type: "object"
+    additionalProperties:
+      $ref: "#/$defs/AircraftPerformanceYaml"
+type: "object"
+properties:
+  aircraft:
+    $ref: "#/$defs/Map(String,AircraftPerformanceYaml)"
+    description: "Map of aircraft type codes to performance parameters"
+required:
+- "aircraft"
+additionalProperties: false

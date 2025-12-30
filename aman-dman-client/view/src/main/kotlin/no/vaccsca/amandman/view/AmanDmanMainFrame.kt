@@ -2,28 +2,23 @@ package no.vaccsca.amandman.view
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.domain.TimelineGroup
+import no.vaccsca.amandman.common.domain.valueobjects.atcClient.ControllerInfoData
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.RunwayEvent
+import no.vaccsca.amandman.presenter.AirportPresenter
+import no.vaccsca.amandman.presenter.AirportViewInterface
 import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.TimelineGroup
 import no.vaccsca.amandman.presenter.ViewInterface
-import no.vaccsca.amandman.model.domain.valueobjects.TrajectoryPoint
-import no.vaccsca.amandman.model.data.dto.TabData
-import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
 import no.vaccsca.amandman.view.airport.Footer
+import no.vaccsca.amandman.view.dialogs.RoleSelectionDialog
+import no.vaccsca.amandman.view.dialogs.RunwayDialog
+import no.vaccsca.amandman.view.visualizations.DescentProfileVisualization
 import no.vaccsca.amandman.view.visualizations.LandingRatesGraph
-import no.vaccsca.amandman.view.forms.NewTimelineForm
 import no.vaccsca.amandman.view.visualizations.NonSeqView
 import no.vaccsca.amandman.view.visualizations.VerticalWindView
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.*
-import kotlin.math.roundToInt
-import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
-import no.vaccsca.amandman.view.dialogs.RunwayDialog
-import no.vaccsca.amandman.view.dialogs.SpacingDialog
-import no.vaccsca.amandman.view.visualizations.DescentProfileVisualization
-import java.awt.Point
 import kotlin.time.Duration.Companion.seconds
 
 class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
@@ -50,10 +45,8 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
     }
 
     override fun openWindow() {
-
-        presenterInterface.onReloadSettingsRequested()
         footer = Footer(presenterInterface, this)
-        airportViewsPanel = AirportViewsPanel(presenterInterface)
+        airportViewsPanel = AirportViewsPanel()
         verticalWindView = VerticalWindView(presenterInterface)
 
         setSize(1000, 800)
@@ -63,10 +56,6 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
 
         isVisible = true // Show the frame
         isAlwaysOnTop = true
-    }
-
-    override fun updateMinimumSpacing(airportIcao: String, minimumSpacingNm: Double) = runOnUiThread {
-        airportViewsPanel?.updateMinimumSpacing(airportIcao, minimumSpacingNm)
     }
 
     override fun openSelectRunwayDialog(
@@ -97,40 +86,8 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
         airportViewsPanel?.updateTime(currentTime, delta)
     }
 
-    override fun showAirportContextMenu(
-        airportIcao: String,
-        availableTimelines: List<TimelineConfig>,
-        screenPos: Point
-    ) = runOnUiThread {
-        airportViewsPanel?.openPopupMenu(airportIcao, availableTimelines, screenPos)
-    }
-
-    override fun updateTab(airportIcao: String, tabData: TabData) = runOnUiThread {
-        airportViewsPanel?.updateTab(airportIcao, tabData)
-        val allArrivalEvents = tabData.timelinesData.flatMap { it.left + it.right }
-        landingRatesGraph.updateData(airportIcao, allArrivalEvents)
-        nonSeqView.updateNonSeqData(
-            tabData.timelinesData.flatMap { it.left + it.right }
-        )
-    }
-
     override fun updateTimelineGroups(timelineGroups: List<TimelineGroup>) = runOnUiThread {
         airportViewsPanel?.updateTimelineGroups(timelineGroups)
-    }
-
-    override fun updateDraggedLabel(
-        timelineEvent: TimelineEvent,
-        newInstant: Instant,
-        isAvailable: Boolean
-    ) = runOnUiThread {
-        airportViewsPanel?.updateDraggedLabel(timelineEvent, newInstant, isAvailable)
-    }
-
-    override fun updateRunwayModes(
-        airportIcao: String,
-        runwayModes: List<Pair<String, Boolean>>
-    ) = runOnUiThread {
-        airportViewsPanel?.updateRunwayModes(airportIcao, runwayModes)
     }
 
     override fun openTimelineConfigForm(
@@ -139,7 +96,7 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
         availableTagLayoutsArr: Set<String>,
         existingConfig: TimelineConfig?
     ) = runOnUiThread {
-        if (newTimelineForm != null) {
+        /*if (newTimelineForm != null) {
             newTimelineForm?.isVisible = true
         } else {
             newTimelineForm = JDialog(this, "New timeline for $groupId").apply {
@@ -154,7 +111,7 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
         timelineForm?.update(
             arrLayouts = availableTagLayoutsArr,
             depLayouts = availableTagLayoutsDep
-        )
+        )*/
     }
 
     override fun closeTimelineForm() = runOnUiThread {
@@ -163,20 +120,16 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
         newTimelineForm = null
     }
 
-    override fun showMinimumSpacingDialog(icao: String, default: Double) = runOnUiThread {
-        SpacingDialog.open(this, icao, default) { newValue ->
-            presenterInterface.onMinimumSpacingDistanceSet(icao, newValue)
-        }
+    override fun createAirportView(airportIcao: String, presenter: AirportPresenter): AirportViewInterface {
+        val newAirportView = AirportView(presenter, airportIcao)
+
+        return newAirportView
     }
 
-    override fun updateDescentTrajectory(
-        callsign: String,
-        trajectory: List<TrajectoryPoint>
-    ) = runOnUiThread {
-        val currentFlightLevel = (trajectory.first().altitude / 100.0).roundToInt()
-        descentProfileDialog?.title =
-            "$callsign - calculated descent profile from FL$currentFlightLevel"
-        descentProfileVisualizationView.setDescentSegments(trajectory)
+    override fun openStartWindow(availableAirports: Set<String>) = runOnUiThread {
+        RoleSelectionDialog.open(this, availableAirports) { icao, role ->
+            presenterInterface.onNewTimelineGroup(icao, role)
+        }
     }
 
     override fun openMetWindow(airportIcao: String) = runOnUiThread {
@@ -225,13 +178,6 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
         }
     }
 
-    override fun updateWeatherData(
-        airportIcao: String,
-        weather: VerticalWeatherProfile?
-    ) = runOnUiThread {
-        verticalWindView?.update(airportIcao, weather)
-    }
-
     override fun openDescentProfileWindow(callsign: String) = runOnUiThread {
         if (descentProfileDialog != null) {
             descentProfileDialog?.isVisible = true
@@ -245,7 +191,6 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
                 pack()
             }
         }
-        presenterInterface.onAircraftSelected(callsign)
     }
 
     override fun showErrorMessage(message: String) = runOnUiThread {

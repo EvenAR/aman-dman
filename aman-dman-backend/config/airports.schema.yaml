@@ -1,0 +1,57 @@
+---
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$defs:
+  AirportJson:
+    type: "object"
+    properties:
+      location:
+        $ref: "#/$defs/LocationJson"
+      runwayThresholds:
+        $ref: "#/$defs/Map(String,RunwayThresholdJson)"
+    required:
+    - "location"
+    - "runwayThresholds"
+    additionalProperties: false
+  LocationJson:
+    type: "object"
+    properties:
+      latitude:
+        type: "number"
+        minimum: -90
+        maximum: 90
+      longitude:
+        type: "number"
+        minimum: -180
+        maximum: 180
+    additionalProperties: false
+  Map(String,AirportJson):
+    type: "object"
+    additionalProperties:
+      $ref: "#/$defs/AirportJson"
+  Map(String,RunwayThresholdJson):
+    type: "object"
+    additionalProperties:
+      $ref: "#/$defs/RunwayThresholdJson"
+  RunwayThresholdJson:
+    type: "object"
+    properties:
+      elevation:
+        type: "number"
+        minimum: 0
+      location:
+        $ref: "#/$defs/LocationJson"
+      trueHeading:
+        type: "number"
+        minimum: 0
+        maximum: 360
+    required:
+    - "location"
+    additionalProperties: false
+type: "object"
+properties:
+  airports:
+    $ref: "#/$defs/Map(String,AirportJson)"
+    minProperties: 1
+required:
+- "airports"
+additionalProperties: false

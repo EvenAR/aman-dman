@@ -1,4 +1,4 @@
-import no.vaccsca.amandman.model.domain.valueobjects.weather.WindVector
+import no.vaccsca.amandman.common.domain.valueobjects.weather.WindVector
 import no.vaccsca.amandman.model.domain.util.SpeedConversionUtils
 import kotlin.test.Ignore
 import kotlin.test.Test

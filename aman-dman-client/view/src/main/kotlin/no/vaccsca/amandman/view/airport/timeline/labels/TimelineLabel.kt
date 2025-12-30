@@ -1,9 +1,9 @@
 package no.vaccsca.amandman.view.airport.timeline.labels
 
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
-import no.vaccsca.amandman.model.domain.valueobjects.LabelItemAlignment
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.common.domain.valueobjects.LabelItem
+import no.vaccsca.amandman.common.domain.valueobjects.LabelItemAlignment
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.TimelineEvent
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font

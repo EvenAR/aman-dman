@@ -1,0 +1,139 @@
+---
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$defs:
+  AtcClientConnectionParamsYaml:
+    type: "object"
+    properties:
+      host:
+        type: "string"
+        minLength: 1
+      port:
+        type: "integer"
+        minimum: 1
+        maximum: 65535
+    required:
+    - "host"
+    additionalProperties: false
+  ConnectionConfigYaml:
+    type: "object"
+    properties:
+      atcClient:
+        $ref: "#/$defs/AtcClientConnectionParamsYaml"
+      masterSlaveApi:
+        $ref: "#/$defs/MasterSlaveApiConnectionParamsYaml"
+    required:
+    - "atcClient"
+    - "masterSlaveApi"
+    additionalProperties: false
+  LabelItemAlignmentEnumYaml:
+    type: "string"
+    enum:
+    - "left"
+    - "center"
+    - "right"
+  LabelItemSourceEnumYaml:
+    type: "string"
+    enum:
+    - "callSign"
+    - "assignedRunway"
+    - "assignedStar"
+    - "aircraftType"
+    - "wakeCategory"
+    - "timeBehindPreceding"
+    - "minutesBehindPrecedingRounded"
+    - "remainingDistance"
+    - "distanceBehindPreceding"
+    - "directRouting"
+    - "scratchPad"
+    - "estimatedLandingTime"
+    - "groundSpeed"
+    - "groundSpeed10"
+    - "altitude"
+    - "timeToLoseOrGain"
+  LabelItemYaml:
+    type: "object"
+    properties:
+      align:
+        $ref: "#/$defs/LabelItemAlignmentEnumYaml"
+      def:
+        type: "string"
+      maxLen:
+        type: "integer"
+        minimum: 1
+      src:
+        $ref: "#/$defs/LabelItemSourceEnumYaml"
+      via:
+        type: "boolean"
+      w:
+        type: "integer"
+        minimum: 1
+    required:
+    - "src"
+    additionalProperties: false
+  Map(String,List(LabelItemYaml)):
+    type: "object"
+    additionalProperties:
+      type: "array"
+      items:
+        $ref: "#/$defs/LabelItemYaml"
+  Map(String,List(TimelineYaml)):
+    type: "object"
+    additionalProperties:
+      type: "array"
+      items:
+        $ref: "#/$defs/TimelineYaml"
+  MasterSlaveApiConnectionParamsYaml:
+    type: "object"
+    properties:
+      host:
+        type: "string"
+        minLength: 1
+    required:
+    - "host"
+    additionalProperties: false
+  SideYaml:
+    type: "object"
+    properties:
+      runways:
+        minItems: 1
+        type: "array"
+        items:
+          type: "string"
+    required:
+    - "runways"
+    additionalProperties: false
+  TimelineYaml:
+    type: "object"
+    properties:
+      arrivalLabelLayoutId:
+        type: "string"
+        minLength: 1
+      left:
+        $ref: "#/$defs/SideYaml"
+      right:
+        $ref: "#/$defs/SideYaml"
+      timelineTitle:
+        type: "string"
+        minLength: 1
+    required:
+    - "arrivalLabelLayoutId"
+    - "right"
+    - "timelineTitle"
+    additionalProperties: false
+type: "object"
+properties:
+  arrivalLabelLayouts:
+    $ref: "#/$defs/Map(String,List(LabelItemYaml))"
+    minProperties: 1
+  connectionConfig:
+    $ref: "#/$defs/ConnectionConfigYaml"
+  departureLabelLayouts:
+    $ref: "#/$defs/Map(String,List(LabelItemYaml))"
+  timelines:
+    $ref: "#/$defs/Map(String,List(TimelineYaml))"
+    minProperties: 1
+required:
+- "arrivalLabelLayouts"
+- "connectionConfig"
+- "timelines"
+additionalProperties: false

@@ -1,12 +1,12 @@
 package no.vaccsca.amandman.presenter
 
-import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
+import no.vaccsca.amandman.common.domain.valueobjects.RunwayStatus
 
 /**
  * Manages runway mode state and automatically updates the view when any component changes.
  * This follows the Single Responsibility Principle and Observer Pattern.
  */
-class RunwayModeStateManager(private val view: ViewInterface) {
+class RunwayModeStateManager(private val view: AirportViewInterface) {
 
     private val airportStates = mutableMapOf<String, RunwayModeState>()
 
@@ -53,7 +53,7 @@ class RunwayModeStateManager(private val view: ViewInterface) {
 
     private fun updateView(airportIcao: String, state: RunwayModeState) {
         val displayLabels = state.generateDisplayLabels()
-        view.updateRunwayModes(airportIcao, displayLabels)
+        //view.updateRunwayModes(airportIcao, displayLabels)
     }
 
     private fun inferPossibleRunwayModes(runwayStatuses: Map<String, RunwayStatus>): List<String> {

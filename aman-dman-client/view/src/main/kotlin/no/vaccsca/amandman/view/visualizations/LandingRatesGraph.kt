@@ -2,7 +2,7 @@ package no.vaccsca.amandman.view.visualizations
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.TimelineEvent
 import no.vaccsca.amandman.view.entity.TimeRange
 import no.vaccsca.amandman.view.airport.TimeRangeScrollBarHorizontal
 import no.vaccsca.amandman.view.entity.SharedValue

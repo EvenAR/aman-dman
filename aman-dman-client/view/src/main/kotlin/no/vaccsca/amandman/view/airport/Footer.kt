@@ -1,17 +1,11 @@
 package no.vaccsca.amandman.view.airport
 
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.UserRole
-import no.vaccsca.amandman.model.data.repository.SettingsRepository
 import no.vaccsca.amandman.presenter.PresenterInterface
 import no.vaccsca.amandman.view.dialogs.RoleSelectionDialog
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Graphics
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
-import java.awt.Insets
-import java.awt.event.MouseEvent
 import javax.swing.*
 
 class Footer(
@@ -34,9 +28,7 @@ class Footer(
         }.start()
 
         startButton.addActionListener {
-            RoleSelectionDialog.open(mainWindow) { icao, role ->
-                presenterInterface.onNewTimelineGroup(icao, role)
-            }
+            presenterInterface.onStartButtonClicked()
         }
     }
 

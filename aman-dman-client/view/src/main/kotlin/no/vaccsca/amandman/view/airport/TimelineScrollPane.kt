@@ -1,9 +1,8 @@
 package no.vaccsca.amandman.view.airport
 
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.domain.valueobjects.Airport
-import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.common.domain.valueobjects.TimelineData
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
 import no.vaccsca.amandman.view.airport.timeline.TimelineView
 import no.vaccsca.amandman.view.entity.TimeRange
@@ -22,8 +21,7 @@ import kotlin.time.Duration.Companion.seconds
 class TimelineScrollPane(
     val selectedTimeRange: SharedValue<TimeRange>,
     val availableTimeRange: SharedValue<TimeRange>,
-    val presenterInterface: PresenterInterface,
-    val airport: Airport,
+    val presenter: AirportPresenterInterface,
 ) : JScrollPane(VERTICAL_SCROLLBAR_NEVER, HORIZONTAL_SCROLLBAR_AS_NEEDED) {
 
     private var minSpacingSelectionNm: Double? = null
@@ -44,14 +42,14 @@ class TimelineScrollPane(
             private fun maybeShowPopup(e: java.awt.event.MouseEvent) {
                 if (e.isPopupTrigger) {
                     val converted = javax.swing.SwingUtilities.convertPoint(e.component, e.point, viewport)
-                    presenterInterface.onTabMenu(airport.icao, converted)
+                    presenter.onTabMenu(converted)
                 }
             }
         })
     }
 
     fun insertTimeline(timelineConfig: TimelineConfig) {
-        val tl = TimelineView(timelineConfig, selectedTimeRange, presenterInterface)
+        val tl = TimelineView(timelineConfig, selectedTimeRange, presenter)
         val items = viewport.view as JPanel
 
         // Remove the previous glue (assumes it’s always the last component and a JLabel)
@@ -131,31 +129,31 @@ class TimelineScrollPane(
     fun openPopupMenu(availableTimelines: List<TimelineConfig>, screenPos: Point) {
         val sorted = availableTimelines.sortedBy { it.title }
 
-        val popup = AmanPopupMenu("${airport.icao} Actions") {
+        val popup = AmanPopupMenu("Airport Actions") {
             item("Add timeline") {
                 sorted.forEach { timeline ->
                     item(timeline.title, action = {
-                        presenterInterface.onAddTimelineButtonClicked(airport.icao, timeline)
+                        presenter.onAddTimelineButtonClicked(timeline)
                     })
                 }
                 separator()
                 item("Custom ...", action = {
-                    presenterInterface.onCreateNewTimelineClicked(airport.icao)
+                    presenter.onCreateNewTimelineClicked()
                 })
             }
 
             item("Final approach spacing", action = {
-                presenterInterface.onSetMinSpacingSelectionClicked(airport.icao, minSpacingSelectionNm)
+                presenter.onSetMinSpacingSelectionClicked(minSpacingSelectionNm)
             })
 
             item("Show winds", action = {
-                presenterInterface.onOpenMetWindowClicked(airport.icao)
+                presenter.onOpenMetWindowClicked()
             })
 
             separator()
 
             item("Close airport view", action = {
-                presenterInterface.onRemoveTab(airport.icao)
+                presenter.onRemoveTab()
             })
         }
 

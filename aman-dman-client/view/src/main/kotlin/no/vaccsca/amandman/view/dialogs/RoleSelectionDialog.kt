@@ -1,7 +1,6 @@
 package no.vaccsca.amandman.view.dialogs
 
-import no.vaccsca.amandman.model.UserRole
-import no.vaccsca.amandman.model.data.repository.SettingsRepository
+import no.vaccsca.amandman.common.domain.UserRole
 import java.awt.Frame
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -12,9 +11,8 @@ import javax.swing.JOptionPane
 import javax.swing.JPanel
 
 object RoleSelectionDialog {
-    fun open(parent: Frame, onSubmit: (icao: String, role: UserRole) -> Unit) {
+    fun open(parent: Frame, availableAirportIcaos: Set<String>, onSubmit: (icao: String, role: UserRole) -> Unit) {
         // Get available ICAOs and sort them alphabetically
-        val availableAirportIcaos = SettingsRepository.getAirportData().map { it.icao }
         val icaoComboBox = JComboBox(availableAirportIcaos.toTypedArray())
 
         val roles = UserRole.entries.toTypedArray()

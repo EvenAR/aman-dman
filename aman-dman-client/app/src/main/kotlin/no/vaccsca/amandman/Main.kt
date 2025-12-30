@@ -2,8 +2,6 @@ package no.vaccsca.amandman
 
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel
 import no.vaccsca.amandman.presenter.Presenter
-import no.vaccsca.amandman.model.domain.PlannerManager
-import no.vaccsca.amandman.model.domain.service.GuiDataHandler
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import java.util.*
 import javax.swing.SwingUtilities
@@ -39,11 +37,13 @@ fun main() {
         val view = AmanDmanMainFrame()
 
         // --- Service ---
-        val guiUpdater = GuiDataHandler()
+        /*val guiUpdater = GuiDataHandler()
 
         // --- Controller ---
         val presenter = Presenter(PlannerManager(), view, guiUpdater)
-        guiUpdater.presenter = presenter
+        guiUpdater.presenter = presenter*/
+
+        view.presenterInterface = Presenter(view)
 
         view.openWindow()
     }

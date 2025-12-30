@@ -10,7 +10,6 @@ dependencies {
     implementation(project(":presenter"))
     implementation(project(":view"))
     implementation(project(":model"))
-    implementation(project(":common"))
 
     implementation("com.jtattoo:JTattoo:1.6.13")
 }

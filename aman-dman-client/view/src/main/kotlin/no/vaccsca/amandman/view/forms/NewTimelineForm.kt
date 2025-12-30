@@ -1,8 +1,8 @@
 package no.vaccsca.amandman.view.forms
 
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.data.dto.CreateOrUpdateTimelineDto
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.common.dto.CreateOrUpdateTimelineDto
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import java.awt.Dialog
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -19,7 +19,7 @@ import javax.swing.JPanel
 import javax.swing.JTextField
 
 class NewTimelineForm(
-    private val presenterInterface: PresenterInterface,
+    private val airportPresenter: AirportPresenterInterface,
     private val airportIcao: String,
     existingConfig: TimelineConfig?
 ) : JPanel() {
@@ -147,7 +147,7 @@ class NewTimelineForm(
             return
         }
 
-        presenterInterface.onCreateNewTimeline(
+        airportPresenter.onCreateNewTimeline(
             CreateOrUpdateTimelineDto(
                 airportIcao = airportIcao,
                 title = titleText,

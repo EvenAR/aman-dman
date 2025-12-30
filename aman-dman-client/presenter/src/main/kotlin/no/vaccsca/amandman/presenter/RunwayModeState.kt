@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.presenter
 
-import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
+import no.vaccsca.amandman.common.domain.valueobjects.RunwayStatus
 
 /**
  * Holds the complete state needed to generate runway mode labels.

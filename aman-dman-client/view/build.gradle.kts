@@ -10,12 +10,12 @@ repositories {
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
-    implementation(project(":common"))
+    implementation("no.vaccsca.amandman:aman-dman-common:0.0.1")
     implementation(project(":presenter"))
-    implementation(project(":model"))
 
     implementation("org.jfree:jfreechart:1.5.3")
+    
+    testImplementation(kotlin("test"))
 }
 
 tasks.test {

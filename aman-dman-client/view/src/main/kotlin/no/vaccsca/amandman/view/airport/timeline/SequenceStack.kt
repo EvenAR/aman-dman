@@ -1,7 +1,7 @@
 package no.vaccsca.amandman.view.airport.timeline
 
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayDelayEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.RunwayDelayEvent
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.TimelineEvent
 import no.vaccsca.amandman.view.airport.timeline.enums.TimelineAlignment
 import java.awt.Color
 import java.awt.Graphics

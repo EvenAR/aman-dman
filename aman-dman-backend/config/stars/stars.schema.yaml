@@ -1,0 +1,49 @@
+---
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$defs:
+  StarWaypointYaml:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        minLength: 1
+        pattern: "^[A-Z0-9]+$"
+      typicalAltitude:
+        type: "integer"
+        description: "The typical altitude at this waypoint (in feet)"
+        minimum: 0
+      typicalSpeed:
+        type: "integer"
+        description: "The typical indicated airspeed at this waypoint (in knots)"
+        minimum: 0
+    required:
+    - "id"
+    additionalProperties: false
+  StarYamlEntry:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        minLength: 1
+      runway:
+        type: "string"
+        minLength: 1
+        pattern: "^[0-9]{2}[A-Z]?$"
+      waypoints:
+        type: "array"
+        items:
+          $ref: "#/$defs/StarWaypointYaml"
+    required:
+    - "name"
+    - "runway"
+    - "waypoints"
+    additionalProperties: false
+type: "object"
+properties:
+  stars:
+    type: "array"
+    items:
+      $ref: "#/$defs/StarYamlEntry"
+required:
+- "stars"
+additionalProperties: false

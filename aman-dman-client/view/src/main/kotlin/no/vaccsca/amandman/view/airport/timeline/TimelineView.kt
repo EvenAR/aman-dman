@@ -2,10 +2,11 @@ package no.vaccsca.amandman.view.airport.timeline
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.data.repository.SettingsRepository
+import no.vaccsca.amandman.common.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.presenter.PresenterInterface
-import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.common.domain.valueobjects.TimelineData
+import no.vaccsca.amandman.common.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.entity.TimeRange
 import no.vaccsca.amandman.view.airport.timeline.enums.TimelineAlignment
 import no.vaccsca.amandman.view.entity.SharedValue
@@ -18,13 +19,13 @@ import kotlin.time.Duration.Companion.seconds
 class TimelineView(
     val timelineConfig: TimelineConfig,
     private val selectedTimeRange: SharedValue<TimeRange>,
-    private val presenterInterface: PresenterInterface,
+    private val presenterInterface: AirportPresenterInterface,
 ) : JLayeredPane() {
     private val scaleWidth = 60
     private val isDual = timelineConfig.runwaysLeft.isNotEmpty() && timelineConfig.runwaysRight.isNotEmpty()
 
     private val basePanel = JPanel(null)
-    private val labelLayout = SettingsRepository.getSettings().arrivalLabelLayouts[timelineConfig.arrLabelLayout]!!
+    private val labelLayout = emptyList<LabelItem>()// SettingsRepository.getSettings().arrivalLabelLayouts[timelineConfig.arrLabelLayout]!!
 
     private val labelContainer = TimelineOverlay(timelineConfig, this, presenterInterface, labelLayout, labelLayout)
     private val timeScale = TimeScale(this, selectedTimeRange, !isDual, presenterInterface)

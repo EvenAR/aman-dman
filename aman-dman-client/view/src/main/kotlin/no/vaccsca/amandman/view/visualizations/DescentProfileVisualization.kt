@@ -1,7 +1,6 @@
 package no.vaccsca.amandman.view.visualizations
 
-import no.vaccsca.amandman.model.domain.valueobjects.TrajectoryPoint
-import no.vaccsca.amandman.view.visualizations.WindBarbs
+import no.vaccsca.amandman.common.domain.valueobjects.TrajectoryPoint
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Graphics
