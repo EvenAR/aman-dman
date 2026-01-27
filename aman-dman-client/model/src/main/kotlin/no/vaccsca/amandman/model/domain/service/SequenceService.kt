@@ -392,7 +392,12 @@ object SequenceService {
         // Check if there's a conflict with the follower (aircraft after preferred time)
         val follower = existingPlaces
             .filter { it.scheduledTime > bestTime }
-            .minByOrNull { it.scheduledTime }
+            .sortedBy { it.scheduledTime } // Sort by time ascending
+            .firstOrNull {
+                val item = it.item
+                item is AircraftSequenceCandidate &&
+                        !areIndependent(item, newCandidate, independentRunwaySystems)
+            }
 
         if (follower != null) {
             val requiredFollowerTime = calculateSafeLandingTime(
@@ -402,8 +407,6 @@ object SequenceService {
                 minimumSeparationNm = minimumSeparationNm,
                 independentRunwaySystems = independentRunwaySystems
             )
-            // Only change time if there's a conflict (follower would be too close)
-            // But don't push aircraft in locked horizon
             if (follower.scheduledTime < requiredFollowerTime && !follower.item.isInLockedHorizon()) {
                 // Move to an earlier time to avoid pushing the follower
                 val effectiveSpacing = if (areIndependent(newCandidate, follower.item, independentRunwaySystems)) {
