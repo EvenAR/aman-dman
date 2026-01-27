@@ -49,13 +49,24 @@ object SequenceService {
         var insertIdx = updatedPlaces.indexOfFirst { it.scheduledTime > scheduledTime }
         if (insertIdx == -1) insertIdx = updatedPlaces.size
 
-        // Determine the earliest valid time at or after requested time, considering spacing with new leader
-        val prev = if (insertIdx > 0) updatedPlaces[insertIdx - 1] else null
+        var prevDependent: SequencePlace? = null
+        for (i in (insertIdx - 1) downTo 0) {
+            if (!areIndependent(updatedPlaces[i].item as AircraftSequenceCandidate,
+                    oldPlace.item as AircraftSequenceCandidate, independentRunwaySystems)) {
+                prevDependent = updatedPlaces[i]
+                break
+            }
+        }
         var newTime = scheduledTime
-        if (prev != null) {
+        if (insertIdx > 0) {
+            val immediatePrev = updatedPlaces[insertIdx - 1]
+            if (newTime < immediatePrev.scheduledTime) newTime = immediatePrev.scheduledTime
+        }
+
+        if (prevDependent != null) {
             val minTime = calculateSafeLandingTime(
-                referenceTime = prev.scheduledTime,
-                leader = prev.item as AircraftSequenceCandidate,
+                referenceTime = prevDependent.scheduledTime,
+                leader = prevDependent.item as AircraftSequenceCandidate,
                 follower = oldPlace.item as AircraftSequenceCandidate,
                 minimumSeparationNm = minimumSeparationNm,
                 independentRunwaySystems = independentRunwaySystems
@@ -67,15 +78,24 @@ object SequenceService {
 
         // Recalculate scheduled times for following aircraft, ensuring proper spacing
         for (i in (insertIdx + 1) until updatedPlaces.size) {
-            val leader = updatedPlaces[i - 1]
             val follower = updatedPlaces[i]
-            val minTime = calculateSafeLandingTime(
-                referenceTime = leader.scheduledTime,
-                leader = leader.item as AircraftSequenceCandidate,
-                follower = follower.item as AircraftSequenceCandidate,
-                minimumSeparationNm = minimumSeparationNm,
-                independentRunwaySystems = independentRunwaySystems
-            )
+            val leader = updatedPlaces.subList(0, i).lastOrNull {
+                !areIndependent(it.item as AircraftSequenceCandidate, follower.item as AircraftSequenceCandidate, independentRunwaySystems)
+            }
+            val minSafeTime = if (leader != null && leader.item is AircraftSequenceCandidate && follower.item is AircraftSequenceCandidate) {
+                calculateSafeLandingTime(
+                    referenceTime = leader.scheduledTime,
+                    leader = leader.item, // Smart-cast to AircraftSequenceCandidate
+                    follower = follower.item, // Smart-cast to AircraftSequenceCandidate
+                    minimumSeparationNm = minimumSeparationNm,
+                    independentRunwaySystems = independentRunwaySystems
+                )
+            } else {
+                follower.item.preferredTime // Fallback if no leader or types don't match
+            }
+
+            val immediatePrevTime = updatedPlaces[i - 1].scheduledTime
+            val minTime = maxOf(minSafeTime, immediatePrevTime)
 
             // Always move following aircraft if there's a spacing conflict, regardless of manual assignment
             if (follower.scheduledTime < minTime) {
@@ -133,7 +153,11 @@ object SequenceService {
 
         val closestLeader = currentSequence.sequecencePlaces
             .filter { it.scheduledTime <= requestedTime }
-            .maxByOrNull { it.scheduledTime }
+            .sortedByDescending { it.scheduledTime }
+            .firstOrNull {
+                !areIndependent(it.item as AircraftSequenceCandidate,
+                    arrivalToCheck as AircraftSequenceCandidate, independentRunwaySystems)
+            }
 
         if (closestLeader == null) {
             // No preceding aircraft, so the time slot is available
@@ -281,22 +305,35 @@ object SequenceService {
 
         // Final pass: ensure spacing is maintained in the sorted sequence
         for (i in 1 until allSequencePlaces.size) {
-            val leader = allSequencePlaces[i - 1]
             val follower = allSequencePlaces[i]
 
-            val minTime = calculateSafeLandingTime(
-                referenceTime = leader.scheduledTime,
-                leader = leader.item as AircraftSequenceCandidate,
-                follower = follower.item as AircraftSequenceCandidate,
-                minimumSeparationNm = minimumSeparationNm,
-                independentRunwaySystems = independentRunwaySystems
-            )
+            val dependentLeader = allSequencePlaces.subList(0, i).lastOrNull {
+                !areIndependent(it.item as AircraftSequenceCandidate, follower.item as AircraftSequenceCandidate, independentRunwaySystems)
+            }
 
-            if (follower.scheduledTime < minTime) {
+            val minSafeTime = if (dependentLeader != null &&
+                dependentLeader.item is AircraftSequenceCandidate &&
+                follower.item is AircraftSequenceCandidate) {
+                calculateSafeLandingTime(
+                    referenceTime = dependentLeader.scheduledTime,
+                    leader = dependentLeader.item, // Smart-cast to AircraftSequenceCandidate
+                    follower = follower.item,      // Smart-cast to AircraftSequenceCandidate
+                    minimumSeparationNm = minimumSeparationNm,
+                    independentRunwaySystems = independentRunwaySystems
+                )
+            } else {
+                follower.item.preferredTime // Fallback if no dependent leader or types don't match
+            }
+
+            // Also ensure we don't start before the immediate predecessor (preserve list order/monotonicity)
+            val immediatePrevTime = allSequencePlaces[i - 1].scheduledTime
+            val requiredTime = maxOf(minSafeTime, immediatePrevTime)
+
+            if (follower.scheduledTime < requiredTime) {
                 val adjustedTime = if (follower.isManuallyAssigned) {
-                    minTime // Move manually assigned aircraft to maintain spacing
+                    requiredTime // Move manually assigned aircraft to maintain spacing
                 } else {
-                    maxOf(minTime, follower.item.preferredTime) // Try to keep preferred time for auto-scheduled
+                    maxOf(requiredTime, follower.item.preferredTime) // Try to keep preferred time for auto-scheduled
                 }
                 allSequencePlaces[i] = follower.copy(scheduledTime = adjustedTime)
             }
@@ -335,7 +372,8 @@ object SequenceService {
         // Check if there's a conflict with the leader (aircraft before preferred time)
         val leader = existingPlaces
             .filter { it.scheduledTime <= bestTime }
-            .maxByOrNull { it.scheduledTime }
+            .sortedByDescending { it.scheduledTime }
+            .firstOrNull { !areIndependent(it.item as AircraftSequenceCandidate, newCandidate, independentRunwaySystems) }
 
         if (leader != null) {
             val requiredTime = calculateSafeLandingTime(
@@ -368,7 +406,9 @@ object SequenceService {
             // But don't push aircraft in locked horizon
             if (follower.scheduledTime < requiredFollowerTime && !follower.item.isInLockedHorizon()) {
                 // Move to an earlier time to avoid pushing the follower
-                val effectiveSpacing = if (areOnDifferentRunways(newCandidate, follower.item as AircraftSequenceCandidate)) {
+                val effectiveSpacing = if (areIndependent(newCandidate, follower.item, independentRunwaySystems)) {
+                    0.0
+                } else if (areOnDifferentRunways(newCandidate, follower.item as AircraftSequenceCandidate)) {
                     minimumSeparationNm
                 } else {
                     maxOf(
@@ -406,17 +446,7 @@ object SequenceService {
         minimumSeparationNm: Double,
         independentRunwaySystems: List<Set<String>>
     ): Instant {
-
-        val leaderSystem = independentRunwaySystems.find { leader.assignedRunway in it }
-        val followerSystem = independentRunwaySystems.find { follower.assignedRunway in it }
-
-        val areIndependent = if (leaderSystem != null && followerSystem != null) {
-            leaderSystem !== followerSystem
-        } else {
-            false
-        }
-
-        val effectiveSpacingNm = if (areIndependent) {
+        val effectiveSpacingNm = if (areIndependent(leader, follower, independentRunwaySystems)) {
             0.0
         } else if (areOnDifferentRunways(leader, follower)) {
             // Use minimum separation for aircraft on different runways
@@ -464,6 +494,23 @@ object SequenceService {
         return remainingTime < LOCKED_HORIZON
     }
 
+    private fun areIndependent(
+        candidate1: AircraftSequenceCandidate,
+        candidate2: AircraftSequenceCandidate,
+        independentRunwaySystems: List<Set<String>>
+    ): Boolean {
+        val rwy1 = candidate1.assignedRunway
+        val rwy2 = candidate2.assignedRunway
+
+        if (rwy1 == null || rwy2 == null) return false
+
+        val sys1 = independentRunwaySystems.find { rwy1 in it }
+        val sys2 = independentRunwaySystems.find { rwy2 in it }
+
+        // Must be in defined systems, and those systems must be different objects/sets
+        return sys1 != null && sys2 != null && sys1 !== sys2
+    }
+
     private val nmSpacingMap = mapOf(
         // Leader <> Follower
         Pair('H', 'H') to 4.0,
@@ -479,5 +526,7 @@ object SequenceService {
         val hours = distanceNm / groundSpeedKt
         return (hours * 3600).seconds
     }
+
+
 
 }
