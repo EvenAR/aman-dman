@@ -62,8 +62,6 @@ Please visit [the wiki](https://github.com/EvenAR/aman-dman/wiki) for more infor
 - The application assumes that all pilots are using **live real-world weather** in their simulator.
 - Currently, only timelines based on **landing time** are supported. In the future, it might also be possible to create timelines for inbound **fixes**.
 - Local QNH and air temperature are not currently accounted for in the descent trajectory. This is expected to have only a minor impact on ETA accuracy.
-- Each airport has only one arrival sequence. It currently supports single runway operation and segregated parallel approaches.
-
 
 ### Screenshots
 
