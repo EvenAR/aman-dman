@@ -19,7 +19,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientArrivalD
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientDepartureData
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.AircraftSequenceCandidate
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.Sequence
+import no.vaccsca.amandman.model.domain.valueobjects.sequence.AmanSequence
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceStatus
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.DepartureEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
@@ -53,7 +53,7 @@ class PlannerServiceMaster(
     private data class PlannerState(
         var arrivalsCache: List<RunwayArrivalEvent> = emptyList(),
         var departuresCache: List<DepartureEvent> = emptyList(),
-        var sequence: Sequence = Sequence(emptyList()),
+        var sequence: AmanSequence = emptyList(),
         var minimumSpacingNm: Double = 3.0,
         var availableRunways: List<String>? = null,
         var weatherData: VerticalWeatherProfile? = null,
@@ -166,14 +166,14 @@ class PlannerServiceMaster(
                 )
             }
 
-            val aircraftToRemove = sequence.sequecencePlaces.map { it.item.id }
+            val aircraftToRemove = sequence.map { it.item.id }
                 .filter { it !in runwayArrivalEvents.map { it.callsign } }
 
             val cleanedSequence = SequenceService.removeFromSequence(sequence, *aircraftToRemove.toTypedArray())
             sequence = SequenceService.updateSequence(cleanedSequence, sequenceItems, minimumSpacingNm)
 
             arrivalsCache = runwayArrivalEvents.map { arrivalEvent ->
-                val sequenceSchedule = sequence.sequecencePlaces.find { it.item.id == arrivalEvent.callsign }?.scheduledTime
+                val sequenceSchedule = sequence.find { it.item.id == arrivalEvent.callsign }?.scheduledTime
                 arrivalEvent.copy(
                     scheduledTime = sequenceSchedule ?: arrivalEvent.scheduledTime,
                     sequenceStatus = if (sequenceSchedule != null) SequenceStatus.OK else SequenceStatus.AWAITING_FOR_SEQUENCE,
@@ -366,8 +366,8 @@ class PlannerServiceMaster(
         }
     }
 
-    private fun RunwayArrivalEvent.updateScheduledTime(sequence: Sequence): RunwayArrivalEvent {
-        val sequenceSchedule = sequence.sequecencePlaces.find { it.item.id == this.callsign }?.scheduledTime
+    private fun RunwayArrivalEvent.updateScheduledTime(sequence: AmanSequence): RunwayArrivalEvent {
+        val sequenceSchedule = sequence.find { it.item.id == this.callsign }?.scheduledTime
         return this.copy(
             scheduledTime = sequenceSchedule ?: this.scheduledTime,
             sequenceStatus = if (sequenceSchedule != null) SequenceStatus.OK else SequenceStatus.AWAITING_FOR_SEQUENCE,

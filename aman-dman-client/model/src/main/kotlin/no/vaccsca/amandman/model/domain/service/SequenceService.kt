@@ -5,7 +5,7 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.AircraftSequenceCandidate
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.Sequence
+import no.vaccsca.amandman.model.domain.valueobjects.sequence.AmanSequence
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceCandidate
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequencePlace
 import kotlin.time.Duration
@@ -21,10 +21,8 @@ object SequenceService {
      * Clears the current sequence, forcing a full rescheduling of all aircraft.
      * This is useful when the sequence needs to be recalculated from scratch.
      */
-    fun reSchedule(currentSequence: Sequence): Sequence {
-        return Sequence(
-            sequecencePlaces = emptyList()
-        )
+    fun reSchedule(currentSequence: AmanSequence): AmanSequence {
+        return emptyList()
     }
 
     /**
@@ -33,15 +31,15 @@ object SequenceService {
      * Marks the aircraft as manually assigned so it won't be automatically rescheduled.
      */
     fun suggestScheduledTime(
-        currentSequence: Sequence,
+        currentSequence: AmanSequence,
         callsign: String,
         scheduledTime: Instant,
         minimumSeparationNm: Double
-    ): Sequence {
-        val oldIdx = currentSequence.sequecencePlaces.indexOfFirst { it.item.id == callsign }
+    ): AmanSequence {
+        val oldIdx = currentSequence.indexOfFirst { it.item.id == callsign }
         if (oldIdx == -1) return currentSequence // Not found
-        val oldPlace = currentSequence.sequecencePlaces[oldIdx]
-        val updatedPlaces = currentSequence.sequecencePlaces.toMutableList()
+        val oldPlace = currentSequence[oldIdx]
+        val updatedPlaces = currentSequence.toMutableList()
         updatedPlaces.removeAt(oldIdx)
 
         // Find the new index where the aircraft should be inserted (by requested time)
@@ -86,17 +84,15 @@ object SequenceService {
                 updatedPlaces[i] = follower.copy(scheduledTime = newScheduledTime)
             }
         }
-        return currentSequence.copy(sequecencePlaces = updatedPlaces)
+        return updatedPlaces
     }
 
     /**
      * Removes an aircraft from the sequence and the sequencing horizon,
      * allowing it to be re-sequenced.
      */
-    fun removeFromSequence(sequence: Sequence, vararg callsigns: String): Sequence =
-        sequence.copy(
-            sequecencePlaces = sequence.sequecencePlaces.filter { it.item.id !in arrayOf(*callsigns) }.toList()
-        )
+    fun removeFromSequence(sequence: AmanSequence, vararg callsigns: String): AmanSequence =
+        sequence.filter { it.item.id !in arrayOf(*callsigns) }.toList()
 
     /**
      * Check if an aircraft with the given wake turbulence category can be placed
@@ -113,21 +109,21 @@ object SequenceService {
      * @return True if the time slot is available, false otherwise.
      */
     fun isTimeSlotAvailable(
-        currentSequence: Sequence,
+        currentSequence: AmanSequence,
         timelineEvent: TimelineEvent,
         requestedTime: Instant,
         minimumSeparationNm: Double
     ): Boolean {
         if (timelineEvent !is RunwayArrivalEvent) return false
 
-        val arrivalToCheck = findSequenceItem(currentSequence.sequecencePlaces.map { it.item }, timelineEvent.callsign)
+        val arrivalToCheck = findSequenceItem(currentSequence.map { it.item }, timelineEvent.callsign)
 
         if (arrivalToCheck == null) {
             // The aircraft is not in the sequence yet
             return false
         }
 
-        val closestLeader = currentSequence.sequecencePlaces
+        val closestLeader = currentSequence
             .filter { it.scheduledTime <= requestedTime }
             .maxByOrNull { it.scheduledTime }
 
@@ -153,27 +149,27 @@ object SequenceService {
     }
 
     fun updateSequence(
-        currentSequence: Sequence,
+        currentSequence: AmanSequence,
         candidates: List<SequenceCandidate>,
         minimumSeparationNm: Double
-    ): Sequence {
+    ): AmanSequence {
         // Build a map of the latest candidate data by ID
         val latestCandidateData = candidates.associateBy { it.id }
 
         // Build a map of existing sequence places to preserve manual assignments and order
-        val existingPlacesByCandidate = currentSequence.sequecencePlaces.associateBy { it.item.id }
+        val existingPlacesByCandidate = currentSequence.associateBy { it.item.id }
 
         // Start with existing aircraft, but update them with latest candidate data
         val allCandidates = mutableListOf<SequenceCandidate>()
 
         // Add existing aircraft from sequence, but with updated candidate data if available
-        currentSequence.sequecencePlaces.forEach { place ->
+        currentSequence.forEach { place ->
             val updatedCandidate = latestCandidateData[place.item.id] ?: place.item
             allCandidates.add(updatedCandidate)
         }
 
         // Add new candidates that are in sequencing horizon
-        val existingIds = currentSequence.sequecencePlaces.map { it.item.id }.toSet()
+        val existingIds = currentSequence.map { it.item.id }.toSet()
         val newCandidates = candidates.filter { it.id !in existingIds && it.isInSequencingHorizon() }
         allCandidates.addAll(newCandidates)
 
@@ -200,7 +196,7 @@ object SequenceService {
         }
 
         // Preserve original order for existing auto-scheduled aircraft
-        val originalOrderMap = currentSequence.sequecencePlaces.mapIndexed { index, place -> place.item.id to index }.toMap()
+        val originalOrderMap = currentSequence.mapIndexed { index, place -> place.item.id to index }.toMap()
         val sortedExistingAutoScheduled = existingAutoScheduled.sortedBy { originalOrderMap[it.id] ?: Int.MAX_VALUE }
 
         // Sort new aircraft by preferred time
@@ -293,7 +289,7 @@ object SequenceService {
             }
         }
 
-        return Sequence(sequecencePlaces = allSequencePlaces)
+        return allSequencePlaces.toList()
     }
 
     /**
