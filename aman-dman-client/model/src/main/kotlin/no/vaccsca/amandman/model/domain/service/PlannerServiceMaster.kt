@@ -170,7 +170,7 @@ class PlannerServiceMaster(
                 .filter { it !in runwayArrivalEvents.map { it.callsign } }
 
             val cleanedSequence = SequenceService.removeFromSequence(sequence, *aircraftToRemove.toTypedArray())
-            sequence = SequenceService.updateSequence(cleanedSequence, sequenceItems, minimumSpacingNm, airport.independentRunwaySystems)
+            sequence = SequenceService.updateSequence(cleanedSequence, sequenceItems, minimumSpacingNm)
 
             arrivalsCache = runwayArrivalEvents.map { arrivalEvent ->
                 val sequenceSchedule = sequence.sequecencePlaces.find { it.item.id == arrivalEvent.callsign }?.scheduledTime
@@ -300,7 +300,7 @@ class PlannerServiceMaster(
                 withStateLock {
                     if (checkTimeSlotAvailable(timelineEvent, scheduledTime)) {
                         plannerState.sequence = SequenceService.suggestScheduledTime(
-                            plannerState.sequence, timelineEvent.callsign, scheduledTime, plannerState.minimumSpacingNm, airport.independentRunwaySystems
+                            plannerState.sequence, timelineEvent.callsign, scheduledTime, plannerState.minimumSpacingNm
                         )
                         if (newRunway != null) {
                             atcClient.assignRunway(timelineEvent.callsign, newRunway)
@@ -332,7 +332,7 @@ class PlannerServiceMaster(
 
     private fun checkTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant): Boolean =
         if (timelineEvent !is RunwayArrivalEvent) false
-        else SequenceService.isTimeSlotAvailable(plannerState.sequence, timelineEvent, scheduledTime, plannerState.minimumSpacingNm, airport.independentRunwaySystems)
+        else SequenceService.isTimeSlotAvailable(plannerState.sequence, timelineEvent, scheduledTime, plannerState.minimumSpacingNm)
 
     override fun getDescentProfileForCallsign(callsign: String): Result<List<TrajectoryPoint>?> =
         runCatching { ArrivalEventService.getDescentProfileForCallsign(callsign) }
