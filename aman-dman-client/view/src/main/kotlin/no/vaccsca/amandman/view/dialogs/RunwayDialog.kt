@@ -11,7 +11,8 @@ object RunwayDialog {
         parent: Frame,
         runwayEvent: RunwayEvent,
         runwayOptions: Set<String>,
-        onSubmit: (String) -> Unit
+        onSubmit: (String) -> Unit,
+        onCancel: () -> Unit,
     ) {
         val comboBox = JComboBox(runwayOptions.toTypedArray()).apply {
             selectedItem = runwayEvent.runway
@@ -32,6 +33,8 @@ object RunwayDialog {
         if (result == JOptionPane.OK_OPTION) {
             val selected = comboBox.selectedItem as String
             onSubmit(selected)
+        } else {
+            onCancel()
         }
     }
 }

@@ -109,13 +109,15 @@ class AmanDmanMainFrame : ViewInterface, JFrame("AMAN") {
     override fun openSelectRunwayDialog(
         runwayEvent: RunwayEvent,
         runwayOptions: Set<String>,
-        onClose: (String) -> Unit
+        onSubmit: (String?) -> Unit,
+        onCancel: () -> Unit,
     ) = runOnUiThread {
         RunwayDialog.open(
             parent = this,
             runwayEvent = runwayEvent,
             runwayOptions = runwayOptions,
-            onSubmit = onClose
+            onSubmit = onSubmit,
+            onCancel = onCancel
         )
     }
 

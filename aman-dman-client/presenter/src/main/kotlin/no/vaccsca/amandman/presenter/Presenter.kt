@@ -393,13 +393,13 @@ class Presenter(
             }
     }
 
-    override fun beginRunwaySelection(runwayEvent: RunwayEvent, onClose: (runway: String?) -> Unit) {
+    override fun beginRunwaySelection(runwayEvent: RunwayEvent, onSubmit: (runway: String?) -> Unit, onCancel: () -> Unit) {
         if (runwayEvent is RunwayArrivalEvent) {
             val imTheTrackingController = controllerInfo?.callsign != null && runwayEvent.trackingController == controllerInfo?.positionId
             if (imTheTrackingController) {
-                view.openSelectRunwayDialog(runwayEvent, availableRunways, onClose)
+                view.openSelectRunwayDialog(runwayEvent, availableRunways, onSubmit, onCancel)
             } else {
-                onClose(null)
+                onSubmit(null)
                 logger.debug("User is not the tracking controller for ${runwayEvent.callsign}, will not prompt for runway. Tracking controller is ${runwayEvent.trackingController}, my positionId is ${controllerInfo?.positionId}")
             }
         } else {
@@ -415,7 +415,7 @@ class Presenter(
         if (timelineEvent !is RunwayArrivalEvent) {
             return
         }
-        plannerManager.getServiceForAirport(airportIcao).isTimeSlotAvailable(timelineEvent, newInstant)
+        plannerManager.getServiceForAirport(airportIcao).isTimeSlotAvailable(timelineEvent, newInstant, timelineEvent.runway)
             .onSuccess { view.updateDraggedLabel(timelineEvent, newInstant, it) }
             .onFailure {
                 when (it) {

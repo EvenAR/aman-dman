@@ -28,7 +28,7 @@ interface PresenterInterface {
     fun onRemoveTimelineClicked(timelineConfig: TimelineConfig)
     fun onLabelDrag(airportIcao: String, timelineEvent: TimelineEvent, newInstant: Instant)
     fun onMinimumSpacingDistanceSet(airportIcao: String, minimumSpacingDistanceNm: Double)
-    fun beginRunwaySelection(runwayEvent: RunwayEvent, onClose: (runway: String?) -> Unit)
+    fun beginRunwaySelection(runwayEvent: RunwayEvent, onSubmit: (runway: String?) -> Unit, onCancel: () -> Unit)
     fun onToggleShowDepartures(airportIcao: String, selected: Boolean)
     
     // Tab context menu actions

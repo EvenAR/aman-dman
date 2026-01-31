@@ -13,7 +13,7 @@ abstract class PlannerService(
     abstract fun refreshCdmData(): Result<Unit>
     abstract fun suggestScheduledTime(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String?): Result<Unit>
     abstract fun reSchedule(callSign: String? = null): Result<Unit>
-    abstract fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant): Result<Boolean>
+    abstract fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, runway: String): Result<Boolean>
     abstract fun getDescentProfileForCallsign(callsign: String): Result<List<TrajectoryPoint>?>
     abstract fun stop()
     abstract fun start()

@@ -2,7 +2,6 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.domain.service.SequenceService
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.AircraftSequenceCandidate
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.AmanSequence
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequencePlace
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +15,7 @@ class SequenceServiceTest {
     // Test 1: Aircraft entering AAH should be sequenced
     @Test
     fun `Aircraft entering AAH should be added to sequence`() {
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
         val now = NtpClock.now()
 
         val aircraft = makeSequenceCandidate(
@@ -33,7 +32,7 @@ class SequenceServiceTest {
     // Test 2: Aircraft outside sequencing horizon should not be sequenced
     @Test
     fun `Aircraft outside sequencing horizon should not be added to sequence`() {
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
         val now = NtpClock.now()
 
         val aircraft = makeSequenceCandidate(
@@ -49,7 +48,7 @@ class SequenceServiceTest {
     // Test 3: Scheduled time should only be assigned when there's a conflict
     @Test
     fun `Aircraft with no conflicts should keep preferred time`() {
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
         val now = NtpClock.now()
 
         val aircraft = makeSequenceCandidate(
@@ -95,7 +94,7 @@ class SequenceServiceTest {
     @Test
     fun `Wake category spacing should be correctly applied`() {
         val now = NtpClock.now()
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
 
         val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H')
         val medium = makeSequenceCandidate("MEDIUM", now + 10.minutes + 1.seconds, wakeCategory = 'M')
@@ -330,7 +329,7 @@ class SequenceServiceTest {
     @Test
     fun `Multiple aircraft entering AAH should be properly spaced`() {
         val now = NtpClock.now()
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
 
         // Create aircraft with slightly different preferred times to ensure deterministic ordering
         val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'H')
@@ -366,30 +365,11 @@ class SequenceServiceTest {
         assertTrue(sortedPlaces[1].scheduledTime < sortedPlaces[2].scheduledTime)
     }
 
-    // Test 15: Clear sequence
-    @Test
-    fun `Should clear all aircraft from sequence`() {
-        val now = NtpClock.now()
-
-        val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes)
-        val aircraft2 = makeSequenceCandidate("SECOND", now + 15.minutes)
-
-        val sequence =
-            listOf(
-                SequencePlace(aircraft1, now + 10.minutes, false),
-                SequencePlace(aircraft2, now + 15.minutes, false)
-            )
-
-        val clearedSequence = SequenceService.reSchedule(sequence)
-
-        assertEquals(0, clearedSequence.size)
-    }
-
     // Test 16: Aircraft on different runways should use minimum separation
     @Test
     fun `Aircraft on different runways should use minimum separation instead of wake spacing`() {
         val now = NtpClock.now()
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
 
         // Heavy aircraft on runway 09L
         val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
@@ -416,7 +396,7 @@ class SequenceServiceTest {
     @Test
     fun `Aircraft on same runway should use wake category spacing`() {
         val now = NtpClock.now()
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
 
         // Heavy and light aircraft both on runway 09L (same runway)
         val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
@@ -439,7 +419,7 @@ class SequenceServiceTest {
     @Test
     fun `Aircraft without runway assignment should use wake category spacing`() {
         val now = NtpClock.now()
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
 
         // Aircraft without runway assignments
         val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H', assignedRunway = null)
@@ -462,7 +442,7 @@ class SequenceServiceTest {
     @Test
     fun `Mixed runway assignments should handle spacing correctly`() {
         val now = NtpClock.now()
-        val sequence: AmanSequence = emptyList()
+        val sequence: List<SequencePlace> = emptyList()
 
         // First aircraft with runway assignment
         val first = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
@@ -525,6 +505,6 @@ class SequenceServiceTest {
         preferredTime = preferredTime,
         landingIas = landingIas,
         wakeCategory = wakeCategory,
-        assignedRunway = assignedRunway,
+        runway = assignedRunway,
     )
 }

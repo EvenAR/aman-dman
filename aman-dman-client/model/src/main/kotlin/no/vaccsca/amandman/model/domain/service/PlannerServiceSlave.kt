@@ -119,7 +119,8 @@ class PlannerServiceSlave(
 
     override fun isTimeSlotAvailable(
         timelineEvent: TimelineEvent,
-        scheduledTime: Instant
+        scheduledTime: Instant,
+        runway: String
     ): Result<Boolean> =
         runCatching {
             throw UnsupportedInSlaveModeException("Sequence cannot be changed in slave mode")

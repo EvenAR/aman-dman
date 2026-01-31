@@ -360,10 +360,14 @@ class TimelineOverlay(
     private fun onLabelDropped(timelineEvent: TimelineEvent, newTime: Instant) {
         if (timelineEvent is RunwayArrivalEvent) {
             isDraggingLabel = false
-            presenterInterface.beginRunwaySelection(timelineEvent) { selectedRunway ->
-                presenterInterface.onLabelDragEnd(timelineConfig.airportIcao, timelineEvent, newTime, selectedRunway)
-                airportViewState.draggedLabelState.value = null
-            }
+            presenterInterface.beginRunwaySelection(
+                runwayEvent = timelineEvent,
+                onCancel = { airportViewState.draggedLabelState.value = null },
+                onSubmit = { selectedRunway ->
+                    presenterInterface.onLabelDragEnd(timelineConfig.airportIcao, timelineEvent, newTime, selectedRunway)
+                    airportViewState.draggedLabelState.value = null
+                }
+            )
         }
     }
 

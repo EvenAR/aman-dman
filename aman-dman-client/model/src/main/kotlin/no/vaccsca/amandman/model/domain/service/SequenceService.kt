@@ -3,9 +3,6 @@ package no.vaccsca.amandman.model.domain.service
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.AircraftSequenceCandidate
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.AmanSequence
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceCandidate
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequencePlace
 import kotlin.time.Duration
@@ -21,7 +18,7 @@ object SequenceService {
      * Clears the current sequence, forcing a full rescheduling of all aircraft.
      * This is useful when the sequence needs to be recalculated from scratch.
      */
-    fun reSchedule(currentSequence: AmanSequence): AmanSequence {
+    fun reSchedule(currentSequence: List<SequencePlace>): List<SequencePlace> {
         return emptyList()
     }
 
@@ -31,11 +28,11 @@ object SequenceService {
      * Marks the aircraft as manually assigned so it won't be automatically rescheduled.
      */
     fun suggestScheduledTime(
-        currentSequence: AmanSequence,
+        currentSequence: List<SequencePlace>,
         callsign: String,
         scheduledTime: Instant,
         minimumSeparationNm: Double
-    ): AmanSequence {
+    ): List<SequencePlace> {
         val oldIdx = currentSequence.indexOfFirst { it.item.id == callsign }
         if (oldIdx == -1) return currentSequence // Not found
         val oldPlace = currentSequence[oldIdx]
@@ -91,8 +88,8 @@ object SequenceService {
      * Removes an aircraft from the sequence and the sequencing horizon,
      * allowing it to be re-sequenced.
      */
-    fun removeFromSequence(sequence: AmanSequence, vararg callsigns: String): AmanSequence =
-        sequence.filter { it.item.id !in arrayOf(*callsigns) }.toList()
+    fun removeFromSequence(sequence: List<SequencePlace>, vararg callsigns: String): List<SequencePlace> =
+        sequence.filter { it.item.id !in arrayOf(*callsigns) }
 
     /**
      * Check if an aircraft with the given wake turbulence category can be placed
@@ -109,19 +106,11 @@ object SequenceService {
      * @return True if the time slot is available, false otherwise.
      */
     fun isTimeSlotAvailable(
-        currentSequence: AmanSequence,
-        timelineEvent: TimelineEvent,
+        currentSequence: List<SequencePlace>,
+        candidate: SequenceCandidate,
         requestedTime: Instant,
         minimumSeparationNm: Double
     ): Boolean {
-        if (timelineEvent !is RunwayArrivalEvent) return false
-
-        val arrivalToCheck = findSequenceItem(currentSequence.map { it.item }, timelineEvent.callsign)
-
-        if (arrivalToCheck == null) {
-            // The aircraft is not in the sequence yet
-            return false
-        }
 
         val closestLeader = currentSequence
             .filter { it.scheduledTime <= requestedTime }
@@ -132,7 +121,7 @@ object SequenceService {
             return true
         }
 
-        if (closestLeader.item.id == timelineEvent.callsign) {
+        if (closestLeader.item.id == candidate.id) {
             // The aircraft cannot conflict with itself
             return true
         }
@@ -141,7 +130,7 @@ object SequenceService {
         val safeLandingTime = calculateSafeLandingTime(
             referenceTime = closestLeader.scheduledTime,
             leader = closestLeader.item as AircraftSequenceCandidate,
-            follower = arrivalToCheck as AircraftSequenceCandidate,
+            follower = candidate as AircraftSequenceCandidate,
             minimumSeparationNm = minimumSeparationNm
         )
 
@@ -149,10 +138,10 @@ object SequenceService {
     }
 
     fun updateSequence(
-        currentSequence: AmanSequence,
+        currentSequence: List<SequencePlace>,
         candidates: List<SequenceCandidate>,
         minimumSeparationNm: Double
-    ): AmanSequence {
+    ): List<SequencePlace> {
         // Build a map of the latest candidate data by ID
         val latestCandidateData = candidates.associateBy { it.id }
 
@@ -406,8 +395,8 @@ object SequenceService {
      * Returns true if they have different non-null runway assignments, false otherwise.
      */
     private fun areOnDifferentRunways(aircraft1: AircraftSequenceCandidate, aircraft2: AircraftSequenceCandidate): Boolean {
-        val runway1 = aircraft1.assignedRunway
-        val runway2 = aircraft2.assignedRunway
+        val runway1 = aircraft1.runway
+        val runway2 = aircraft2.runway
 
         // If either aircraft doesn't have a runway assignment, treat as same runway (use wake spacing)
         if (runway1 == null || runway2 == null) {

@@ -19,7 +19,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientArrivalD
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientDepartureData
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.AircraftSequenceCandidate
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.AmanSequence
+import no.vaccsca.amandman.model.domain.valueobjects.sequence.AmanSequenceSystem
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceStatus
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.DepartureEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
@@ -43,7 +43,7 @@ class PlannerServiceMaster(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    private val plannerState = PlannerState()
+    private val plannerState = PlannerState(airport.independentRunwaySystems)
     private val mutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, exception ->
         logger.error("Unhandled exception in coroutine", exception)
@@ -51,9 +51,10 @@ class PlannerServiceMaster(
 
     // Mutable state encapsulated in one object
     private data class PlannerState(
+        val runwaySystems: List<Set<String>>,
         var arrivalsCache: List<RunwayArrivalEvent> = emptyList(),
         var departuresCache: List<DepartureEvent> = emptyList(),
-        var sequence: AmanSequence = emptyList(),
+        var sequenceSystems: List<AmanSequenceSystem> = runwaySystems.map { AmanSequenceSystem(it, emptyList()) },
         var minimumSpacingNm: Double = 3.0,
         var availableRunways: List<String>? = null,
         var weatherData: VerticalWeatherProfile? = null,
@@ -162,18 +163,32 @@ class PlannerServiceMaster(
                     preferredTime = it.estimatedTime,
                     landingIas = it.landingIas,
                     wakeCategory = it.wakeCategory,
-                    assignedRunway = it.runway
+                    runway = it.runway
                 )
             }
 
-            val aircraftToRemove = sequence.map { it.item.id }
-                .filter { it !in runwayArrivalEvents.map { it.callsign } }
+            val arrivalCallsigns = runwayArrivalEvents.map { it.callsign }.toSet()
+            sequenceSystems = sequenceSystems.map { sequence ->
+                val aircraftToRemove = sequence.places
+                    .map { it.item.id }
+                    .filter { it !in arrivalCallsigns }
 
-            val cleanedSequence = SequenceService.removeFromSequence(sequence, *aircraftToRemove.toTypedArray())
-            sequence = SequenceService.updateSequence(cleanedSequence, sequenceItems, minimumSpacingNm)
+                val cleanedSequence = SequenceService.removeFromSequence(
+                    sequence.places,
+                    *aircraftToRemove.toTypedArray()
+                )
+
+                sequence.copy(
+                    places = SequenceService.updateSequence(
+                        currentSequence = cleanedSequence,
+                        candidates = sequenceItems.filter { it.runway in sequence.runwaySystem },
+                        minimumSeparationNm = minimumSpacingNm
+                    )
+                )
+            }
 
             arrivalsCache = runwayArrivalEvents.map { arrivalEvent ->
-                val sequenceSchedule = sequence.find { it.item.id == arrivalEvent.callsign }?.scheduledTime
+                val sequenceSchedule = sequenceSystems.flatMap { it.places }.find { it.item.id == arrivalEvent.callsign }?.scheduledTime
                 arrivalEvent.copy(
                     scheduledTime = sequenceSchedule ?: arrivalEvent.scheduledTime,
                     sequenceStatus = if (sequenceSchedule != null) SequenceStatus.OK else SequenceStatus.AWAITING_FOR_SEQUENCE,
@@ -256,7 +271,7 @@ class PlannerServiceMaster(
             scope.launch {
                 withStateLock {
                     plannerState.minimumSpacingNm = minimumSpacingDistanceNm
-                    plannerState.sequence = SequenceService.reSchedule(plannerState.sequence)
+                    plannerState.sequenceSystems = emptyList() // Reset sequences when spacing changes
                 }
                 onSequenceUpdated()
                 // Notify listeners of the spacing change
@@ -298,15 +313,27 @@ class PlannerServiceMaster(
             }
             scope.launch {
                 withStateLock {
-                    if (checkTimeSlotAvailable(timelineEvent, scheduledTime)) {
-                        plannerState.sequence = SequenceService.suggestScheduledTime(
-                            plannerState.sequence, timelineEvent.callsign, scheduledTime, plannerState.minimumSpacingNm
-                        )
-                        if (newRunway != null) {
-                            atcClient.assignRunway(timelineEvent.callsign, newRunway)
+                    plannerState.sequenceSystems = plannerState.sequenceSystems.map { sequence ->
+                        if (newRunway != null && newRunway !in sequence.runwaySystem) {
+                            // If the new runway is not in this sequence's runway system, return the sequence unchanged
+                            return@map sequence
                         }
-                    } else {
-                        logger.info("Time slot is not available for ${timelineEvent.callsign} at $scheduledTime")
+                        if (newRunway == null && !sequence.places.any { it.item.id == timelineEvent.callsign }) {
+                            // If no new runway is specified and the sequence does not contain the aircraft, return the sequence unchanged
+                            return@map sequence
+                        }
+                        if (sequence.checkTimeSlotAvailable(timelineEvent, scheduledTime, newRunway)) {
+                            val updatedPlaces = SequenceService.suggestScheduledTime(
+                                sequence.places, timelineEvent.callsign, scheduledTime, plannerState.minimumSpacingNm
+                            )
+                            if (newRunway != null) {
+                                atcClient.assignRunway(timelineEvent.callsign, newRunway)
+                            }
+                            sequence.copy(places = updatedPlaces)
+                        } else {
+                            logger.warn("Cannot suggest new scheduled time $scheduledTime for ${timelineEvent.callsign} due to time slot unavailability.")
+                            sequence
+                        }
                     }
                 }
                 onSequenceUpdated()
@@ -317,30 +344,57 @@ class PlannerServiceMaster(
         runCatching {
             scope.launch {
                 withStateLock {
-                    plannerState.sequence = if (callSign == null) {
-                        SequenceService.reSchedule(plannerState.sequence)
-                    } else {
-                        SequenceService.removeFromSequence(plannerState.sequence, callSign)
+                    plannerState.sequenceSystems = plannerState.sequenceSystems.map { sequence ->
+                        val updatedPlaces = if (callSign == null) {
+                            SequenceService.reSchedule(sequence.places)
+                        } else {
+                            SequenceService.removeFromSequence(sequence.places, callSign)
+                        }
+                        sequence.copy(places = updatedPlaces)
                     }
                 }
                 onSequenceUpdated()
             }
         }
 
-    override fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant): Result<Boolean> =
-        runCatching { checkTimeSlotAvailable(timelineEvent, scheduledTime) }
+    override fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, runway: String): Result<Boolean> =
+        runCatching {
+            plannerState.sequenceSystems.any { amanSequence ->
+                amanSequence.checkTimeSlotAvailable(timelineEvent, scheduledTime, runway)
+            }
+        }
 
-    private fun checkTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant): Boolean =
-        if (timelineEvent !is RunwayArrivalEvent) false
-        else SequenceService.isTimeSlotAvailable(plannerState.sequence, timelineEvent, scheduledTime, plannerState.minimumSpacingNm)
+    private fun AmanSequenceSystem.checkTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String? = null): Boolean {
+        if (timelineEvent !is RunwayArrivalEvent) return false
+
+        val sequenceCandidate = AircraftSequenceCandidate(
+            callsign = timelineEvent.callsign,
+            preferredTime = timelineEvent.estimatedTime,
+            landingIas = timelineEvent.landingIas,
+            wakeCategory = timelineEvent.wakeCategory,
+            runway = newRunway ?: timelineEvent.runway
+        )
+
+        return SequenceService.isTimeSlotAvailable(this.places, sequenceCandidate, scheduledTime, plannerState.minimumSpacingNm)
+    }
+
 
     override fun getDescentProfileForCallsign(callsign: String): Result<List<TrajectoryPoint>?> =
         runCatching { ArrivalEventService.getDescentProfileForCallsign(callsign) }
 
     private suspend fun onSequenceUpdated() {
         withStateLock {
+            val allScheduledTimes = sequenceSystems
+                .flatMap { it.places }
+                .associate { it.item.id to it.scheduledTime }
+
             val updatedArrivals = plannerState.arrivalsCache
-                .map { it.updateScheduledTime(plannerState.sequence) }
+                .map {
+                    it.copy(
+                        scheduledTime = allScheduledTimes[it.callsign] ?: it.scheduledTime,
+                        sequenceStatus = if (allScheduledTimes.containsKey(it.callsign)) SequenceStatus.OK else SequenceStatus.AWAITING_FOR_SEQUENCE,
+                    )
+                }
                 .sortedByDescending { it.scheduledTime }
 
             val departures = plannerState.departuresCache
@@ -364,14 +418,6 @@ class PlannerServiceMaster(
                 listener.onNonSequencedListUpdated(airportIcao, plannerState.nonSequencedList)
             }
         }
-    }
-
-    private fun RunwayArrivalEvent.updateScheduledTime(sequence: AmanSequence): RunwayArrivalEvent {
-        val sequenceSchedule = sequence.find { it.item.id == this.callsign }?.scheduledTime
-        return this.copy(
-            scheduledTime = sequenceSchedule ?: this.scheduledTime,
-            sequenceStatus = if (sequenceSchedule != null) SequenceStatus.OK else SequenceStatus.AWAITING_FOR_SEQUENCE,
-        )
     }
 
     private fun CoroutineScope.runEvery(n: Duration, codeBlock: suspend () -> Unit) =
