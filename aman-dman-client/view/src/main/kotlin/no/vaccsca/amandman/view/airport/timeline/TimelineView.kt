@@ -4,7 +4,7 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.data.repository.SettingsRepository
 import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.enums.TimelineAlignment
 import no.vaccsca.amandman.view.entity.AirportViewState
 import no.vaccsca.amandman.view.entity.SharedValue
@@ -19,7 +19,7 @@ class TimelineView(
     val timelineConfig: TimelineConfig,
     val airportViewState: AirportViewState,
     private val selectedTimeRange: SharedValue<TimeRange>,
-    private val presenterInterface: PresenterInterface,
+    private val presenterProvider: () -> AirportPresenterInterface,
 ) : JLayeredPane() {
     private val scaleWidth = 60
     private val isDual = timelineConfig.runwaysLeft.isNotEmpty() && timelineConfig.runwaysRight.isNotEmpty()
@@ -27,8 +27,8 @@ class TimelineView(
     private val basePanel = JPanel(null)
     private val labelLayout = SettingsRepository.getSettings().arrivalLabelLayouts[timelineConfig.arrLabelLayout]!!
 
-    private val labelContainer = TimelineOverlay(timelineConfig, this, presenterInterface, airportViewState, labelLayout, labelLayout)
-    private val timeScale = TimeScale(this, selectedTimeRange, !isDual, presenterInterface)
+    private val labelContainer = TimelineOverlay(timelineConfig, this, presenterProvider, airportViewState, labelLayout, labelLayout)
+    private val timeScale = TimeScale(this, selectedTimeRange, !isDual, presenterProvider)
 
     private val leftSequence = if (isDual) SequenceStack(this, TimelineAlignment.RIGHT) else null
     private val rightSequence = if (isDual) SequenceStack(this, TimelineAlignment.LEFT) else null

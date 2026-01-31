@@ -2,9 +2,8 @@ package no.vaccsca.amandman
 
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel
 import no.vaccsca.amandman.model.data.repository.SettingsRepository
-import no.vaccsca.amandman.presenter.Presenter
+import no.vaccsca.amandman.presenter.MainPresenter
 import no.vaccsca.amandman.model.domain.PlannerManager
-import no.vaccsca.amandman.model.domain.service.GuiDataHandler
 import no.vaccsca.amandman.model.domain.valueobjects.Theme
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import java.util.*
@@ -49,20 +48,12 @@ fun main() {
         val settings = SettingsRepository.getSettings()
         setTheme(settings.theme)
 
-        // --- View ---
         val view = AmanDmanMainFrame()
-
-        // --- Service ---
-        val guiUpdater = GuiDataHandler()
-
-        // --- Controller ---
-        val presenter = Presenter(PlannerManager(), view, guiUpdater)
-        guiUpdater.presenter = presenter
+        val presenter = MainPresenter(PlannerManager(), view)
 
         view.openWindow()
     }
 
-    // Create a new JFrame
     SwingUtilities.invokeLater {
         initializeApplication()
     }

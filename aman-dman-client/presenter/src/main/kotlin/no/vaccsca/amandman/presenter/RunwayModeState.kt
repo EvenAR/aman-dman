@@ -16,7 +16,7 @@ data class RunwayModeState(
      * Generates the display labels by combining mode strings with spacing and active status
      */
     fun generateDisplayLabels(): List<Pair<String, Boolean>> {
-        val activeArrivalRunways = runwayStatuses.filter { it.value.arrivals }.keys.toList().sorted()
+        val activeArrivalRunways = runwayStatuses.filter { it.value.isActiveForArrivals }.keys.toList().sorted()
 
         val airportLabel = Pair("[$airportIcao]", true)
         val modeLabel =
@@ -40,7 +40,7 @@ data class RunwayModeState(
             if (modeString.startsWith("S"))
                 modeString
             else
-                "$modeString:$minimumSpacingNm"
+                "%s:%.1f".format(modeString, minimumSpacingNm)
 
         return Pair(displayLabel, isActive)
     }

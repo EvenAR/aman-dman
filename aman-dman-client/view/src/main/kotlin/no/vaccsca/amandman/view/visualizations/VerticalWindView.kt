@@ -2,7 +2,7 @@ package no.vaccsca.amandman.view.visualizations
 
 import no.vaccsca.amandman.common.util.NumberUtils.format
 import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.components.ReloadButton
 import no.vaccsca.amandman.view.entity.AirportViewState
 import java.awt.BorderLayout
@@ -13,15 +13,16 @@ import javax.swing.JPanel
 import kotlin.math.roundToInt
 
 class VerticalWindView(
-    private val presenter: PresenterInterface,
-    private val viewState: AirportViewState
+    private val viewState: AirportViewState,
+    private val presenterProvider: () -> AirportPresenterInterface
 ): JPanel(BorderLayout()) {
 
+    private val presenter: AirportPresenterInterface get() = presenterProvider()
     private var weatherProfile: VerticalWeatherProfile? = null
 
     private val contentPanel = ContentPanel()
     private val reloadButton = ReloadButton("Reload winds for airport") {
-        presenter.onReloadWindsClicked(airportIcao = viewState.airportIcao)
+        presenter.onReloadWindsClicked()
     }
 
     init {

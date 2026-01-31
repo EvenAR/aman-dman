@@ -2,7 +2,7 @@ package no.vaccsca.amandman.view
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.Footer
 import no.vaccsca.amandman.view.airport.TimeRangeScrollBarVertical
 import no.vaccsca.amandman.view.airport.TimelineScrollPane
@@ -26,25 +26,26 @@ import javax.swing.WindowConstants
 import kotlin.time.Duration
 
 class AirportView(
-    private val presenter: PresenterInterface,
     val airportIcao: String,
     mainViewState: MainViewState
 ) : JDesktopPane() {
+
+    lateinit var presenter: AirportPresenterInterface
 
     private val airportViewState = mainViewState.airportViewStates.value.find { it.airportIcao == airportIcao }
         ?: throw IllegalStateException("No AirportViewModel found for airport ${airportIcao}")
 
     val timeWindowScrollbar = TimeRangeScrollBarVertical(airportViewState)
     val reloadButton = ReloadButton("Recalculate sequence for all arrivals") {
-        presenter.onRecalculateSequenceClicked(airportIcao)
+        presenter.onRecalculateSequenceClicked()
     }
     val westPanel = JPanel(BorderLayout()).apply {
         add(timeWindowScrollbar, BorderLayout.CENTER)
         add(reloadButton, BorderLayout.SOUTH)
     }
 
-    val timelineScrollPane = TimelineScrollPane(airportViewState, presenter)
-    val topBar = TopBar(presenter, airportViewState)
+    val timelineScrollPane: TimelineScrollPane
+    val topBar: TopBar
     val footer = Footer(mainViewState)
 
     private val landingRatesGraph = LandingRatesGraph(airportViewState)
@@ -53,19 +54,24 @@ class AirportView(
     private val nonSeqView = NonSeqView(airportViewState)
     private var nonSeqFrame: JInternalFrame? = null
 
-    private val verticalWindView = VerticalWindView(presenter, airportViewState)
+    private lateinit var verticalWindView: VerticalWindView
     private var windFrame: JInternalFrame? = null
 
     private var currentTime: Instant? = null
 
-    private val contentPanel = JPanel(BorderLayout()).apply {
-        add(topBar, BorderLayout.NORTH)
-        add(westPanel, BorderLayout.WEST)
-        add(timelineScrollPane, BorderLayout.CENTER)
-        add(footer, BorderLayout.SOUTH)
-    }
+    private val contentPanel: JPanel
 
     init {
+        timelineScrollPane = TimelineScrollPane(airportViewState) { presenter }
+        topBar = TopBar(airportViewState) { presenter }
+
+        contentPanel = JPanel(BorderLayout()).apply {
+            add(topBar, BorderLayout.NORTH)
+            add(westPanel, BorderLayout.WEST)
+            add(timelineScrollPane, BorderLayout.CENTER)
+            add(footer, BorderLayout.SOUTH)
+        }
+
         add(contentPanel)
         contentPanel.setBounds(0, 0, 800, 600)
         this.desktopManager = BoundedDesktopManager()
@@ -86,6 +92,10 @@ class AirportView(
         }
     }
 
+    fun initializeWindView() {
+        verticalWindView = VerticalWindView(airportViewState) { presenter }
+    }
+
     private fun updateTime(currentTime: Instant) {
         val delta = if (this.currentTime != null) {
             currentTime - this.currentTime!!
@@ -103,19 +113,14 @@ class AirportView(
         this.currentTime = currentTime
     }
 
-    private fun updateVisibleTimelines(openIds: List<String>) {
-        // Clear existing timelines
+    private fun updateVisibleTimelines(configs: Set<TimelineConfig>) {
         val items = timelineScrollPane.viewport.view as JPanel
         items.components
             .filterIsInstance<TimelineView>()
             .forEach { component -> items.remove(component) }
 
-        // Add the current timelines
-        openIds.forEach { timelineId ->
-            val timelineConfig = airportViewState.availableTimelines.find { it.title == timelineId }
-            if (timelineConfig != null) {
-                timelineScrollPane.insertTimeline(timelineConfig)
-            }
+        configs.forEach { timelineId ->
+            timelineScrollPane.insertTimeline(timelineId)
         }
         repaint()
     }
@@ -161,6 +166,9 @@ class AirportView(
     }
 
     fun openMetWindow() {
+        if (!::verticalWindView.isInitialized) {
+            initializeWindView()
+        }
         if (windFrame == null) {
             windFrame = JInternalFrame("Vertical Wind Profile - $airportIcao", true, true, true, true).apply {
                 add(verticalWindView)

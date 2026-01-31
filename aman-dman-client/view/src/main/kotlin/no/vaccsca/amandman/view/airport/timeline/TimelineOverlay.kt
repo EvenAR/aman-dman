@@ -7,7 +7,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceStatus
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.*
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.labels.ArrivalLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.DepartureLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.TimelineLabel
@@ -26,11 +26,13 @@ import javax.swing.SwingUtilities
 class TimelineOverlay(
     val timelineConfig: TimelineConfig,
     val timelineView: TimelineView,
-    val presenterInterface: PresenterInterface,
+    private val presenterProvider: () -> AirportPresenterInterface,
     val airportViewState: AirportViewState,
     val arrivalLabelLayout: List<LabelItem>,
     val departureLabelLayout: List<LabelItem>,
 ) : JPanel(null) {
+
+    private val presenter: AirportPresenterInterface get() = presenterProvider()
     private val baseFont = Font(Font.MONOSPACED, Font.PLAIN, 12)
 
     // --- Constants ---
@@ -64,6 +66,7 @@ class TimelineOverlay(
         rightEvents = timelineData.right
         val allEvents = (leftEvents ?: emptyList()) + (rightEvents ?: emptyList())
         syncLabelsWithEvents(allEvents)
+        revalidate()
         repaint()
     }
 
@@ -286,6 +289,8 @@ class TimelineOverlay(
                 newLabel.font = baseFont
                 newLabel.addMouseListener(labelMouseAdapter(newLabel))
                 newLabel.addMouseMotionListener(labelMouseMotionAdapter(newLabel))
+                newLabel.updateText()
+                newLabel.updateColors()
                 labels[callsign] = newLabel
                 add(newLabel)
             } else {
@@ -306,7 +311,7 @@ class TimelineOverlay(
     private fun TimelineEvent.createLabel(): TimelineLabel {
         val label = when (this) {
             is DepartureEvent -> DepartureLabel(departureLabelLayout, this, hBorder = labelHBorder, vBorder = labelVBorder)
-            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, this, presenterInterface, hBorder = labelHBorder, vBorder = labelVBorder)
+            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, this, presenter, hBorder = labelHBorder, vBorder = labelVBorder)
             else -> throw IllegalArgumentException("Unsupported occurrence type")
         }
         label.font = baseFont
@@ -335,17 +340,18 @@ class TimelineOverlay(
 
     private fun labelMouseMotionAdapter(label: TimelineLabel) = object : MouseMotionAdapter() {
         override fun mouseDragged(e: MouseEvent) {
+            if (!e.isLeftButtonDown()) return
             isDraggingLabel = true
             val pointInView = SwingUtilities.convertPoint(e.component, e.point, timelineView)
             val newInstant = timelineView.calculateInstantForYPosition(pointInView.y)
-            presenterInterface.onLabelDrag(timelineConfig.airportIcao, label.timelineEvent, newInstant)
+            presenter.onLabelDrag(label.timelineEvent, newInstant)
         }
     }
 
     private fun createLabelCopy(label: TimelineLabel): TimelineLabel? {
         val copy = when (label.timelineEvent) {
             is DepartureEvent -> DepartureLabel(departureLabelLayout, label.timelineEvent as DepartureEvent, hBorder = labelHBorder, vBorder = labelVBorder)
-            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, label.timelineEvent as RunwayArrivalEvent, presenterInterface, hBorder = labelHBorder, vBorder = labelVBorder)
+            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, label.timelineEvent as RunwayArrivalEvent, presenter, hBorder = labelHBorder, vBorder = labelVBorder)
             else -> return null
         }
         copy.font = label.font
@@ -354,17 +360,17 @@ class TimelineOverlay(
     }
 
     private fun handleLabelClick(label: TimelineLabel) {
-        label.timelineEvent.getFlight()?.let { presenterInterface.onAircraftSelected(it.callsign) }
+        label.timelineEvent.getFlight()?.let { presenter.onAircraftSelected(it.callsign) }
     }
 
     private fun onLabelDropped(timelineEvent: TimelineEvent, newTime: Instant) {
         if (timelineEvent is RunwayArrivalEvent) {
             isDraggingLabel = false
-            presenterInterface.beginRunwaySelection(
+            presenter.beginRunwaySelection(
                 runwayEvent = timelineEvent,
                 onCancel = { airportViewState.draggedLabelState.value = null },
                 onSubmit = { selectedRunway ->
-                    presenterInterface.onLabelDragEnd(timelineConfig.airportIcao, timelineEvent, newTime, selectedRunway)
+                    presenter.onLabelDragEnd(timelineEvent, newTime, selectedRunway)
                     airportViewState.draggedLabelState.value = null
                 }
             )
@@ -388,5 +394,7 @@ class TimelineOverlay(
     }
 
     private fun MouseEvent.isLeftButton(): Boolean = this.button == MouseEvent.BUTTON1
+
+    private fun MouseEvent.isLeftButtonDown(): Boolean = (this.modifiersEx and MouseEvent.BUTTON1_DOWN_MASK) != 0
 
 }

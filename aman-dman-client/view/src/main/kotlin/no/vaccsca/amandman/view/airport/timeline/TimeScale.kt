@@ -6,7 +6,7 @@ import no.vaccsca.amandman.common.util.NumberUtils.format
 import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayDelayEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
 import no.vaccsca.amandman.view.airport.timeline.utils.GraphicUtils.drawStringAdvanced
 import no.vaccsca.amandman.view.entity.SharedValue
@@ -21,8 +21,10 @@ class TimeScale(
     private val timelineView: TimelineView,
     private val selectedRange: SharedValue<TimeRange>,
     private val scaleOnRightSideOnly: Boolean,
-    private val presenterInterface: PresenterInterface
+    private val presenterProvider: () -> AirportPresenterInterface
 ) : JPanel(null) {
+
+    private val presenter: AirportPresenterInterface get() = presenterProvider()
     private val TICK_WIDTH_1_MIN = 5
     private val TICK_WIDTH_5_MIN = 10
 
@@ -112,7 +114,7 @@ class TimeScale(
     private fun showPopupMenu(e: MouseEvent) {
         val popup = AmanPopupMenu("Timeline Actions") {
             item("Remove timeline", action = {
-                presenterInterface.onRemoveTimelineClicked(timelineView.timelineConfig)
+                presenter.onRemoveTimelineClicked(timelineView.timelineConfig)
             })
         }
 

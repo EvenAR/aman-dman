@@ -20,12 +20,11 @@ data class MainViewState(
 data class AirportViewState(
     val airportIcao: String,
     val userRole: UserRole,
-    val availableTimelines: List<TimelineConfig>,
     val maxHistory: Duration = 20.minutes,
     val maxFuture: Duration = 2.hours,
     val events: SharedValue<List<TimelineEvent>> = SharedValue(emptyList()),
     val nonSequencedList: SharedValue<List<NonSequencedEvent>> = SharedValue(emptyList()),
-    val openTimelines: SharedValue<List<String>> = SharedValue(emptyList()),
+    val openTimelines: SharedValue<Set<TimelineConfig>> = SharedValue(emptySet()),
     val runwayModes: SharedValue<List<Pair<String, Boolean>>> = SharedValue(emptyList()),
     val weatherProfile: SharedValue<VerticalWeatherProfile?> = SharedValue(null),
     val minimumSpacingNm: SharedValue<Double> = SharedValue(3.0),

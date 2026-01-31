@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.view.airport
 
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.entity.AirportViewState
 import java.awt.BorderLayout
 import java.awt.Color
@@ -10,9 +10,11 @@ import java.awt.event.ComponentEvent
 import javax.swing.*
 
 class TopBar(
-    private val presenter: PresenterInterface,
     private val airportViewState: AirportViewState,
+    private val presenterProvider: () -> AirportPresenterInterface,
 ) : JPanel(BorderLayout()) {
+
+    private val presenter: AirportPresenterInterface get() = presenterProvider()
 
     private val departuresCheckbox = JCheckBox("Departures")
     private val nonSequencedButton = JButton("NonSeq")
@@ -50,18 +52,15 @@ class TopBar(
 
     private fun initActions() {
         departuresCheckbox.addActionListener {
-            presenter.onToggleShowDepartures(
-                airportViewState.airportIcao,
-                departuresCheckbox.isSelected
-            )
+            presenter.onToggleShowDepartures(departuresCheckbox.isSelected)
         }
 
         landingRatesButton.addActionListener {
-            presenter.onOpenLandingRatesWindow(airportViewState.airportIcao)
+            presenter.onOpenLandingRatesWindow()
         }
 
         nonSequencedButton.addActionListener {
-            presenter.onOpenNonSequencedWindow(airportViewState.airportIcao)
+            presenter.onOpenNonSequencedWindow()
         }
     }
 

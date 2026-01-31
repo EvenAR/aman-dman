@@ -7,6 +7,5 @@ import no.vaccsca.amandman.model.domain.valueobjects.Airport
 data class TimelineGroup(
     val airport: Airport,
     val name: String,
-    val availableTimelines: MutableList<TimelineConfig>,
     val userRole: UserRole
 )

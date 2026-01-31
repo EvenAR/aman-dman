@@ -5,7 +5,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItemSource
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.presenter.PresenterInterface
+import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
 import java.awt.Color
 import java.awt.event.MouseAdapter
@@ -20,7 +20,7 @@ import kotlin.time.Duration.Companion.seconds
 class ArrivalLabel(
     override val labelItems: List<LabelItem>,
     val arrivalEvent: RunwayArrivalEvent,
-    val presenterInterface: PresenterInterface,
+    val presenter: AirportPresenterInterface,
     hBorder: Int,
     vBorder: Int
 ) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder) {
@@ -100,10 +100,10 @@ class ArrivalLabel(
     private fun showPopupMenu(e: MouseEvent) {
         val popup = AmanPopupMenu("Flight Options") {
             item("Re-schedule", action = {
-                presenterInterface.onRecalculateSequenceClicked(arrivalEvent.airportIcao, arrivalEvent.callsign)
+                presenter.onRecalculateSequenceClicked(arrivalEvent.callsign)
             })
             item("Show vertical profile", action = {
-                presenterInterface.onOpenVerticalProfileWindowClicked(arrivalEvent.callsign)
+                presenter.onOpenVerticalProfileWindowClicked(arrivalEvent.callsign)
             })
         }
         popup.show(e.component, e.x, e.y)
