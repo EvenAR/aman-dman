@@ -60,6 +60,7 @@ class DescentProfileTest {
         icao = "ENGM",
         location = LatLng(0.0, 0.0),
         runways = mapOf("01L" to runwayThreshold01L),
+        independentRunwaySystems = listOf(setOf("01L"))
     )
 
     data class TestFlight(
