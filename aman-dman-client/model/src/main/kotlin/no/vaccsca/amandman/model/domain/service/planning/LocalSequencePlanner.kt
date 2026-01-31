@@ -230,7 +230,7 @@ class LocalSequencePlanner(
     override fun setMinimumSpacing(minimumSpacingDistanceNm: Double) {
         scope.launch {
             minimumSpacingNm = minimumSpacingDistanceNm
-            sequenceSystems = emptyList()
+            sequenceSystems = sequenceSystems.map { it.copy(places = emptyList()) }
             notifyListeners()
             dataUpdateListeners.forEach { it.onMinimumSpacingUpdated(airportIcao, minimumSpacingDistanceNm) }
         }
