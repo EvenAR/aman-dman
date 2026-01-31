@@ -1,4 +1,4 @@
-package no.vaccsca.amandman.model.domain.service
+package no.vaccsca.amandman.model.domain.service.planning
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
@@ -198,11 +198,13 @@ object SequenceService {
         // Add manually assigned aircraft with preserved scheduled times
         manuallyAssignedCandidates.forEach { candidate ->
             val existingPlace = existingPlacesByCandidate[candidate.id]!!
-            allSequencePlaces.add(SequencePlace(
-                item = candidate,
-                scheduledTime = existingPlace.scheduledTime,
-                isManuallyAssigned = true
-            ))
+            allSequencePlaces.add(
+                SequencePlace(
+                    item = candidate,
+                    scheduledTime = existingPlace.scheduledTime,
+                    isManuallyAssigned = true
+                )
+            )
         }
 
         // Add existing auto-scheduled aircraft, but respect their position relative to manually assigned aircraft
@@ -229,11 +231,13 @@ object SequenceService {
                 bestTime = maxOf(bestTime, minTime)
             }
 
-            allSequencePlaces.add(SequencePlace(
-                item = candidate,
-                scheduledTime = bestTime,
-                isManuallyAssigned = false
-            ))
+            allSequencePlaces.add(
+                SequencePlace(
+                    item = candidate,
+                    scheduledTime = bestTime,
+                    isManuallyAssigned = false
+                )
+            )
         }
 
         // Add new auto-scheduled aircraft
@@ -244,11 +248,13 @@ object SequenceService {
                 minimumSeparationNm
             )
 
-            allSequencePlaces.add(SequencePlace(
-                item = candidate,
-                scheduledTime = bestTime,
-                isManuallyAssigned = false
-            ))
+            allSequencePlaces.add(
+                SequencePlace(
+                    item = candidate,
+                    scheduledTime = bestTime,
+                    isManuallyAssigned = false
+                )
+            )
         }
 
         // Sort by scheduled time, but preserve relative order for aircraft with same time

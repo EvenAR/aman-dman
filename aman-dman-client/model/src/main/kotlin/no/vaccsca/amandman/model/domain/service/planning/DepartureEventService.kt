@@ -1,4 +1,4 @@
-package no.vaccsca.amandman.model.domain.service
+package no.vaccsca.amandman.model.domain.service.planning
 
 import no.vaccsca.amandman.model.domain.valueobjects.CdmData
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientDepartureData

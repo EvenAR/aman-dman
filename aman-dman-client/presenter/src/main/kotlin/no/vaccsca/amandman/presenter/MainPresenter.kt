@@ -7,13 +7,12 @@ import no.vaccsca.amandman.model.data.integration.MasterSlaveSharedStateHttpClie
 import no.vaccsca.amandman.model.data.repository.CdmClient
 import no.vaccsca.amandman.model.data.repository.SettingsRepository
 import no.vaccsca.amandman.model.data.repository.WeatherDataRepository
-import no.vaccsca.amandman.model.domain.PlannerManager
+import no.vaccsca.amandman.model.domain.AirportDataSourceManager
 import no.vaccsca.amandman.model.domain.TimelineGroup
-import no.vaccsca.amandman.model.domain.exception.UnsupportedInSlaveModeException
 import no.vaccsca.amandman.model.domain.service.DataUpdateListener
 import no.vaccsca.amandman.model.domain.service.DataUpdatesServerSender
-import no.vaccsca.amandman.model.domain.service.PlannerServiceMaster
-import no.vaccsca.amandman.model.domain.service.PlannerServiceSlave
+import no.vaccsca.amandman.model.domain.service.planning.LocalSequencePlanner
+import no.vaccsca.amandman.model.domain.service.slave.RemoteDataMirror
 import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
 import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
@@ -22,7 +21,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProf
 import org.slf4j.LoggerFactory
 
 class MainPresenter(
-    private val plannerManager: PlannerManager,
+    private val dataSourceManager: AirportDataSourceManager,
     private val view: MainViewInterface,
 ) : MainPresenterInterface {
 
@@ -177,7 +176,7 @@ class MainPresenter(
                     return
                 }
 
-                PlannerServiceMaster(
+                LocalSequencePlanner(
                     airport = airport,
                     weatherDataRepository = weatherDataRepository,
                     atcClient = euroScopeClient,
@@ -191,15 +190,15 @@ class MainPresenter(
                     return
                 }
 
-                PlannerServiceSlave(
+                RemoteDataMirror(
                     airportIcao = airport.icao,
-                    masterSlaveSharedState = sharedState,
+                    sharedState = sharedState,
                     dataUpdateListener = guiDataHandler,
                 )
             }
 
             UserRole.LOCAL -> {
-                PlannerServiceMaster(
+                LocalSequencePlanner(
                     airport = airport,
                     weatherDataRepository = weatherDataRepository,
                     atcClient = euroScopeClient,
@@ -209,7 +208,7 @@ class MainPresenter(
             }
         }
 
-        plannerManager.registerService(plannerService)
+        dataSourceManager.register(plannerService)
         timelineGroups.add(timelineGroup)
         view.updateTimelineGroups(timelineGroups)
 
@@ -217,9 +216,8 @@ class MainPresenter(
 
         val airportPresenter = AirportPresenter(
             airportIcao = airportIcao,
-            plannerService = plannerService,
+            dataSource = plannerService,
             view = airportView,
-            timelineGroup = timelineGroup,
             controllerInfoProvider = { controllerInfo },
             showErrorMessage = { view.showErrorMessage(it) },
             onAircraftSelectedCallback = { onAircraftSelected(it) },
@@ -241,17 +239,16 @@ class MainPresenter(
             airportPresenters.remove(airportIcao)
         }
 
-        val serviceToRemove = plannerManager.getServiceForAirport(airportIcao)
-        plannerManager.unregisterService(airportIcao)
+        val serviceToRemove = dataSourceManager.getForAirport(airportIcao)
+        dataSourceManager.unregister(airportIcao)
         timelineGroups.removeAll { it.airport.icao == airportIcao }
         view.updateTimelineGroups(timelineGroups)
         view.removeAirportViewDelegate(airportIcao)
 
-        if (serviceToRemove is PlannerServiceMaster) {
-            val remainingMasterServices = plannerManager.getAllServices()
-                .filterIsInstance<PlannerServiceMaster>()
+        if (serviceToRemove is LocalSequencePlanner) {
+            val remainingPlanners = dataSourceManager.getAllSequencePlanners()
 
-            if (remainingMasterServices.isEmpty() && euroScopeClient.isClientConnected) {
+            if (remainingPlanners.isEmpty() && euroScopeClient.isClientConnected) {
                 euroScopeClient.close()
             }
         }
@@ -277,19 +274,11 @@ class MainPresenter(
 
     private fun updateDescentProfileForSelectedCallsign() {
         selectedCallsign?.let { callsign ->
-            plannerManager.getAllServices().toList().forEach { plannerService ->
-                plannerService.getDescentProfileForCallsign(callsign)
-                    .onSuccess { selectedDescentProfile ->
-                        if (selectedDescentProfile != null)
-                            view.updateDescentTrajectory(callsign, selectedDescentProfile)
-                    }
-                    .onFailure {
-                        selectedCallsign = null
-                        when (it) {
-                            is UnsupportedInSlaveModeException -> view.showErrorMessage(it.msg)
-                            else -> view.showErrorMessage("Failed to fetch descent profile")
-                        }
-                    }
+            dataSourceManager.getAllSequencePlanners().forEach { planner ->
+                val descentProfile = planner.getDescentProfileForCallsign(callsign)
+                if (descentProfile != null) {
+                    view.updateDescentTrajectory(callsign, descentProfile)
+                }
             }
         }
     }

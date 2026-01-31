@@ -1,5 +1,5 @@
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.domain.service.DescentTrajectoryService
+import no.vaccsca.amandman.model.domain.service.planning.DescentTrajectoryService
 import no.vaccsca.amandman.model.domain.valueobjects.AircraftPosition
 import no.vaccsca.amandman.model.domain.valueobjects.Star
 import no.vaccsca.amandman.model.domain.valueobjects.StarFix

@@ -1,6 +1,13 @@
-package no.vaccsca.amandman.model.domain.service
+package no.vaccsca.amandman.model.domain.service.planning
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
@@ -14,7 +21,12 @@ import no.vaccsca.amandman.model.domain.exception.HasLandedException
 import no.vaccsca.amandman.model.domain.exception.NoAssignedRunwayException
 import no.vaccsca.amandman.model.domain.exception.ReachedEndOfRouteException
 import no.vaccsca.amandman.model.domain.exception.UnknownAircraftTypeException
-import no.vaccsca.amandman.model.domain.valueobjects.*
+import no.vaccsca.amandman.model.domain.service.DataUpdateListener
+import no.vaccsca.amandman.model.domain.valueobjects.Airport
+import no.vaccsca.amandman.model.domain.valueobjects.CdmData
+import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
+import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
+import no.vaccsca.amandman.model.domain.valueobjects.TrajectoryPoint
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientArrivalData
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientDepartureData
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
@@ -31,23 +43,27 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * This is only used in the Master and Local instances of the application
+ * Local sequence planner that performs actual arrival/departure planning.
+ * Used in both Master and Local modes.
  */
-class PlannerServiceMaster(
+class LocalSequencePlanner(
     private val airport: Airport,
     private val weatherDataRepository: WeatherDataRepository,
     private val atcClient: AtcClient,
     private val cdmClient: CdmClient,
     private vararg val dataUpdateListeners: DataUpdateListener,
-) : PlannerService(airport.icao) {
+) : SequencePlanner {
+
+    override val airportIcao: String = airport.icao
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
     private val plannerState = PlannerState(airport.independentRunwaySystems)
     private val mutex = Mutex()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, exception ->
-        logger.error("Unhandled exception in coroutine", exception)
-    })
+    private val scope =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, exception ->
+            logger.error("Unhandled exception in coroutine", exception)
+        })
 
     // Mutable state encapsulated in one object
     private data class PlannerState(
@@ -115,8 +131,8 @@ class PlannerServiceMaster(
         )
     }
 
-    override fun getAvailableRunways(): Result<List<String>> =
-        runCatching { plannerState.availableRunways ?: emptyList() }
+    override fun getAvailableRunways(): List<String> =
+        plannerState.availableRunways ?: emptyList()
 
     override fun setShowDepartures(showDepartures: Boolean) {
         this.fetchCdmData = showDepartures
@@ -240,7 +256,7 @@ class PlannerServiceMaster(
         return Pair(runwayArrivalEvents, nonSequencedEvents)
     }
 
-    private fun makeNonSequencedEvent(arrival: AtcClientArrivalData, reason: NonSequencedReason): NonSequencedEvent  {
+    private fun makeNonSequencedEvent(arrival: AtcClientArrivalData, reason: NonSequencedReason): NonSequencedEvent {
         val wtc = try {
             val performanceData = AircraftPerformanceData.get(arrival.icaoType)
             performanceData.takeOffWTC
@@ -266,22 +282,21 @@ class PlannerServiceMaster(
             }
         }
 
-    override fun setMinimumSpacing(minimumSpacingDistanceNm: Double): Result<Unit> =
-        runCatching {
-            scope.launch {
-                withStateLock {
-                    plannerState.minimumSpacingNm = minimumSpacingDistanceNm
-                    plannerState.sequenceSystems = emptyList() // Reset sequences when spacing changes
-                }
-                onSequenceUpdated()
-                // Notify listeners of the spacing change
-                dataUpdateListeners.forEach { listener ->
-                    listener.onMinimumSpacingUpdated(airportIcao, minimumSpacingDistanceNm)
-                }
+    override fun setMinimumSpacing(minimumSpacingDistanceNm: Double) {
+        scope.launch {
+            withStateLock {
+                plannerState.minimumSpacingNm = minimumSpacingDistanceNm
+                plannerState.sequenceSystems = emptyList() // Reset sequences when spacing changes
+            }
+            onSequenceUpdated()
+            // Notify listeners of the spacing change
+            dataUpdateListeners.forEach { listener ->
+                listener.onMinimumSpacingUpdated(airportIcao, minimumSpacingDistanceNm)
             }
         }
+    }
 
-    override fun refreshWeatherData(): Result<Unit> {
+    override fun refreshWeatherData() {
         scope.launch {
             logger.info("Fetching weather data for $airportIcao")
             val weather = weatherDataRepository.getWindData(airport.location.lat, airport.location.lon)
@@ -295,73 +310,65 @@ class PlannerServiceMaster(
                 logger.warn("No weather data available for $airportIcao")
             }
         }
-        return Result.success(Unit)
     }
 
-    override fun refreshCdmData(): Result<Unit> {
+    override fun refreshCdmData() {
         scope.launch {
             logger.info("Fetching CDM departures for $airportIcao")
             cdmDepartures = cdmClient.fetchCdmDepartures(airportIcao)
         }
-        return Result.success(Unit)
     }
 
-    override fun suggestScheduledTime(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String?): Result<Unit> =
-        runCatching {
-            if (timelineEvent !is RunwayArrivalEvent) {
-                throw IllegalArgumentException("Only RunwayArrivalEvent is supported at the moment")
-            }
-            scope.launch {
-                withStateLock {
-                    plannerState.sequenceSystems = plannerState.sequenceSystems.map { sequence ->
-                        if (newRunway != null && newRunway !in sequence.runwaySystem) {
-                            // If the new runway is not in this sequence's runway system, return the sequence unchanged
-                            return@map sequence
-                        }
-                        if (newRunway == null && !sequence.places.any { it.item.id == timelineEvent.callsign }) {
-                            // If no new runway is specified and the sequence does not contain the aircraft, return the sequence unchanged
-                            return@map sequence
-                        }
-                        if (sequence.checkTimeSlotAvailable(timelineEvent, scheduledTime, newRunway)) {
-                            val updatedPlaces = SequenceService.suggestScheduledTime(
-                                sequence.places, timelineEvent.callsign, scheduledTime, plannerState.minimumSpacingNm
-                            )
-                            if (newRunway != null) {
-                                atcClient.assignRunway(timelineEvent.callsign, newRunway)
-                            }
-                            sequence.copy(places = updatedPlaces)
-                        } else {
-                            logger.warn("Cannot suggest new scheduled time $scheduledTime for ${timelineEvent.callsign} due to time slot unavailability.")
-                            sequence
-                        }
-                    }
-                }
-                onSequenceUpdated()
-            }
+    override fun suggestScheduledTime(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String?) {
+        if (timelineEvent !is RunwayArrivalEvent) {
+            throw IllegalArgumentException("Only RunwayArrivalEvent is supported at the moment")
         }
-
-    override fun reSchedule(callSign: String?): Result<Unit> =
-        runCatching {
-            scope.launch {
-                withStateLock {
-                    plannerState.sequenceSystems = plannerState.sequenceSystems.map { sequence ->
-                        val updatedPlaces = if (callSign == null) {
-                            SequenceService.reSchedule(sequence.places)
-                        } else {
-                            SequenceService.removeFromSequence(sequence.places, callSign)
+        scope.launch {
+            withStateLock {
+                plannerState.sequenceSystems = plannerState.sequenceSystems.map { sequence ->
+                    if (newRunway != null && newRunway !in sequence.runwaySystem) {
+                        return@map sequence
+                    }
+                    if (newRunway == null && !sequence.places.any { it.item.id == timelineEvent.callsign }) {
+                        return@map sequence
+                    }
+                    if (sequence.checkTimeSlotAvailable(timelineEvent, scheduledTime, newRunway)) {
+                        val updatedPlaces = SequenceService.suggestScheduledTime(
+                            sequence.places, timelineEvent.callsign, scheduledTime, plannerState.minimumSpacingNm
+                        )
+                        if (newRunway != null) {
+                            atcClient.assignRunway(timelineEvent.callsign, newRunway)
                         }
                         sequence.copy(places = updatedPlaces)
+                    } else {
+                        logger.warn("Cannot suggest new scheduled time $scheduledTime for ${timelineEvent.callsign} due to time slot unavailability.")
+                        sequence
                     }
                 }
-                onSequenceUpdated()
             }
+            onSequenceUpdated()
         }
+    }
 
-    override fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, runway: String): Result<Boolean> =
-        runCatching {
-            plannerState.sequenceSystems.any { amanSequence ->
-                amanSequence.checkTimeSlotAvailable(timelineEvent, scheduledTime, runway)
+    override fun reSchedule(callSign: String?) {
+        scope.launch {
+            withStateLock {
+                plannerState.sequenceSystems = plannerState.sequenceSystems.map { sequence ->
+                    val updatedPlaces = if (callSign == null) {
+                        SequenceService.reSchedule(sequence.places)
+                    } else {
+                        SequenceService.removeFromSequence(sequence.places, callSign)
+                    }
+                    sequence.copy(places = updatedPlaces)
+                }
             }
+            onSequenceUpdated()
+        }
+    }
+
+    override fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, runway: String): Boolean =
+        plannerState.sequenceSystems.any { amanSequence ->
+            amanSequence.checkTimeSlotAvailable(timelineEvent, scheduledTime, runway)
         }
 
     private fun AmanSequenceSystem.checkTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String? = null): Boolean {
@@ -379,8 +386,8 @@ class PlannerServiceMaster(
     }
 
 
-    override fun getDescentProfileForCallsign(callsign: String): Result<List<TrajectoryPoint>?> =
-        runCatching { ArrivalEventService.getDescentProfileForCallsign(callsign) }
+    override fun getDescentProfileForCallsign(callsign: String): List<TrajectoryPoint>? =
+        ArrivalEventService.getDescentProfileForCallsign(callsign)
 
     private suspend fun onSequenceUpdated() {
         withStateLock {

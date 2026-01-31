@@ -1,4 +1,4 @@
-package no.vaccsca.amandman.model.domain.service
+package no.vaccsca.amandman.model.domain.service.planning
 
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.data.repository.AircraftPerformanceData
@@ -12,10 +12,10 @@ import no.vaccsca.amandman.model.domain.util.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.domain.valueobjects.AircraftPosition
 import no.vaccsca.amandman.model.domain.valueobjects.Airport
 import no.vaccsca.amandman.model.domain.valueobjects.RunwayThreshold
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceStatus
 import no.vaccsca.amandman.model.domain.valueobjects.TrajectoryPoint
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientArrivalData
 import no.vaccsca.amandman.model.domain.valueobjects.distanceTo
+import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceStatus
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrivalEvent
 import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
 import kotlin.time.Duration.Companion.seconds

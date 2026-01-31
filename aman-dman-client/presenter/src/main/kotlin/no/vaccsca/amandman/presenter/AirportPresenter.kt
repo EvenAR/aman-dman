@@ -5,10 +5,9 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.data.dto.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.data.repository.SettingsRepository
-import no.vaccsca.amandman.model.domain.TimelineGroup
-import no.vaccsca.amandman.model.domain.exception.UnsupportedInSlaveModeException
+import no.vaccsca.amandman.model.domain.service.planning.AirportDataSource
 import no.vaccsca.amandman.model.domain.service.DataUpdateListener
-import no.vaccsca.amandman.model.domain.service.PlannerService
+import no.vaccsca.amandman.model.domain.service.planning.SequencePlanner
 import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
 import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
 import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
@@ -23,9 +22,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class AirportPresenter(
     override val airportIcao: String,
-    private val plannerService: PlannerService,
+    private val dataSource: AirportDataSource,
     private val view: AirportViewInterface,
-    private val timelineGroup: TimelineGroup,
     private val controllerInfoProvider: () -> ControllerInfoData?,
     private val showErrorMessage: (String) -> Unit,
     private val onAircraftSelectedCallback: (String) -> Unit,
@@ -34,6 +32,9 @@ class AirportPresenter(
 ) : AirportPresenterInterface, DataUpdateListener {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    private val sequencePlanner: SequencePlanner? = dataSource as? SequencePlanner
+    private val isReadOnly: Boolean = dataSource.isReadOnly
 
     private val cachedTimelineEvents = mutableMapOf<String, CachedTimelineEvent>()
     private var cachedNonSequencedEvents: List<NonSequencedEvent> = emptyList()
@@ -62,12 +63,12 @@ class AirportPresenter(
     }
 
     fun start() {
-        plannerService.start()
-        plannerService.startDataCollection()
+        dataSource.start()
+        dataSource.startDataCollection()
     }
 
     fun stop() {
-        plannerService.stop()
+        dataSource.stop()
     }
 
     fun updateViewFromCache() {
@@ -119,27 +120,34 @@ class AirportPresenter(
     override fun onLabelDrag(timelineEvent: TimelineEvent, newInstant: Instant) {
         if (timelineEvent !is RunwayArrivalEvent) return
 
-        plannerService.isTimeSlotAvailable(timelineEvent, newInstant, timelineEvent.runway)
-            .onSuccess { view.updateDraggedLabel(timelineEvent, newInstant, it) }
-            .onFailure { handleServiceError(it, "Failed to check time slot availability") }
+        sequencePlanner?.let { planner ->
+            val isAvailable = planner.isTimeSlotAvailable(timelineEvent, newInstant, timelineEvent.runway)
+            view.updateDraggedLabel(timelineEvent, newInstant, isAvailable)
+        } ?: run {
+            showReadOnlyMessage()
+        }
     }
 
     override fun onLabelDragEnd(timelineEvent: TimelineEvent, newScheduledTime: Instant, newRunway: String?) {
-        plannerService.suggestScheduledTime(timelineEvent, newScheduledTime, newRunway)
-            .onFailure { handleServiceError(it, "Failed to move aircraft") }
+        sequencePlanner?.suggestScheduledTime(timelineEvent, newScheduledTime, newRunway)
+            ?: showReadOnlyMessage()
     }
 
     override fun onRecalculateSequenceClicked(callSign: String?) {
-        plannerService.reSchedule(callSign)
-            .onFailure { handleServiceError(it, "Failed to re-schedule") }
+        sequencePlanner?.reSchedule(callSign)
+            ?: showReadOnlyMessage()
     }
 
     override fun onMinimumSpacingDistanceSet(minimumSpacingDistanceNm: Double) {
-        plannerService.setMinimumSpacing(minimumSpacingDistanceNm)
-            .onFailure { handleServiceError(it, "Failed to set minimum spacing") }
+        sequencePlanner?.setMinimumSpacing(minimumSpacingDistanceNm)
+            ?: showReadOnlyMessage()
     }
 
     override fun onSetMinSpacingSelectionClicked(minSpacingSelectionNm: Double?) {
+        if (isReadOnly) {
+            showReadOnlyMessage()
+            return
+        }
         view.showMinimumSpacingDialog(minSpacingSelectionNm ?: minimumSpacingNm)
     }
 
@@ -164,6 +172,11 @@ class AirportPresenter(
     }
 
     override fun beginRunwaySelection(runwayEvent: RunwayEvent, onSubmit: (runway: String?) -> Unit, onCancel: () -> Unit) {
+        if (isReadOnly) {
+            onSubmit(null)
+            return
+        }
+
         if (runwayEvent is RunwayArrivalEvent) {
             val controllerInfo = controllerInfoProvider()
             val imTheTrackingController = controllerInfo?.callsign != null &&
@@ -184,12 +197,13 @@ class AirportPresenter(
     }
 
     override fun onToggleShowDepartures(selected: Boolean) {
-        plannerService.setShowDepartures(selected)
+        sequencePlanner?.setShowDepartures(selected)
+            ?: showReadOnlyMessage()
     }
 
     override fun onReloadWindsClicked() {
-        plannerService.refreshWeatherData()
-            .onFailure { handleServiceError(it, "Failed to reload winds") }
+        sequencePlanner?.refreshWeatherData()
+            ?: showReadOnlyMessage()
     }
 
     override fun onTabMenu(screenPos: Point) {
@@ -241,11 +255,8 @@ class AirportPresenter(
         onRemove()
     }
 
-    private fun handleServiceError(error: Throwable, defaultMessage: String) {
-        when (error) {
-            is UnsupportedInSlaveModeException -> showErrorMessage(error.msg)
-            else -> showErrorMessage("$defaultMessage: ${error.message}")
-        }
+    private fun showReadOnlyMessage() {
+        showErrorMessage("This operation is not available in read-only mode")
     }
 
     private data class CachedTimelineEvent(

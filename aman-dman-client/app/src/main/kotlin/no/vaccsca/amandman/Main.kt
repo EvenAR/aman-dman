@@ -3,7 +3,7 @@ package no.vaccsca.amandman
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel
 import no.vaccsca.amandman.model.data.repository.SettingsRepository
 import no.vaccsca.amandman.presenter.MainPresenter
-import no.vaccsca.amandman.model.domain.PlannerManager
+import no.vaccsca.amandman.model.domain.AirportDataSourceManager
 import no.vaccsca.amandman.model.domain.valueobjects.Theme
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import java.util.*
@@ -49,7 +49,7 @@ fun main() {
         setTheme(settings.theme)
 
         val view = AmanDmanMainFrame()
-        val presenter = MainPresenter(PlannerManager(), view)
+        MainPresenter(AirportDataSourceManager(), view)
 
         view.openWindow()
     }
