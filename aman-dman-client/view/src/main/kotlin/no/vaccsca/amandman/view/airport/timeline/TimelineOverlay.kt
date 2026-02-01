@@ -310,8 +310,8 @@ class TimelineOverlay(
 
     private fun TimelineEvent.createLabel(): TimelineLabel {
         val label = when (this) {
-            is DepartureEvent -> DepartureLabel(departureLabelLayout, this, hBorder = labelHBorder, vBorder = labelVBorder)
-            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, this, presenter, hBorder = labelHBorder, vBorder = labelVBorder)
+            is DepartureEvent -> DepartureLabel(departureLabelLayout, this, hBorder = labelHBorder, vBorder = labelVBorder, selectedAircraftCallsign = airportViewState.selectedAircraftCallsign)
+            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, this, presenter, hBorder = labelHBorder, vBorder = labelVBorder, selectedAircraftCallsign = airportViewState.selectedAircraftCallsign)
             else -> throw IllegalArgumentException("Unsupported occurrence type")
         }
         label.font = baseFont
@@ -350,8 +350,8 @@ class TimelineOverlay(
 
     private fun createLabelCopy(label: TimelineLabel): TimelineLabel? {
         val copy = when (label.timelineEvent) {
-            is DepartureEvent -> DepartureLabel(departureLabelLayout, label.timelineEvent as DepartureEvent, hBorder = labelHBorder, vBorder = labelVBorder)
-            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, label.timelineEvent as RunwayArrivalEvent, presenter, hBorder = labelHBorder, vBorder = labelVBorder)
+            is DepartureEvent -> DepartureLabel(departureLabelLayout, label.timelineEvent as DepartureEvent, hBorder = labelHBorder, vBorder = labelVBorder, selectedAircraftCallsign = airportViewState.selectedAircraftCallsign)
+            is RunwayArrivalEvent -> ArrivalLabel(arrivalLabelLayout, label.timelineEvent as RunwayArrivalEvent, presenter, hBorder = labelHBorder, vBorder = labelVBorder, selectedAircraftCallsign = airportViewState.selectedAircraftCallsign)
             else -> return null
         }
         copy.font = label.font

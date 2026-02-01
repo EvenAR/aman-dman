@@ -136,6 +136,10 @@ class AirportViewDelegate(
         airportViewState.openTimelines.value -= timelineConfig
     }
 
+    override fun setSelectedAircraftCallsign(callsign: String) {
+        airportViewState.selectedAircraftCallsign.value = callsign
+    }
+
     private fun runOnUiThread(block: () -> Unit) {
         if (SwingUtilities.isEventDispatchThread()) {
             block()

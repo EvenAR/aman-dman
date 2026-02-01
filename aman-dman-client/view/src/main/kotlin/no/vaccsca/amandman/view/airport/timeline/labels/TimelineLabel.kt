@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItemAlignment
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
@@ -21,6 +22,7 @@ abstract class TimelineLabel(
     val hoverForegroundColor: Color = Color.BLACK,
     hBorder: Int,
     vBorder: Int,
+    protected val selectedAircraftCallsign: SharedValue<String>? = null,
 ) : JLabel() {
 
     private var isHovered: Boolean = false
@@ -49,6 +51,11 @@ abstract class TimelineLabel(
                 updateColors()
             }
         })
+        
+        // Listen for selection changes
+        selectedAircraftCallsign?.addListener {
+            repaint()
+        }
     }
 
     fun updateColors() {
@@ -92,14 +99,7 @@ abstract class TimelineLabel(
             val lbl = labels[index]
             lbl.text = item.formatText(labelStyle.text)
             lbl.foreground = labelStyle.textColor
-            lbl.border = if (labelStyle.borderColor != null) {
-                BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(labelStyle.borderColor),
-                    BorderFactory.createEmptyBorder(-1, 0, -1, 0)
-                )
-            } else {
-                BorderFactory.createEmptyBorder(-1, 0, -1, 0)
-            }
+            lbl.border = BorderFactory.createEmptyBorder(-1, 0, -1, 0)
         }
 
         repaint()
@@ -124,14 +124,18 @@ abstract class TimelineLabel(
         return paddedValue
     }
 
-    protected open fun getBorderColor(): Color {
-        return Color.GRAY
+    protected open fun isSelected(): Boolean {
+        return selectedAircraftCallsign?.value == timelineEvent.callsign
     }
 
     override fun paintBorder(g: java.awt.Graphics) {
         super.paintBorder(g)
-        //g.color = getBorderColor()
-        //g.drawRoundRect(this.visibleRect.x, visibleRect.y, visibleRect.width - 1, visibleRect.height - 1, 4, 4)
+        
+        // Draw white border if this aircraft is selected
+        if (isSelected()) {
+            g.color = Color.WHITE
+            g.drawRect(0, 0, width - 1, height - 1)
+        }
     }
 
     override fun getPreferredSize(): Dimension {
@@ -148,6 +152,5 @@ abstract class TimelineLabel(
     protected data class LabelStyleOptions(
         val text: String,
         val textColor: Color? = null,
-        val borderColor: Color? = null
     )
 }
