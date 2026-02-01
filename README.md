@@ -8,21 +8,11 @@ Features:
 - **Automatic sequencing**: Automatically sequences incoming aircraft based on their optimal arrival times and required separation.
 - **Master and slave mode**: Supports master-slave configuration for shared AMAN data between multiple controllers.
 
----
-
-## What AMAN Is (and Is Not)
-
-**AMAN is:**
-- A planning and sequencing tool  
-- A workload reducer during high traffic  
-- A realistic simulation of real-world arrival management  
-
-**AMAN is not:**
-- An autopilot  
-- A replacement for ATC judgement  
-- A rigid or mandatory system  
-
-Controllers are always in charge.
+> ⚠️ **Disclaimer**
+>
+> This project is a hobby project and an attempt to simulate real-world arrival management systems. It relies on publicly available information, assumptions, and educated guesswork.
+>
+> Dont follow it blindly. controllers are always in charge.
 
 ---
 
