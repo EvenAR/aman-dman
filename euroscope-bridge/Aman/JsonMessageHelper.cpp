@@ -63,6 +63,8 @@ const std::string JsonMessageHelper::getJsonOfArrivals(const std::vector<AmanAir
         if (inbound.flightPlanTas > 0)
             arrivalObject.AddMember("flightPlanTas", inbound.flightPlanTas, allocator);
 
+        arrivalObject.AddMember("isSelected", inbound.isSelected, allocator);
+
         Value routePoints(kArrayType);
         for (auto& point : inbound.remainingRoute) {
             Value pointObject(kObjectType);

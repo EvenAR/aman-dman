@@ -71,6 +71,7 @@ data class ArrivalJson(
     val route: List<FixPointJson>,
     val arrivalAirportIcao: String,
     val flightPlanTas: Int?,
+    val isSelected: Boolean,
 )
 
 data class FixPointJson(

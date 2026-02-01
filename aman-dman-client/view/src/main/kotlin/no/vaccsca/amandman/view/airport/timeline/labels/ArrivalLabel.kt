@@ -42,58 +42,60 @@ class ArrivalLabel(
 
     override fun decideLabelItemStyle(item: LabelItem, event: TimelineEvent): LabelStyleOptions {
         val arrival = event as RunwayArrivalEvent
+        val borderColor = if (arrival.isSelected) Color.WHITE else null
+        
         return when (item.source) {
             LabelItemSource.CALL_SIGN ->
-                LabelStyleOptions(text = arrival.callsign)
+                LabelStyleOptions(text = arrival.callsign, borderColor = borderColor)
 
             LabelItemSource.ASSIGNED_RUNWAY ->
-                LabelStyleOptions(text = arrival.runway)
+                LabelStyleOptions(text = arrival.runway, borderColor = borderColor)
 
             LabelItemSource.ASSIGNED_STAR ->
-                LabelStyleOptions(text = arrival.assignedStar ?: "")
+                LabelStyleOptions(text = arrival.assignedStar ?: "", borderColor = borderColor)
 
             LabelItemSource.AIRCRAFT_TYPE ->
-                LabelStyleOptions(text = arrival.icaoType)
+                LabelStyleOptions(text = arrival.icaoType, borderColor = borderColor)
 
             LabelItemSource.WAKE_CATEGORY ->
-                LabelStyleOptions(text = arrival.wakeCategory.toString(), textColor = wakeCatColor(arrival.wakeCategory))
+                LabelStyleOptions(text = arrival.wakeCategory.toString(), textColor = wakeCatColor(arrival.wakeCategory), borderColor = borderColor)
 
             LabelItemSource.TTL_TTG ->
-                LabelStyleOptions(text = formatTtlTtgValue(arrival), textColor = ttlTtgColor(arrival.scheduledTime - arrival.estimatedTime))
+                LabelStyleOptions(text = formatTtlTtgValue(arrival), textColor = ttlTtgColor(arrival.scheduledTime - arrival.estimatedTime), borderColor = borderColor)
 
             LabelItemSource.TIME_BEHIND_PRECEDING -> {
                 val text = arrival.timeToPreceding?.let { toHhMm(it) } ?: "--:--"
-                LabelStyleOptions(text = text)
+                LabelStyleOptions(text = text, borderColor = borderColor)
             }
 
             LabelItemSource.TIME_BEHIND_PRECEDING_ROUNDED -> {
                 val text = arrival.timeToPreceding?.let { toNormalizedMinutes(it).toString() } ?: "0"
-                LabelStyleOptions(text = text)
+                LabelStyleOptions(text = text, borderColor = borderColor)
             }
 
             LabelItemSource.REMAINING_DISTANCE ->
-                LabelStyleOptions(text = arrival.remainingDistance.roundToInt().toString())
+                LabelStyleOptions(text = arrival.remainingDistance.roundToInt().toString(), borderColor = borderColor)
 
             LabelItemSource.DISTANCE_BEHIND_PRECEDING ->
-                LabelStyleOptions(text = (arrival.distanceToPreceding ?: arrival.remainingDistance).roundToInt().toString())
+                LabelStyleOptions(text = (arrival.distanceToPreceding ?: arrival.remainingDistance).roundToInt().toString(), borderColor = borderColor)
 
             LabelItemSource.DIRECT_ROUTING ->
-                LabelStyleOptions(text = arrival.assignedDirect ?: "")
+                LabelStyleOptions(text = arrival.assignedDirect ?: "", borderColor = borderColor)
 
             LabelItemSource.SCRATCH_PAD ->
-                LabelStyleOptions(text = arrival.scratchPad ?: "")
+                LabelStyleOptions(text = arrival.scratchPad ?: "", borderColor = borderColor)
 
             LabelItemSource.ESTIMATED_LANDING_TIME ->
-                LabelStyleOptions(text = SimpleDateFormat("HH:mm").format(arrival.estimatedTime.epochSeconds * 1000))
+                LabelStyleOptions(text = SimpleDateFormat("HH:mm").format(arrival.estimatedTime.epochSeconds * 1000), borderColor = borderColor)
 
             LabelItemSource.GROUND_SPEED ->
-                LabelStyleOptions(text = arrival.groundSpeed.toString())
+                LabelStyleOptions(text = arrival.groundSpeed.toString(), borderColor = borderColor)
 
             LabelItemSource.GROUND_SPEED_10 ->
-                LabelStyleOptions(text = ((arrival.groundSpeed / 10) * 10).toString())
+                LabelStyleOptions(text = ((arrival.groundSpeed / 10) * 10).toString(), borderColor = borderColor)
 
             LabelItemSource.ALTITUDE ->
-                LabelStyleOptions(text = arrival.pressureAltitude.toString())
+                LabelStyleOptions(text = arrival.pressureAltitude.toString(), borderColor = borderColor)
         }
     }
 

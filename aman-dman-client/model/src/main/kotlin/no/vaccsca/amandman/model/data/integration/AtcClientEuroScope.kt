@@ -344,6 +344,7 @@ class AtcClientEuroScope(
             arrivalAirportIcao = this.arrivalAirportIcao,
             flightPlanTas = this.flightPlanTas,
             trackingController = this.trackingController,
+            isSelected = this.isSelected,
             recvTimestamp = NtpClock.now(),
         )
     }
