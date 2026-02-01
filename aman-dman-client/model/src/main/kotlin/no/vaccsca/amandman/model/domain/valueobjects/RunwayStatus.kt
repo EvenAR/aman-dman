@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.model.domain.valueobjects
 
 data class RunwayStatus(
-    val isActiveForArrivals: Boolean,
-    val isActiveForDepartures: Boolean
+    val arrivals: Boolean,
+    val departures: Boolean
 )
