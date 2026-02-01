@@ -288,7 +288,7 @@ class MainPresenter(
 
     private fun handleAircraftSelectionChanged(callsign: String) {
         // Update the local selected callsign
-        selectedCallsign = if (callsign.isEmpty()) null else callsign
+        selectedCallsign = callsign.ifEmpty { null }
         
         // Notify all airport presenters about the selection change
         airportPresenters.values.forEach { it.onAircraftSelectionChanged(callsign) }

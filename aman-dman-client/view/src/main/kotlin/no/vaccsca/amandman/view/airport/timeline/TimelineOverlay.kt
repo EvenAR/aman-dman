@@ -314,9 +314,8 @@ class TimelineOverlay(
                 departureLabelLayout, 
                 this, 
                 hBorder = labelHBorder, 
-                vBorder = labelVBorder, 
-                selectedAircraftCallsign = airportViewState.selectedAircraftCallsign,
-                selectedAircraftTimestamp = airportViewState.selectedAircraftTimestamp
+                vBorder = labelVBorder,
+                aircraftSelection = airportViewState.aircraftSelection
             )
             is RunwayArrivalEvent -> ArrivalLabel(
                 arrivalLabelLayout, 
@@ -324,8 +323,7 @@ class TimelineOverlay(
                 presenter, 
                 hBorder = labelHBorder, 
                 vBorder = labelVBorder, 
-                selectedAircraftCallsign = airportViewState.selectedAircraftCallsign,
-                selectedAircraftTimestamp = airportViewState.selectedAircraftTimestamp
+                aircraftSelection = airportViewState.aircraftSelection
             )
             else -> throw IllegalArgumentException("Unsupported occurrence type")
         }
@@ -370,8 +368,7 @@ class TimelineOverlay(
                 label.timelineEvent as DepartureEvent, 
                 hBorder = labelHBorder, 
                 vBorder = labelVBorder, 
-                selectedAircraftCallsign = airportViewState.selectedAircraftCallsign,
-                selectedAircraftTimestamp = airportViewState.selectedAircraftTimestamp
+                aircraftSelection = airportViewState.aircraftSelection
             )
             is RunwayArrivalEvent -> ArrivalLabel(
                 arrivalLabelLayout, 
@@ -379,8 +376,7 @@ class TimelineOverlay(
                 presenter, 
                 hBorder = labelHBorder, 
                 vBorder = labelVBorder, 
-                selectedAircraftCallsign = airportViewState.selectedAircraftCallsign,
-                selectedAircraftTimestamp = airportViewState.selectedAircraftTimestamp
+                aircraftSelection = airportViewState.aircraftSelection
             )
             else -> return null
         }

@@ -4,7 +4,9 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItemAlignment
+import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayFlightEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color
 import java.awt.Dimension
@@ -25,8 +27,7 @@ abstract class TimelineLabel(
     val hoverForegroundColor: Color = Color.BLACK,
     hBorder: Int,
     vBorder: Int,
-    protected val selectedAircraftCallsign: SharedValue<String>? = null,
-    protected val selectedAircraftTimestamp: SharedValue<Instant?>? = null,
+    protected val aircraftSelection: SharedValue<AircraftSelection?>,
 ) : JLabel() {
 
     private var isHovered: Boolean = false
@@ -34,6 +35,8 @@ abstract class TimelineLabel(
     private val labels = mutableListOf<JLabel>()
     private val baseFont = Font(Font.MONOSPACED, Font.PLAIN, 12)
     private var repaintTimer: Timer? = null
+
+    private val highlightDuration = 2.seconds
 
     protected abstract fun decideLabelItemStyle(item: LabelItem, event: TimelineEvent): LabelStyleOptions
     abstract fun getTimelinePlacement(): Instant
@@ -58,13 +61,7 @@ abstract class TimelineLabel(
         })
         
         // Listen for selection changes
-        selectedAircraftCallsign?.addListener {
-            repaint()
-            scheduleRepaintAfterTimeout()
-        }
-        
-        // Listen for timestamp changes
-        selectedAircraftTimestamp?.addListener {
+        aircraftSelection.addListener {
             repaint()
             scheduleRepaintAfterTimeout()
         }
@@ -73,11 +70,13 @@ abstract class TimelineLabel(
     private fun scheduleRepaintAfterTimeout() {
         // Cancel existing timer
         repaintTimer?.stop()
-        
+
+        val flight = timelineEvent as? RunwayFlightEvent ?: return
+
         // Only schedule repaint if this aircraft is currently selected
-        if (selectedAircraftCallsign?.value == timelineEvent.callsign) {
-            // Schedule repaint after 3 seconds to hide the border
-            repaintTimer = Timer(3100) { // 3.1 seconds to ensure we're past the 3 second threshold
+        if (aircraftSelection.value?.callsign == flight.callsign) {
+            // Schedule repaint after 2 seconds to hide the border
+            repaintTimer = Timer(highlightDuration.inWholeMilliseconds.toInt()) {
                 repaint()
             }
             repaintTimer?.isRepeats = false
@@ -152,16 +151,18 @@ abstract class TimelineLabel(
     }
 
     protected open fun isSelected(): Boolean {
-        if (selectedAircraftCallsign?.value != timelineEvent.callsign) {
+        val flight = timelineEvent as? RunwayFlightEvent ?: return false
+
+        if (aircraftSelection.value?.callsign != flight.callsign) {
             return false
         }
         
         // Check if selection is within 3 seconds
-        val timestamp = selectedAircraftTimestamp?.value ?: return false
+        val timestamp = aircraftSelection.value?.timestamp ?: return false
         val now = NtpClock.now()
         val elapsed = now - timestamp
         
-        return elapsed < 3.seconds
+        return elapsed < highlightDuration
     }
 
     override fun paintBorder(g: java.awt.Graphics) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.core.JsonFactory
 import kotlinx.coroutines.*
 import no.vaccsca.amandman.common.NtpClock
+import no.vaccsca.amandman.model.data.dto.euroscope.AircraftSelectionFromEuroScopePluginJson
 import no.vaccsca.amandman.model.data.dto.euroscope.ArrivalJson
 import no.vaccsca.amandman.model.data.dto.euroscope.ArrivalsUpdateFromEuroScopePluginJson
 import no.vaccsca.amandman.model.data.dto.euroscope.AssignRunwayJson

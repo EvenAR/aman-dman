@@ -7,6 +7,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrival
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
+import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color
 import java.awt.event.MouseAdapter
@@ -24,9 +25,8 @@ class ArrivalLabel(
     val presenter: AirportPresenterInterface,
     hBorder: Int,
     vBorder: Int,
-    selectedAircraftCallsign: SharedValue<String>? = null,
-    selectedAircraftTimestamp: SharedValue<Instant?>? = null,
-) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder, selectedAircraftCallsign = selectedAircraftCallsign, selectedAircraftTimestamp = selectedAircraftTimestamp) {
+    aircraftSelection: SharedValue<AircraftSelection?>,
+) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder, aircraftSelection = aircraftSelection) {
 
     private val TTL_TTG_THRESHOLD = 10.seconds
 

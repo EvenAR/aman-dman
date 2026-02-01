@@ -5,6 +5,7 @@ import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItemSource
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.DepartureEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color
 
@@ -13,8 +14,7 @@ class DepartureLabel(
     departureEvent: DepartureEvent,
     hBorder: Int,
     vBorder: Int,
-    selectedAircraftCallsign: SharedValue<String>? = null,
-    selectedAircraftTimestamp: SharedValue<Instant?>? = null,
+    aircraftSelection: SharedValue<AircraftSelection?>,
 ) : TimelineLabel(
     departureEvent,
     defaultBackgroundColor = Color.decode("#83989B"),
@@ -24,8 +24,7 @@ class DepartureLabel(
     hBorder = hBorder,
     vBorder = vBorder,
     labelItems = labelItems,
-    selectedAircraftCallsign = selectedAircraftCallsign,
-    selectedAircraftTimestamp = selectedAircraftTimestamp,
+    aircraftSelection = aircraftSelection,
 ) {
     override fun paintBorder(g: java.awt.Graphics) {
         super.paintBorder(g)
