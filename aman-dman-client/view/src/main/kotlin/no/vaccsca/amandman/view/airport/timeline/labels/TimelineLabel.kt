@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.view.airport.timeline.labels
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItemAlignment
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
@@ -11,7 +12,9 @@ import java.awt.Font
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.JLabel
+import javax.swing.Timer
 import javax.swing.border.EmptyBorder
+import kotlin.time.Duration.Companion.seconds
 
 abstract class TimelineLabel(
     var timelineEvent: TimelineEvent,
@@ -23,12 +26,14 @@ abstract class TimelineLabel(
     hBorder: Int,
     vBorder: Int,
     protected val selectedAircraftCallsign: SharedValue<String>? = null,
+    protected val selectedAircraftTimestamp: SharedValue<Instant?>? = null,
 ) : JLabel() {
 
     private var isHovered: Boolean = false
     private var isDragging: Boolean = false
     private val labels = mutableListOf<JLabel>()
     private val baseFont = Font(Font.MONOSPACED, Font.PLAIN, 12)
+    private var repaintTimer: Timer? = null
 
     protected abstract fun decideLabelItemStyle(item: LabelItem, event: TimelineEvent): LabelStyleOptions
     abstract fun getTimelinePlacement(): Instant
@@ -55,6 +60,28 @@ abstract class TimelineLabel(
         // Listen for selection changes
         selectedAircraftCallsign?.addListener {
             repaint()
+            scheduleRepaintAfterTimeout()
+        }
+        
+        // Listen for timestamp changes
+        selectedAircraftTimestamp?.addListener {
+            repaint()
+            scheduleRepaintAfterTimeout()
+        }
+    }
+    
+    private fun scheduleRepaintAfterTimeout() {
+        // Cancel existing timer
+        repaintTimer?.stop()
+        
+        // Only schedule repaint if this aircraft is currently selected
+        if (selectedAircraftCallsign?.value == timelineEvent.callsign) {
+            // Schedule repaint after 3 seconds to hide the border
+            repaintTimer = Timer(3100) { // 3.1 seconds to ensure we're past the 3 second threshold
+                repaint()
+            }
+            repaintTimer?.isRepeats = false
+            repaintTimer?.start()
         }
     }
 
@@ -125,13 +152,22 @@ abstract class TimelineLabel(
     }
 
     protected open fun isSelected(): Boolean {
-        return selectedAircraftCallsign?.value == timelineEvent.callsign
+        if (selectedAircraftCallsign?.value != timelineEvent.callsign) {
+            return false
+        }
+        
+        // Check if selection is within 3 seconds
+        val timestamp = selectedAircraftTimestamp?.value ?: return false
+        val now = NtpClock.now()
+        val elapsed = now - timestamp
+        
+        return elapsed < 3.seconds
     }
 
     override fun paintBorder(g: java.awt.Graphics) {
         super.paintBorder(g)
         
-        // Draw white border if this aircraft is selected
+        // Draw white border if this aircraft is selected and within 3 seconds
         if (isSelected()) {
             g.color = Color.WHITE
             g.drawRect(0, 0, width - 1, height - 1)

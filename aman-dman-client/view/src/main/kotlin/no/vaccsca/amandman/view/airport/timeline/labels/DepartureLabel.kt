@@ -14,6 +14,7 @@ class DepartureLabel(
     hBorder: Int,
     vBorder: Int,
     selectedAircraftCallsign: SharedValue<String>? = null,
+    selectedAircraftTimestamp: SharedValue<Instant?>? = null,
 ) : TimelineLabel(
     departureEvent,
     defaultBackgroundColor = Color.decode("#83989B"),
@@ -24,6 +25,7 @@ class DepartureLabel(
     vBorder = vBorder,
     labelItems = labelItems,
     selectedAircraftCallsign = selectedAircraftCallsign,
+    selectedAircraftTimestamp = selectedAircraftTimestamp,
 ) {
     override fun paintBorder(g: java.awt.Graphics) {
         super.paintBorder(g)

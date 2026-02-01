@@ -30,6 +30,7 @@ data class AirportViewState(
     val minimumSpacingNm: SharedValue<Double> = SharedValue(3.0),
     val showDepartures: SharedValue<Boolean> = SharedValue(false),
     val selectedAircraftCallsign: SharedValue<String> = SharedValue(""),
+    val selectedAircraftTimestamp: SharedValue<Instant?> = SharedValue(null),
     val draggedLabelState: SharedValue<DraggedLabelState?> = SharedValue(null),
     val selectedTimeRange: SharedValue<TimeRange> = SharedValue(
         initialValue = TimeRange(

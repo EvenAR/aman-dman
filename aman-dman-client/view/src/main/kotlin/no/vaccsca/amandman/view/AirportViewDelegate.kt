@@ -138,6 +138,12 @@ class AirportViewDelegate(
 
     override fun setSelectedAircraftCallsign(callsign: String) {
         airportViewState.selectedAircraftCallsign.value = callsign
+        // Set timestamp when selection changes (even if cleared)
+        airportViewState.selectedAircraftTimestamp.value = if (callsign.isNotEmpty()) {
+            no.vaccsca.amandman.common.NtpClock.now()
+        } else {
+            null
+        }
     }
 
     private fun runOnUiThread(block: () -> Unit) {

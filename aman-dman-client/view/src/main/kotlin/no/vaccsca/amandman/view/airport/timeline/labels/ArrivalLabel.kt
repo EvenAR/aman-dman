@@ -25,7 +25,8 @@ class ArrivalLabel(
     hBorder: Int,
     vBorder: Int,
     selectedAircraftCallsign: SharedValue<String>? = null,
-) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder, selectedAircraftCallsign = selectedAircraftCallsign) {
+    selectedAircraftTimestamp: SharedValue<Instant?>? = null,
+) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder, selectedAircraftCallsign = selectedAircraftCallsign, selectedAircraftTimestamp = selectedAircraftTimestamp) {
 
     private val TTL_TTG_THRESHOLD = 10.seconds
 
