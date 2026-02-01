@@ -143,8 +143,7 @@ enum class LabelItemSourceEnumYaml(@JsonValue val value: String) {
 
 enum class ThemeYaml(@JsonValue val value: String) {
     JTATTOO("JTattoo"),
-    FLATLAF_DARK("FlatLaf"),
-    MOTIF("Motif");
+    FLATLAF_DARK("FlatLaf");
 
     companion object {
         @JsonCreator
@@ -160,6 +159,5 @@ enum class ThemeYaml(@JsonValue val value: String) {
     fun toDomain(): Theme = when(this) {
         JTATTOO -> Theme.JTATTOO
         FLATLAF_DARK -> Theme.FLATLAF_DARK
-        MOTIF -> Theme.MOTIF
     }
 }

@@ -67,6 +67,5 @@ enum class LabelItemSource {
 
 enum class Theme {
     FLATLAF_DARK,
-    MOTIF,
     JTATTOO,
 }

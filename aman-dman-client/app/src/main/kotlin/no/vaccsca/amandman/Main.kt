@@ -34,13 +34,6 @@ fun main() {
                     e.printStackTrace()
                 }
             }
-            Theme.MOTIF -> {
-                try {
-                    UIManager.setLookAndFeel("com.sun.java.swing.plaf.motif.MotifLookAndFeel")
-                } catch (e: UnsupportedLookAndFeelException) {
-                    e.printStackTrace()
-                }
-            }
         }
     }
 
