@@ -63,8 +63,6 @@ const std::string JsonMessageHelper::getJsonOfArrivals(const std::vector<AmanAir
         if (inbound.flightPlanTas > 0)
             arrivalObject.AddMember("flightPlanTas", inbound.flightPlanTas, allocator);
 
-        arrivalObject.AddMember("isSelected", inbound.isSelected, allocator);
-
         Value routePoints(kArrayType);
         for (auto& point : inbound.remainingRoute) {
             Value pointObject(kObjectType);
@@ -196,5 +194,19 @@ const std::string JsonMessageHelper::getJsonOfDepartures(const std::vector<DmanA
     Writer<StringBuffer> writer(sb);
     document.Accept(writer);
 
+    return sb.GetString();
+}
+
+const std::string JsonMessageHelper::getJsonOfAircraftSelection(const AircraftSelection& selection) {
+    Document document;
+    document.SetObject();
+    Document::AllocatorType& allocator = document.GetAllocator();
+
+    document.AddMember("type", "aircraftSelection", allocator);
+    document.AddMember("callsign", Value(selection.callsign.c_str(), allocator), allocator);
+
+    StringBuffer sb;
+    Writer<StringBuffer> writer(sb);
+    document.Accept(writer);
     return sb.GetString();
 }

@@ -89,7 +89,6 @@ object ArrivalEventService {
             landingIas = aircraftPerformance.landingVat,
             scratchPad = arrival.scratchPad,
             assignedDirect = arrival.assignedDirect,
-            isSelected = arrival.isSelected,
             lastTimestamp = NtpClock.now()
         )
     }

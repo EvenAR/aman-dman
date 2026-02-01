@@ -35,6 +35,7 @@ import kotlin.time.Duration.Companion.minutes
 class AtcClientEuroScope(
     private val controllerInfoCallback: ((ControllerInfoData) -> Unit),
     private val onVersionMismatch: ((clientVersion: String, pluginVersion: String) -> Unit)? = null,
+    private val onAircraftSelectionChanged: ((String) -> Unit)? = null,
     private val host: String = SettingsRepository.getSettings(reload = true).connectionConfig.atcClient.host,
     private val port: Int = SettingsRepository.getSettings(reload = true).connectionConfig.atcClient.port ?: 12345,
 ) : AtcClient {
@@ -320,6 +321,9 @@ class AtcClientEuroScope(
                 )
                 controllerInfoCallback(infoData)
             }
+            is AircraftSelectionFromEuroScopePluginJson -> {
+                onAircraftSelectionChanged?.invoke(messageFromEuroScopePluginJson.callsign)
+            }
         }
     }
 
@@ -344,7 +348,6 @@ class AtcClientEuroScope(
             arrivalAirportIcao = this.arrivalAirportIcao,
             flightPlanTas = this.flightPlanTas,
             trackingController = this.trackingController,
-            isSelected = this.isSelected,
             recvTimestamp = NtpClock.now(),
         )
     }

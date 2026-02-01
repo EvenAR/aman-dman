@@ -41,6 +41,7 @@ class AirportPresenter(
     private val runwayModeStateManager = AirportRunwayModeStateManager(airportIcao, view)
     private var minimumSpacingNm: Double = 3.0
     private var availableRunways = setOf<String>()
+    private var selectedAircraftCallsign: String = ""
     private val timelineConfigs = mutableMapOf<String, TimelineConfig>()
 
     init {
@@ -253,6 +254,15 @@ class AirportPresenter(
 
     override fun onRemoveTab() {
         onRemove()
+    }
+
+    fun updateDescentProfileForCallsign(callsign: String) {
+        // The descent profile update is handled in the main presenter
+    }
+
+    fun onAircraftSelectionChanged(callsign: String) {
+        selectedAircraftCallsign = callsign
+        view.setSelectedAircraftCallsign(callsign)
     }
 
     private fun showReadOnlyMessage() {

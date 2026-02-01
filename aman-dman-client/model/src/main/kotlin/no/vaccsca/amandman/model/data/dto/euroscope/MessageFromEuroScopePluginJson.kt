@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
     JsonSubTypes.Type(value = DeparturesUpdateFromEuroScopePluginJson::class, name = "departures"),
     JsonSubTypes.Type(value = RunwayStatusesUpdateFromEuroScopePluginJson::class, name = "runwayStatuses"),
     JsonSubTypes.Type(value = ControllerInfoFromEuroScopePluginJson::class, name = "controllerInfo"),
+    JsonSubTypes.Type(value = AircraftSelectionFromEuroScopePluginJson::class, name = "aircraftSelection"),
 )
 sealed class MessageFromEuroScopePluginJson()
 
@@ -35,6 +36,10 @@ data class RunwayStatusesUpdateFromEuroScopePluginJson(
 
 data class ControllerInfoFromEuroScopePluginJson(
     val me: ControllerInfoJson
+) : MessageFromEuroScopePluginJson()
+
+data class AircraftSelectionFromEuroScopePluginJson(
+    val callsign: String
 ) : MessageFromEuroScopePluginJson()
 
 data class RunwayStatusJson(
@@ -71,7 +76,6 @@ data class ArrivalJson(
     val route: List<FixPointJson>,
     val arrivalAirportIcao: String,
     val flightPlanTas: Int?,
-    val isSelected: Boolean,
 )
 
 data class FixPointJson(

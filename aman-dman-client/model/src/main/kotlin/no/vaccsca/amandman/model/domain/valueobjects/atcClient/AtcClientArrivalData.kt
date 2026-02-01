@@ -19,7 +19,6 @@ import no.vaccsca.amandman.model.domain.valueobjects.Waypoint
  * @param assignedRunway The runway assigned to the aircraft, if any.
  * @param arrivalAirportIcao The ICAO code of the arrival airport.
  * @param flightPlanTas The true airspeed (TAS) from the flight plan,
- * @param isSelected Whether the aircraft is currently selected in EuroScope.
  * @param recvTimestamp The timestamp of when the data was received.
  */
 data class AtcClientArrivalData(
@@ -34,6 +33,5 @@ data class AtcClientArrivalData(
     val assignedRunway: String?,
     val arrivalAirportIcao: String,
     val flightPlanTas: Int?,
-    val isSelected: Boolean,
     val recvTimestamp: Instant,
 )

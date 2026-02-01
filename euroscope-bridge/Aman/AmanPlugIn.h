@@ -4,6 +4,9 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <thread>
+#include <atomic>
+#include <mutex>
 #include "EuroScopePlugIn.h"
 #include "AmanServer.h"
 #include "JsonMessageHelper.h"
@@ -25,6 +28,15 @@ private:
 
     std::set<std::string> airportsSubscribedTo;
     std::string pluginDirectory;
+
+    // Selection polling thread
+    std::thread selectionPollingThread;
+    std::atomic<bool> selectionPollingActive;
+    std::mutex selectionMutex;
+    std::string lastSelectedCallsign;
+    
+    void selectionPollingLoop();
+    void checkAndSendSelectionChange();
 
     bool hasCorrectDestination(CFlightPlanData fpd, std::vector<std::string> destinationAirports);
     int getFixIndexByName(CFlightPlanExtractedRoute extractedRoute, const std::string& fixName);

@@ -33,16 +33,26 @@ AmanPlugIn::AmanPlugIn()
     : CPlugIn(COMPATIBILITY_CODE, MY_PLUGIN_NAME, MY_PLUGIN_VERSION, MY_PLUGIN_DEVELOPER, MY_PLUGIN_COPYRIGHT)
     , AmanServer()
     , jsonSerializer()
+    , selectionPollingActive(false)
+    , lastSelectedCallsign("")
 {
     // Find directory of this .dll
     char fullPluginPath[_MAX_PATH];
     GetModuleFileNameA((HINSTANCE)&__ImageBase, fullPluginPath, sizeof(fullPluginPath));
     std::string fullPluginPathStr(fullPluginPath);
     pluginDirectory = fullPluginPathStr.substr(0, fullPluginPathStr.find_last_of("\\"));
+    
+    // Start the selection polling thread
+    selectionPollingActive = true;
+    selectionPollingThread = std::thread(&AmanPlugIn::selectionPollingLoop, this);
 }
 
 AmanPlugIn::~AmanPlugIn() { 
-    
+    // Stop the selection polling thread
+    selectionPollingActive = false;
+    if (selectionPollingThread.joinable()) {
+        selectionPollingThread.join();
+    }
 }
 
 void AmanPlugIn::OnTimer(int Counter) {
@@ -202,7 +212,6 @@ std::vector<AmanAircraft> AmanPlugIn::getInboundsForAirport(const std::string& a
     long int timeNow = static_cast<long int>(std::time(nullptr)); // Current UNIX-timestamp in seconds
     int transAlt = this->GetTransitionAltitude();
 
-    CRadarTarget asel = RadarTargetSelectASEL();
     CRadarTarget rt;
     std::vector<AmanAircraft> aircraftList;
     for (rt = RadarTargetSelectFirst(); rt.IsValid(); rt = RadarTargetSelectNext(rt)) {
@@ -217,7 +226,6 @@ std::vector<AmanAircraft> AmanPlugIn::getInboundsForAirport(const std::string& a
         }
 
         CFlightPlanExtractedRoute route = rt.GetCorrelatedFlightPlan().GetExtractedRoute();
-        bool isSelectedAircraft = asel.IsValid() && rt.GetCallsign() == asel.GetCallsign();
         auto assignedStarName = rt.GetCorrelatedFlightPlan().GetFlightPlanData().GetStarName();
 
         AmanAircraft ac;
@@ -227,7 +235,6 @@ std::vector<AmanAircraft> AmanPlugIn::getInboundsForAirport(const std::string& a
         ac.icaoType = rt.GetCorrelatedFlightPlan().GetFlightPlanData().GetAircraftFPType();
         ac.assignedDirectRouting = rt.GetCorrelatedFlightPlan().GetControllerAssignedData().GetDirectToPointName();
         ac.trackingController = rt.GetCorrelatedFlightPlan().GetTrackingControllerId();
-        ac.isSelected = isSelectedAircraft;
         ac.scratchPad = rt.GetCorrelatedFlightPlan().GetControllerAssignedData().GetScratchPadString();
         ac.groundSpeed = rt.GetPosition().GetReportedGS();
         ac.pressureAltitude = rt.GetPosition().GetPressureAltitude();
@@ -382,5 +389,34 @@ long AmanPlugIn::processDepartureTime(const std::string& departureTime) {
     } catch (const std::exception& e) {
         std::cerr << "Error parsing departure time: " << e.what() << std::endl;
         return -1;
+    }
+}
+
+void AmanPlugIn::selectionPollingLoop() {
+    while (selectionPollingActive) {
+        checkAndSendSelectionChange();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Poll every 100ms
+    }
+}
+
+void AmanPlugIn::checkAndSendSelectionChange() {
+    CRadarTarget asel = RadarTargetSelectASEL();
+    std::string currentSelectedCallsign = "";
+    
+    if (asel.IsValid()) {
+        currentSelectedCallsign = asel.GetCallsign();
+    }
+    
+    std::lock_guard<std::mutex> lock(selectionMutex);
+    
+    // Only send if selection has changed
+    if (currentSelectedCallsign != lastSelectedCallsign) {
+        lastSelectedCallsign = currentSelectedCallsign;
+        
+        AircraftSelection selection;
+        selection.callsign = currentSelectedCallsign;
+        
+        auto selectionJson = jsonSerializer.getJsonOfAircraftSelection(selection);
+        enqueueMessage(selectionJson);
     }
 }
