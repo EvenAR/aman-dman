@@ -12,5 +12,6 @@ public:
     const std::string getJsonOfDepartures(const std::vector<DmanAircraft>& aircraftList);
     const std::string getJsonOfRunwayStatuses(const std::vector<RunwayStatus>& runways);
     const std::string getJsonOfControllerInfo(const ControllerInfo& controllerInfo);
+    const std::string getJsonOfAircraftSelection(const AircraftSelection& selection);
 };
 

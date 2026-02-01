@@ -7,6 +7,8 @@ import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayArrival
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
+import no.vaccsca.amandman.view.entity.AircraftSelection
+import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -22,8 +24,9 @@ class ArrivalLabel(
     val arrivalEvent: RunwayArrivalEvent,
     val presenter: AirportPresenterInterface,
     hBorder: Int,
-    vBorder: Int
-) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder) {
+    vBorder: Int,
+    aircraftSelection: SharedValue<AircraftSelection?>,
+) : TimelineLabel(arrivalEvent, labelItems, hBorder = hBorder, vBorder = vBorder, aircraftSelection = aircraftSelection) {
 
     private val TTL_TTG_THRESHOLD = 10.seconds
 
@@ -42,6 +45,7 @@ class ArrivalLabel(
 
     override fun decideLabelItemStyle(item: LabelItem, event: TimelineEvent): LabelStyleOptions {
         val arrival = event as RunwayArrivalEvent
+        
         return when (item.source) {
             LabelItemSource.CALL_SIGN ->
                 LabelStyleOptions(text = arrival.callsign)

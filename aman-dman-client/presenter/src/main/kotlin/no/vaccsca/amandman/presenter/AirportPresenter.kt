@@ -255,6 +255,10 @@ class AirportPresenter(
         onRemove()
     }
 
+    fun onAircraftSelectionChanged(callsign: String) {
+        view.setSelectedAircraftCallsign(callsign)
+    }
+
     private fun showReadOnlyMessage() {
         showErrorMessage("This operation is not available in read-only mode")
     }

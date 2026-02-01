@@ -17,6 +17,11 @@ data class MainViewState(
     val currentTab: SharedValue<String?> = SharedValue(null)
 )
 
+data class AircraftSelection(
+    val callsign: String,
+    val timestamp: Instant
+)
+
 data class AirportViewState(
     val airportIcao: String,
     val userRole: UserRole,
@@ -29,6 +34,7 @@ data class AirportViewState(
     val weatherProfile: SharedValue<VerticalWeatherProfile?> = SharedValue(null),
     val minimumSpacingNm: SharedValue<Double> = SharedValue(3.0),
     val showDepartures: SharedValue<Boolean> = SharedValue(false),
+    val aircraftSelection: SharedValue<AircraftSelection?> = SharedValue(null),
     val draggedLabelState: SharedValue<DraggedLabelState?> = SharedValue(null),
     val selectedTimeRange: SharedValue<TimeRange> = SharedValue(
         initialValue = TimeRange(

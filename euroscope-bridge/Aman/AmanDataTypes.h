@@ -31,7 +31,6 @@ public:
     std::string trackingController;
     std::string arrivalAirportIcao;
 
-    bool isSelected;
     float latitude;
     float longitude;
 
@@ -40,6 +39,10 @@ public:
     int flightLevel;
     int flightPlanTas;
     int track;
+};
+
+struct AircraftSelection {
+    std::string callsign;
 };
 
 class DmanAircraft {

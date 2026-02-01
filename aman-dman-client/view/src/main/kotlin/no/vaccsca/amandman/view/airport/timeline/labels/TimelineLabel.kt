@@ -1,16 +1,22 @@
 package no.vaccsca.amandman.view.airport.timeline.labels
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
 import no.vaccsca.amandman.model.domain.valueobjects.LabelItemAlignment
+import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayFlightEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.view.entity.AircraftSelection
+import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.JLabel
+import javax.swing.Timer
 import javax.swing.border.EmptyBorder
+import kotlin.time.Duration.Companion.seconds
 
 abstract class TimelineLabel(
     var timelineEvent: TimelineEvent,
@@ -21,12 +27,16 @@ abstract class TimelineLabel(
     val hoverForegroundColor: Color = Color.BLACK,
     hBorder: Int,
     vBorder: Int,
+    protected val aircraftSelection: SharedValue<AircraftSelection?>,
 ) : JLabel() {
 
     private var isHovered: Boolean = false
     private var isDragging: Boolean = false
     private val labels = mutableListOf<JLabel>()
     private val baseFont = Font(Font.MONOSPACED, Font.PLAIN, 12)
+    private var repaintTimer: Timer? = null
+
+    private val highlightDuration = 2.seconds
 
     protected abstract fun decideLabelItemStyle(item: LabelItem, event: TimelineEvent): LabelStyleOptions
     abstract fun getTimelinePlacement(): Instant
@@ -49,6 +59,29 @@ abstract class TimelineLabel(
                 updateColors()
             }
         })
+        
+        // Listen for selection changes
+        aircraftSelection.addListener {
+            repaint()
+            scheduleRepaintAfterTimeout()
+        }
+    }
+    
+    private fun scheduleRepaintAfterTimeout() {
+        // Cancel existing timer
+        repaintTimer?.stop()
+
+        val flight = timelineEvent as? RunwayFlightEvent ?: return
+
+        // Only schedule repaint if this aircraft is currently selected
+        if (aircraftSelection.value?.callsign == flight.callsign) {
+            // Schedule repaint after 2 seconds to hide the border
+            repaintTimer = Timer(highlightDuration.inWholeMilliseconds.toInt()) {
+                repaint()
+            }
+            repaintTimer?.isRepeats = false
+            repaintTimer?.start()
+        }
     }
 
     fun updateColors() {
@@ -92,14 +125,7 @@ abstract class TimelineLabel(
             val lbl = labels[index]
             lbl.text = item.formatText(labelStyle.text)
             lbl.foreground = labelStyle.textColor
-            lbl.border = if (labelStyle.borderColor != null) {
-                BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(labelStyle.borderColor),
-                    BorderFactory.createEmptyBorder(-1, 0, -1, 0)
-                )
-            } else {
-                BorderFactory.createEmptyBorder(-1, 0, -1, 0)
-            }
+            lbl.border = BorderFactory.createEmptyBorder(-1, 0, -1, 0)
         }
 
         repaint()
@@ -124,14 +150,29 @@ abstract class TimelineLabel(
         return paddedValue
     }
 
-    protected open fun getBorderColor(): Color {
-        return Color.GRAY
+    protected open fun isSelected(): Boolean {
+        val flight = timelineEvent as? RunwayFlightEvent ?: return false
+
+        if (aircraftSelection.value?.callsign != flight.callsign) {
+            return false
+        }
+        
+        // Check if selection is within 3 seconds
+        val timestamp = aircraftSelection.value?.timestamp ?: return false
+        val now = NtpClock.now()
+        val elapsed = now - timestamp
+        
+        return elapsed < highlightDuration
     }
 
     override fun paintBorder(g: java.awt.Graphics) {
         super.paintBorder(g)
-        //g.color = getBorderColor()
-        //g.drawRoundRect(this.visibleRect.x, visibleRect.y, visibleRect.width - 1, visibleRect.height - 1, 4, 4)
+        
+        // Draw white border if this aircraft is selected and within 3 seconds
+        if (isSelected()) {
+            g.color = Color.WHITE
+            g.drawRect(0, 0, width - 1, height - 1)
+        }
     }
 
     override fun getPreferredSize(): Dimension {
@@ -148,6 +189,5 @@ abstract class TimelineLabel(
     protected data class LabelStyleOptions(
         val text: String,
         val textColor: Color? = null,
-        val borderColor: Color? = null
     )
 }

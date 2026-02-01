@@ -196,3 +196,17 @@ const std::string JsonMessageHelper::getJsonOfDepartures(const std::vector<DmanA
 
     return sb.GetString();
 }
+
+const std::string JsonMessageHelper::getJsonOfAircraftSelection(const AircraftSelection& selection) {
+    Document document;
+    document.SetObject();
+    Document::AllocatorType& allocator = document.GetAllocator();
+
+    document.AddMember("type", "aircraftSelection", allocator);
+    document.AddMember("callsign", Value(selection.callsign.c_str(), allocator), allocator);
+
+    StringBuffer sb;
+    Writer<StringBuffer> writer(sb);
+    document.Accept(writer);
+    return sb.GetString();
+}

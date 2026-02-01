@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.core.JsonFactory
 import kotlinx.coroutines.*
 import no.vaccsca.amandman.common.NtpClock
+import no.vaccsca.amandman.model.data.dto.euroscope.AircraftSelectionFromEuroScopePluginJson
 import no.vaccsca.amandman.model.data.dto.euroscope.ArrivalJson
 import no.vaccsca.amandman.model.data.dto.euroscope.ArrivalsUpdateFromEuroScopePluginJson
 import no.vaccsca.amandman.model.data.dto.euroscope.AssignRunwayJson
@@ -35,6 +36,7 @@ import kotlin.time.Duration.Companion.minutes
 class AtcClientEuroScope(
     private val controllerInfoCallback: ((ControllerInfoData) -> Unit),
     private val onVersionMismatch: ((clientVersion: String, pluginVersion: String) -> Unit)? = null,
+    private val onAircraftSelectionChanged: ((String) -> Unit)? = null,
     private val host: String = SettingsRepository.getSettings(reload = true).connectionConfig.atcClient.host,
     private val port: Int = SettingsRepository.getSettings(reload = true).connectionConfig.atcClient.port ?: 12345,
 ) : AtcClient {
@@ -319,6 +321,9 @@ class AtcClientEuroScope(
                     facilityType = facilityTypeToString(messageFromEuroScopePluginJson.me.facilityType),
                 )
                 controllerInfoCallback(infoData)
+            }
+            is AircraftSelectionFromEuroScopePluginJson -> {
+                onAircraftSelectionChanged?.invoke(messageFromEuroScopePluginJson.callsign)
             }
         }
     }

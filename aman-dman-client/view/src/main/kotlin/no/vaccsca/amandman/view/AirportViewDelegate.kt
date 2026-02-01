@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.view
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
 import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayEvent
@@ -10,6 +11,7 @@ import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.presenter.AirportViewInterface
 import no.vaccsca.amandman.view.dialogs.RunwayDialog
 import no.vaccsca.amandman.view.dialogs.SpacingDialog
+import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.AirportViewState
 import no.vaccsca.amandman.view.entity.DraggedLabelState
 import no.vaccsca.amandman.view.forms.NewTimelineForm
@@ -134,6 +136,14 @@ class AirportViewDelegate(
 
     override fun removeTimeline(timelineConfig: TimelineConfig) {
         airportViewState.openTimelines.value -= timelineConfig
+    }
+
+    override fun setSelectedAircraftCallsign(callsign: String) {
+        airportViewState.aircraftSelection.value = if (callsign.isNotEmpty()) {
+            AircraftSelection(callsign, NtpClock.now())
+        } else {
+            null
+        }
     }
 
     private fun runOnUiThread(block: () -> Unit) {
