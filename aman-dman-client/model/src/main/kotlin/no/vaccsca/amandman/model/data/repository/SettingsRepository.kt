@@ -9,10 +9,14 @@ import no.vaccsca.amandman.model.data.config.yaml.AmanDmanSettingsYaml
 import no.vaccsca.amandman.model.data.config.yaml.StarYamlFile
 import no.vaccsca.amandman.model.domain.valueobjects.Airport
 import no.vaccsca.amandman.model.domain.valueobjects.AmanDmanSettings
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
+import kotlin.math.log
 
 object SettingsRepository {
+
+    private val logger = LoggerFactory.getLogger(javaClass)
 
     private var settings: AmanDmanSettings? = null
     private var airportData: List<Airport>? = null
@@ -21,11 +25,6 @@ object SettingsRepository {
     private const val AIRPORTS_FILE_PATH = "config/airports.yaml"
 
     private val yamlMapper = YAMLMapper().apply { registerKotlinModule() }
-
-    init {
-        loadSettings()
-        loadAirportData()
-    }
 
     fun getSettings(reload: Boolean = false): AmanDmanSettings {
         if (settings == null || reload) loadSettings()
@@ -43,9 +42,18 @@ object SettingsRepository {
 
     private fun loadAirportData() {
         val airportsJson = readYamlFile<AirportDataJson>(AIRPORTS_FILE_PATH)
-        airportData = airportsJson.airports.map { (icao, airportJson) ->
-            val stars = readYamlFile<StarYamlFile>("config/stars/$icao.yaml")
-            airportJson.toDomain(icao, stars)
+        logger.info("Loaded airport config for: ${airportsJson.airports.keys.joinToString(", ")}")
+        airportData = airportsJson.airports.mapNotNull { (icao, airportJson) ->
+            try {
+                val stars = readYamlFile<StarYamlFile>("config/stars/$icao.yaml")
+                logger.info("Loaded STAR data for airport $icao")
+                airportJson.toDomain(icao, stars)
+            } catch (e: FileNotFoundException) {
+                logger.warn("STAR data file not found for airport $icao. Trajectory calculations will have reduced accuracy.")
+            } catch (e: Exception) {
+                logger.error("Error loading STAR data for airport $icao: ${e.message}")
+            }
+            airportJson.toDomain(icao, StarYamlFile(emptyList()))
         }
     }
 
