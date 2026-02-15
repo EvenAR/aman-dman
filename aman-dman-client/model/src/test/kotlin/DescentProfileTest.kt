@@ -21,7 +21,7 @@ import kotlin.collections.listOf
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-
+import kotlin.time.Duration.Companion.minutes
 
 
 class DescentProfileTest {
@@ -60,7 +60,9 @@ class DescentProfileTest {
         icao = "ENGM",
         location = LatLng(0.0, 0.0),
         runways = mapOf("01L" to runwayThreshold01L),
-        independentRunwaySystems = listOf(setOf("01L"))
+        independentRunwaySystems = listOf(setOf("01L")),
+        sequencingHorizon = 30.minutes,
+        lockedHorizon = 10.minutes
     )
 
     data class TestFlight(

@@ -22,6 +22,12 @@ data class AirportJson(
     @field:Valid
     val runwayThresholds: Map<@NotEmpty String, @Valid RunwayThresholdJson>,
 
+    @field:Min(1)
+    val sequencingHorizonMinutes: Int? = null,
+
+    @field:Min(1)
+    val lockedHorizonMinutes: Int? = null,
+
     val independentRunwaySystems: List<List<String>>? = null
 )
 

@@ -6,13 +6,15 @@ import no.vaccsca.amandman.model.domain.valueobjects.sequence.AircraftSequenceCa
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceCandidate
 import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequencePlace
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-object SequenceService {
+data class SequencingOptions(
+    val minimumSeparationNm: Double,
+    val sequencingHorizon: Duration,
+    val lockedHorizon: Duration
+)
 
-    val SEQUENCING_HORIZON: Duration = 30.minutes // When aircraft enter active sequencing management
-    val LOCKED_HORIZON: Duration = 10.minutes // When aircraft positions become locked/unchangeable
+object SequenceService {
 
     /**
      * Clears the current sequence, forcing a full rescheduling of all aircraft.
@@ -140,7 +142,7 @@ object SequenceService {
     fun updateSequence(
         currentSequence: List<SequencePlace>,
         candidates: List<SequenceCandidate>,
-        minimumSeparationNm: Double
+        config: SequencingOptions
     ): List<SequencePlace> {
         // Build a map of the latest candidate data by ID
         val latestCandidateData = candidates.associateBy { it.id }
@@ -159,13 +161,13 @@ object SequenceService {
 
         // Add new candidates that are in sequencing horizon
         val existingIds = currentSequence.map { it.item.id }.toSet()
-        val newCandidates = candidates.filter { it.id !in existingIds && it.isInSequencingHorizon() }
+        val newCandidates = candidates.filter { it.id !in existingIds && it.isInSequencingHorizon(config.sequencingHorizon) }
         allCandidates.addAll(newCandidates)
 
         // Remove aircraft that are no longer in sequencing horizon or no longer candidates
         val activeCandidateIds = candidates.map { it.id }.toSet()
         val filteredCandidates = allCandidates.filter { candidate ->
-            candidate.id in activeCandidateIds && candidate.isInSequencingHorizon()
+            candidate.id in activeCandidateIds && candidate.isInSequencingHorizon(config.sequencingHorizon)
         }
 
         // Separate manually assigned and automatically scheduled aircraft
@@ -226,7 +228,7 @@ object SequenceService {
                     referenceTime = precedingPlace.scheduledTime,
                     leader = precedingManual as AircraftSequenceCandidate,
                     follower = candidate as AircraftSequenceCandidate,
-                    minimumSeparationNm = minimumSeparationNm
+                    minimumSeparationNm = config.minimumSeparationNm
                 )
                 bestTime = maxOf(bestTime, minTime)
             }
@@ -245,7 +247,8 @@ object SequenceService {
             val bestTime = findBestInsertionTime(
                 allSequencePlaces,
                 candidate as AircraftSequenceCandidate,
-                minimumSeparationNm
+                config.minimumSeparationNm,
+                config.lockedHorizon
             )
 
             allSequencePlaces.add(
@@ -271,7 +274,7 @@ object SequenceService {
                 referenceTime = leader.scheduledTime,
                 leader = leader.item as AircraftSequenceCandidate,
                 follower = follower.item as AircraftSequenceCandidate,
-                minimumSeparationNm = minimumSeparationNm
+                minimumSeparationNm = config.minimumSeparationNm
             )
 
             if (follower.scheduledTime < minTime) {
@@ -293,12 +296,13 @@ object SequenceService {
     private fun findBestInsertionTime(
         existingPlaces: List<SequencePlace>,
         newCandidate: AircraftSequenceCandidate,
-        minimumSeparationNm: Double
+        minimumSeparationNm: Double,
+        lockedHorizon: Duration
     ): Instant {
         var bestTime = newCandidate.preferredTime
 
         // AMAN Compliance: Check for aircraft in locked horizon that cannot be overtaken
-        val lockedAircraft = existingPlaces.filter { it.item.isInLockedHorizon() }
+        val lockedAircraft = existingPlaces.filter { it.item.isInLockedHorizon(lockedHorizon) }
         val lastLockedAircraft = lockedAircraft.maxByOrNull { it.scheduledTime }
 
         // If there are locked aircraft, new aircraft cannot be inserted before the last locked aircraft
@@ -344,7 +348,7 @@ object SequenceService {
             )
             // Only change time if there's a conflict (follower would be too close)
             // But don't push aircraft in locked horizon
-            if (follower.scheduledTime < requiredFollowerTime && !follower.item.isInLockedHorizon()) {
+            if (follower.scheduledTime < requiredFollowerTime && !follower.item.isInLockedHorizon(lockedHorizon)) {
                 // Move to an earlier time to avoid pushing the follower
                 val effectiveSpacing = if (areOnDifferentRunways(newCandidate, follower.item as AircraftSequenceCandidate)) {
                     minimumSeparationNm
@@ -416,17 +420,17 @@ object SequenceService {
     /**
      * Checks if the aircraft is within the Sequencing Horizon.
      */
-    private fun SequenceCandidate.isInSequencingHorizon(): Boolean {
+    private fun SequenceCandidate.isInSequencingHorizon(sequencingHorizon: Duration): Boolean {
         val remainingTime = this.preferredTime - NtpClock.now()
-        return remainingTime < SEQUENCING_HORIZON
+        return remainingTime < sequencingHorizon
     }
 
     /**
      * Checks if the aircraft is within the Locked Horizon where order cannot be changed.
      */
-    private fun SequenceCandidate.isInLockedHorizon(): Boolean {
+    private fun SequenceCandidate.isInLockedHorizon(lockedHorizon: Duration): Boolean {
         val remainingTime = this.preferredTime - NtpClock.now()
-        return remainingTime < LOCKED_HORIZON
+        return remainingTime < lockedHorizon
     }
 
     private val nmSpacingMap = mapOf(

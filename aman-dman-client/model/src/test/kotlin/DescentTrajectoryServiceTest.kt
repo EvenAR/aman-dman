@@ -124,7 +124,9 @@ class DescentTrajectoryServiceTest {
         runways=mapOf(
             "19L" to rwy19L,
         ),
-        independentRunwaySystems = listOf(setOf("19L"))
+        independentRunwaySystems = listOf(setOf("19L")),
+        sequencingHorizon = 30.minutes,
+        lockedHorizon = 10.minutes,
     )
 
     @Test

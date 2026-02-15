@@ -156,7 +156,11 @@ class LocalSequencePlanner(
                 places = SequenceService.updateSequence(
                     currentSequence = cleanedSequence,
                     candidates = sequenceItems.filter { it.runway in sequence.runwaySystem },
-                    minimumSeparationNm = minimumSpacingNm
+                    config = SequencingOptions(
+                        minimumSeparationNm = minimumSpacingNm,
+                        sequencingHorizon = airport.sequencingHorizon,
+                        lockedHorizon = airport.lockedHorizon
+                    )
                 )
             )
         }
