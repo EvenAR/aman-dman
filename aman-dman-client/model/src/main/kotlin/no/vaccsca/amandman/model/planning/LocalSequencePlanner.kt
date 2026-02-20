@@ -13,7 +13,7 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.atc.AtcClient
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceData
 import no.vaccsca.amandman.model.cdm.CdmClient
-import no.vaccsca.amandman.model.weather.WeatherDataRepository
+import no.vaccsca.amandman.model.weather.WindProfileResult
 import no.vaccsca.amandman.model.timeline.NonSequencedReason
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.airport.Airport
@@ -27,6 +27,7 @@ import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.weather.WindProfileProvider
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
 import kotlin.time.Duration
@@ -39,7 +40,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class LocalSequencePlanner(
     private val airport: Airport,
-    private val weatherDataRepository: WeatherDataRepository,
+    private val windProfileProvider: WindProfileProvider,
     private val atcClient: AtcClient,
     private val cdmClient: CdmClient,
     private vararg val dataUpdateListeners: DataUpdateListener,
@@ -235,13 +236,21 @@ class LocalSequencePlanner(
     override fun refreshWeatherData() {
         scope.launch {
             logger.info("Fetching weather data for $airportIcao")
-            val weather = weatherDataRepository.getWindData(airport.location.lat, airport.location.lon)
-            weatherData = weather
-            dataUpdateListeners.forEach { it.onWeatherDataUpdated(airportIcao, weather) }
-            if (weather != null) {
-                logger.info("Weather data for ${weather.time} updated for $airportIcao")
-            } else {
-                logger.warn("No weather data available for $airportIcao")
+            when (val result = windProfileProvider.getVerticalProfileAtPoint(airport.location.lat, airport.location.lon)) {
+                is WindProfileResult.Success -> {
+                    weatherData = result.profile
+                    dataUpdateListeners.forEach { it.onWeatherDataUpdated(airportIcao, result.profile) }
+                    if (result.profile != null) {
+                        logger.info("Weather data for ${result.profile.time} updated for $airportIcao")
+                    } else {
+                        logger.warn("No weather data available for $airportIcao")
+                    }
+                }
+                is WindProfileResult.Failure -> {
+                    weatherData = null
+                    dataUpdateListeners.forEach { it.onWeatherDataUpdated(airportIcao, null) }
+                    logger.warn("Failed to fetch weather data for $airportIcao: ${result.error.message}")
+                }
             }
         }
     }

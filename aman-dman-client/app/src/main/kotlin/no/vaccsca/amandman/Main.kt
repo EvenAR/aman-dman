@@ -5,6 +5,7 @@ import no.vaccsca.amandman.model.config.SettingsRepository
 import no.vaccsca.amandman.presenter.MainPresenter
 import no.vaccsca.amandman.model.planning.AirportDataSourceManager
 import no.vaccsca.amandman.model.config.Theme
+import no.vaccsca.amandman.model.weather.data.NoaaApiClient
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import java.util.*
 import javax.swing.SwingUtilities
@@ -42,7 +43,12 @@ fun main() {
         setTheme(settings.theme)
 
         val view = AmanDmanMainFrame()
-        MainPresenter(AirportDataSourceManager(), view)
+
+        // Inject dependencies into the presenter
+        val dataSourceManager = AirportDataSourceManager()
+        val windProfileProvider = NoaaApiClient()
+
+        MainPresenter(dataSourceManager, view, windProfileProvider)
 
         view.openWindow()
     }

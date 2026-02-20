@@ -6,7 +6,6 @@ import no.vaccsca.amandman.model.atc.AtcClientEuroScope
 import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedStateHttpClient
 import no.vaccsca.amandman.model.cdm.CdmClient
 import no.vaccsca.amandman.model.config.SettingsRepository
-import no.vaccsca.amandman.model.weather.WeatherDataRepository
 import no.vaccsca.amandman.model.planning.AirportDataSourceManager
 import no.vaccsca.amandman.model.timeline.TimelineGroup
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
@@ -18,11 +17,13 @@ import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.ControllerInfoData
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.weather.WindProfileProvider
 import org.slf4j.LoggerFactory
 
 class MainPresenter(
     private val dataSourceManager: AirportDataSourceManager,
     private val view: MainViewInterface,
+    private val windProfileProvider: WindProfileProvider,
 ) : MainPresenterInterface {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -51,10 +52,6 @@ class MainPresenter(
 
     private val dataUpdatesServerSender by lazy {
         DataUpdatesServerSender(sharedState)
-    }
-
-    private val weatherDataRepository by lazy {
-        WeatherDataRepository()
     }
 
     private val cdmClient by lazy {
@@ -181,7 +178,7 @@ class MainPresenter(
 
                 LocalSequencePlanner(
                     airport = airport,
-                    weatherDataRepository = weatherDataRepository,
+                    windProfileProvider = windProfileProvider,
                     atcClient = euroScopeClient,
                     cdmClient = cdmClient,
                     dataUpdateListeners = arrayOf(guiDataHandler, dataUpdatesServerSender),
@@ -203,7 +200,7 @@ class MainPresenter(
             UserRole.LOCAL -> {
                 LocalSequencePlanner(
                     airport = airport,
-                    weatherDataRepository = weatherDataRepository,
+                    windProfileProvider = windProfileProvider,
                     atcClient = euroScopeClient,
                     cdmClient = cdmClient,
                     dataUpdateListeners = arrayOf(guiDataHandler),

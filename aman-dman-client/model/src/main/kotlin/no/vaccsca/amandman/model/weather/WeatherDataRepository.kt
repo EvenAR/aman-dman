@@ -1,12 +1,11 @@
 package no.vaccsca.amandman.model.weather
 
-import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
-
+import no.vaccsca.amandman.model.weather.data.NoaaApiClient
 
 class WeatherDataRepository(
-    private val windApi: WindApi = WindApi()
+    private val windProvider: WindProfileProvider = NoaaApiClient()
 ) {
-    fun getWindData(lat: Double, lng: Double): VerticalWeatherProfile? {
-        return windApi.getVerticalProfileAtPoint(lat, lng)
+    fun getWindData(lat: Double, lng: Double): WindProfileResult {
+        return windProvider.getVerticalProfileAtPoint(lat, lng)
     }
 }
