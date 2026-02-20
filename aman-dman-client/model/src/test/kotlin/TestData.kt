@@ -1,8 +1,8 @@
-import no.vaccsca.amandman.model.domain.valueobjects.AircraftPerformance
-import no.vaccsca.amandman.model.domain.valueobjects.LatLng
-import no.vaccsca.amandman.model.domain.valueobjects.RunwayThreshold
-import no.vaccsca.amandman.model.domain.valueobjects.Star
-import no.vaccsca.amandman.model.domain.valueobjects.StarFix
+import no.vaccsca.amandman.model.aircraft.AircraftPerformance
+import no.vaccsca.amandman.model.navigation.LatLng
+import no.vaccsca.amandman.model.airport.RunwayThreshold
+import no.vaccsca.amandman.model.navigation.Star
+import no.vaccsca.amandman.model.navigation.StarFix
 
 val b738performance = AircraftPerformance(
     takeOffV2 = 145,

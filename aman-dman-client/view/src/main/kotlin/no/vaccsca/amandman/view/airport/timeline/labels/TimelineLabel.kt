@@ -2,10 +2,10 @@ package no.vaccsca.amandman.view.airport.timeline.labels
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
-import no.vaccsca.amandman.model.domain.valueobjects.LabelItemAlignment
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayFlightEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.model.config.LabelItem
+import no.vaccsca.amandman.model.config.LabelItemAlignment
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.SharedValue
 import java.awt.Color

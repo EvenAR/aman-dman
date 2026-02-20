@@ -1,10 +1,10 @@
 package no.vaccsca.amandman
 
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel
-import no.vaccsca.amandman.model.data.repository.SettingsRepository
+import no.vaccsca.amandman.model.config.SettingsRepository
 import no.vaccsca.amandman.presenter.MainPresenter
-import no.vaccsca.amandman.model.domain.AirportDataSourceManager
-import no.vaccsca.amandman.model.domain.valueobjects.Theme
+import no.vaccsca.amandman.model.planning.AirportDataSourceManager
+import no.vaccsca.amandman.model.config.Theme
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import java.util.*
 import javax.swing.SwingUtilities

@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.view.dialogs
 
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import java.awt.Frame
 import javax.swing.JComboBox
 import javax.swing.JOptionPane

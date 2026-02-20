@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.presenter
 
-import no.vaccsca.amandman.model.UserRole
+import no.vaccsca.amandman.model.user.UserRole
 
 /**
  * Interface defining the contract for the Main Presenter in the MVP architecture.

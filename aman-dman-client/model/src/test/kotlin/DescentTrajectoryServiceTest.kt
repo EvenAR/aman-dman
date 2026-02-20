@@ -1,7 +1,11 @@
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.domain.service.planning.DescentTrajectoryService
-import no.vaccsca.amandman.model.domain.valueobjects.*
-import no.vaccsca.amandman.model.domain.valueobjects.atcClient.AtcClientArrivalData
+import no.vaccsca.amandman.model.planning.DescentTrajectoryService
+import no.vaccsca.amandman.model.atc.AtcClientArrivalData
+import no.vaccsca.amandman.model.aircraft.AircraftPosition
+import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.navigation.LatLng
+import no.vaccsca.amandman.model.navigation.Waypoint
+import no.vaccsca.amandman.model.navigation.distanceTo
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -3,10 +3,14 @@ package no.vaccsca.amandman.view.airport.timeline
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.domain.valueobjects.LabelItem
-import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
-import no.vaccsca.amandman.model.domain.valueobjects.sequence.SequenceStatus
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.*
+import no.vaccsca.amandman.model.config.LabelItem
+import no.vaccsca.amandman.model.timeline.TimelineData
+import no.vaccsca.amandman.model.planning.SequenceStatus
+import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.labels.ArrivalLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.DepartureLabel
@@ -365,14 +369,14 @@ class TimelineOverlay(
         val copy = when (label.timelineEvent) {
             is DepartureEvent -> DepartureLabel(
                 departureLabelLayout, 
-                label.timelineEvent as DepartureEvent, 
+                label.timelineEvent as DepartureEvent,
                 hBorder = labelHBorder, 
                 vBorder = labelVBorder, 
                 aircraftSelection = airportViewState.aircraftSelection
             )
             is RunwayArrivalEvent -> ArrivalLabel(
                 arrivalLabelLayout, 
-                label.timelineEvent as RunwayArrivalEvent, 
+                label.timelineEvent as RunwayArrivalEvent,
                 presenter, 
                 hBorder = labelHBorder, 
                 vBorder = labelVBorder, 

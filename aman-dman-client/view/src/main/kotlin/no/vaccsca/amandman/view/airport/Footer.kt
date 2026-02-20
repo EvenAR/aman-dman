@@ -1,7 +1,7 @@
 package no.vaccsca.amandman.view.airport
 
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.domain.valueobjects.AirportStatus
+import no.vaccsca.amandman.model.airport.AirportStatus
 import no.vaccsca.amandman.view.entity.MainViewState
 import java.awt.FlowLayout
 import javax.swing.JLabel

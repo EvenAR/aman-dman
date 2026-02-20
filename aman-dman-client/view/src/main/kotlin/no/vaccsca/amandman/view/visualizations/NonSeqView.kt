@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.view.visualizations
 
-import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
+import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.view.entity.AirportViewState
 import java.awt.BorderLayout
 import javax.swing.JPanel

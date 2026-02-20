@@ -1,7 +1,7 @@
 package no.vaccsca.amandman.view.dialogs
 
-import no.vaccsca.amandman.model.UserRole
-import no.vaccsca.amandman.model.data.repository.SettingsRepository
+import no.vaccsca.amandman.model.user.UserRole
+import no.vaccsca.amandman.model.config.SettingsRepository
 import java.awt.Frame
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout

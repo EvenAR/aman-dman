@@ -1,9 +1,9 @@
 package no.vaccsca.amandman.view.airport
 
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.DepartureEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayDelayEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.view.entity.SharedValue
 import no.vaccsca.amandman.view.entity.TimeRange
 import java.awt.*

@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.presenter
 
-import no.vaccsca.amandman.model.domain.valueobjects.RunwayStatus
+import no.vaccsca.amandman.model.airport.RunwayStatus
 
 /**
  * Manages runway mode state for a single airport and automatically updates the view when any component changes.

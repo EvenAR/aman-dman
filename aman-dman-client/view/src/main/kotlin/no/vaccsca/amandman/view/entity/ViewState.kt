@@ -3,10 +3,10 @@ package no.vaccsca.amandman.view.entity
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.UserRole
-import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.user.UserRole
+import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes

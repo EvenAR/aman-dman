@@ -3,10 +3,10 @@ package no.vaccsca.amandman.view
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.domain.valueobjects.NonSequencedEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
-import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.presenter.AirportViewInterface
 import no.vaccsca.amandman.view.dialogs.RunwayDialog

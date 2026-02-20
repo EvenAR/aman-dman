@@ -2,7 +2,7 @@ package no.vaccsca.amandman.view.airport
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.DepartureEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import no.vaccsca.amandman.view.entity.AirportViewState
 import java.awt.*
 import java.awt.event.MouseEvent

@@ -2,9 +2,9 @@ package no.vaccsca.amandman.presenter
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.data.dto.CreateOrUpdateTimelineDto
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.RunwayEvent
-import no.vaccsca.amandman.model.domain.valueobjects.timelineEvent.TimelineEvent
+import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import java.awt.Point
 
 /**

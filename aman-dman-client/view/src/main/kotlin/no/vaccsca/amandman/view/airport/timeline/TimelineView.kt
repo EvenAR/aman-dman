@@ -2,8 +2,8 @@ package no.vaccsca.amandman.view.airport.timeline
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.data.repository.SettingsRepository
-import no.vaccsca.amandman.model.domain.valueobjects.TimelineData
+import no.vaccsca.amandman.model.config.SettingsRepository
+import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.enums.TimelineAlignment
 import no.vaccsca.amandman.view.entity.AirportViewState

@@ -1,7 +1,7 @@
 package no.vaccsca.amandman.view.forms
 
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.data.dto.CreateOrUpdateTimelineDto
+import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import java.awt.*
 import javax.swing.*

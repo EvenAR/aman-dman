@@ -1,9 +1,9 @@
 package no.vaccsca.amandman.presenter
 
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.model.domain.TimelineGroup
-import no.vaccsca.amandman.model.domain.valueobjects.TrajectoryPoint
-import no.vaccsca.amandman.model.domain.valueobjects.atcClient.ControllerInfoData
+import no.vaccsca.amandman.model.timeline.TimelineGroup
+import no.vaccsca.amandman.model.planning.TrajectoryPoint
+import no.vaccsca.amandman.model.atc.ControllerInfoData
 
 /**
  * Interface for the Main View in the MVP architecture.

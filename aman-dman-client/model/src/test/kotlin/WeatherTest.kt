@@ -1,8 +1,8 @@
-import no.vaccsca.amandman.model.domain.util.WeatherUtils
-import no.vaccsca.amandman.model.domain.util.WeatherUtils.interpolateWeatherAtAltitude
-import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
-import no.vaccsca.amandman.model.domain.valueobjects.weather.WeatherLayer
-import no.vaccsca.amandman.model.domain.valueobjects.weather.WindVector
+import no.vaccsca.amandman.model.weather.WeatherUtils
+import no.vaccsca.amandman.model.weather.WeatherUtils.interpolateWeatherAtAltitude
+import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.weather.WeatherLayer
+import no.vaccsca.amandman.model.weather.WindVector
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 

@@ -6,10 +6,10 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
-import no.vaccsca.amandman.model.data.config.yaml.AircraftPerformanceConfigYaml
-import no.vaccsca.amandman.model.data.config.yaml.AirportDataJson
-import no.vaccsca.amandman.model.data.config.yaml.AmanDmanSettingsYaml
-import no.vaccsca.amandman.model.data.config.yaml.StarYamlFile
+import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceConfigYaml
+import no.vaccsca.amandman.model.config.yaml.AirportDataJson
+import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
+import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import java.nio.file.Files
 import java.nio.file.Paths
 

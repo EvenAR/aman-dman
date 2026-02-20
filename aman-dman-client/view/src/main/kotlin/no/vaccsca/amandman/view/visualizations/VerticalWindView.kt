@@ -1,7 +1,7 @@
 package no.vaccsca.amandman.view.visualizations
 
 import no.vaccsca.amandman.common.util.NumberUtils.format
-import no.vaccsca.amandman.model.domain.valueobjects.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.components.ReloadButton
 import no.vaccsca.amandman.view.entity.AirportViewState
