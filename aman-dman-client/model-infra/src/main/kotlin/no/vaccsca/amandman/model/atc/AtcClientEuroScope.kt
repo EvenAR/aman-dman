@@ -2,31 +2,12 @@ package no.vaccsca.amandman.model.atc
 
 import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.atc.euroscope.AircraftSelectionFromEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.ArrivalJson
-import no.vaccsca.amandman.model.atc.euroscope.ArrivalsUpdateFromEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.AssignRunwayJson
-import no.vaccsca.amandman.model.atc.euroscope.ControllerInfoFromEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.DepartureJson
-import no.vaccsca.amandman.model.atc.euroscope.DeparturesUpdateFromEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.MessageFromEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.MessageToEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.PluginVersionJson
-import no.vaccsca.amandman.model.atc.euroscope.RegisterAirportJson
-import no.vaccsca.amandman.model.atc.euroscope.RunwayStatusJson
-import no.vaccsca.amandman.model.atc.euroscope.RunwayStatusesUpdateFromEuroScopePluginJson
-import no.vaccsca.amandman.model.atc.euroscope.UnregisterAirportJson
-import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.ClientVersion
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
+import no.vaccsca.amandman.model.atc.euroscope.*
+import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
 import org.slf4j.LoggerFactory
@@ -35,7 +16,6 @@ import java.io.OutputStreamWriter
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import kotlin.time.Duration.Companion.minutes
 
 class AtcClientEuroScope(
     private val controllerInfoCallback: ((ControllerInfoData) -> Unit),
@@ -260,7 +240,7 @@ class AtcClientEuroScope(
                 is PluginVersionJson -> {
                     logger.info("Received plugin version: ${messageObj.version}")
                     if (!isVersionValidated) {
-                        val clientVersion = javaClass.`package`.implementationVersion ?: "unknown"
+                        val clientVersion = ClientVersion.value
                         if (messageObj.version != clientVersion) {
                             onVersionMismatch?.invoke(clientVersion, messageObj.version)
                             close()
@@ -333,7 +313,7 @@ class AtcClientEuroScope(
                     groundspeedKts = groundSpeed,
                     trackDeg = track
                 ),
-                remainingWaypoints = route.map { Waypoint(it.name, LatLng(it.latitude, it.longitude)) },
+                remainingWaypoints = route.filter { !it.isPassed }.map { Waypoint(it.name, LatLng(it.latitude, it.longitude)) },
                 assignedRunway = assignedRunway,
                 arrivalAirportIcao = arrivalAirportIcao,
                 flightPlanTas = flightPlanTas,

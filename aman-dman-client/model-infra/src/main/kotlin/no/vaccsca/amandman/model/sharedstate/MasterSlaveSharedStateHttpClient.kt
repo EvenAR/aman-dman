@@ -17,6 +17,7 @@ import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.ClientVersion
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -46,7 +47,7 @@ class MasterSlaveSharedStateHttpClient(
     private val CLIENT_VERSION_HEADER = "x-client-version"
     private val JSON = "application/json".toMediaType()
     private val BASE_URL: String = settingsProvider.getSettings(reload = true).connectionConfig.api.host
-    private val clientVersion = object {}.javaClass.`package`.implementationVersion
+    private val clientVersion = ClientVersion.value
 
     override fun hasMasterRoleStatus(airportIcao: String): Boolean {
         val request = baseApiRequest(airportIcao, "master-role")

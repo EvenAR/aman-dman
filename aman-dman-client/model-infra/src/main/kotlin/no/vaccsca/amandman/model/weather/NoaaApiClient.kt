@@ -205,7 +205,8 @@ class NoaaApiClient(
                 "&lev_200_mb=on" +
                 "&lev_150_mb=on" +
                 "&var_UGRD=on" +
-                "&var_VGRD=on"
+                "&var_VGRD=on" +
+                "&var_TMP=on"
 
         val request = Request.Builder().url(fileUrl).get().build()
         httpClient.newCall(request).execute().use { response ->

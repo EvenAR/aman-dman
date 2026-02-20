@@ -13,7 +13,6 @@ data class AirportJson(
     @field:NotNull
     val location: LocationJson,
 
-    @JsonProperty("runways")
     val runwayThresholds: Map<String, RunwayThresholdJson>,
 
     val independentRunwaySystems: List<List<String>>? = null,

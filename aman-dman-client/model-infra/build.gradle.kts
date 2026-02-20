@@ -37,6 +37,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.processResources {
+    filesMatching("build-info.properties") {
+        expand("appVersion" to rootProject.version.toString())
+    }
+}
+
 val generateSchemas by tasks.registering(JavaExec::class) {
     group = "build"
     description = "Generate YAML schemas for config files."
