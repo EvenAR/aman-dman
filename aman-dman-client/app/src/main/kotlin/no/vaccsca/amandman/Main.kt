@@ -5,7 +5,10 @@ import no.vaccsca.amandman.model.config.SettingsRepository
 import no.vaccsca.amandman.presenter.MainPresenter
 import no.vaccsca.amandman.model.planning.AirportDataSourceManager
 import no.vaccsca.amandman.model.config.Theme
-import no.vaccsca.amandman.model.weather.data.NoaaApiClient
+import no.vaccsca.amandman.model.weather.NoaaApiClient
+import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedStateHttpClient
+import no.vaccsca.amandman.model.cdm.RpuigCdmClient
+import no.vaccsca.amandman.model.aircraft.AircraftPerformanceData
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import java.util.*
 import javax.swing.SwingUtilities
@@ -47,8 +50,22 @@ fun main() {
         // Inject dependencies into the presenter
         val dataSourceManager = AirportDataSourceManager()
         val windProfileProvider = NoaaApiClient()
+        val settingsProvider = SettingsRepository
+        val atcClientFactory = AppAtcClientFactory(settingsProvider)
+        val sharedState = MasterSlaveSharedStateHttpClient(settingsProvider)
+        val cdmProvider = RpuigCdmClient()
+        val performanceProvider = AircraftPerformanceData
 
-        MainPresenter(dataSourceManager, view, windProfileProvider)
+        MainPresenter(
+            dataSourceManager,
+            view,
+            windProfileProvider,
+            settingsProvider,
+            atcClientFactory,
+            sharedState,
+            cdmProvider,
+            performanceProvider
+        )
 
         view.openWindow()
     }

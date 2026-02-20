@@ -2,10 +2,10 @@ package no.vaccsca.amandman.presenter
 
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.user.UserRole
-import no.vaccsca.amandman.model.atc.AtcClientEuroScope
-import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedStateHttpClient
-import no.vaccsca.amandman.model.cdm.CdmClient
-import no.vaccsca.amandman.model.config.SettingsRepository
+import no.vaccsca.amandman.model.atc.AtcClientFactory
+import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
+import no.vaccsca.amandman.model.cdm.CdmProvider
+import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.planning.AirportDataSourceManager
 import no.vaccsca.amandman.model.timeline.TimelineGroup
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
@@ -15,6 +15,7 @@ import no.vaccsca.amandman.model.sharedstate.RemoteDataMirror
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.ControllerInfoData
+import no.vaccsca.amandman.model.aircraft.AircraftPerformanceProvider
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.model.weather.WindProfileProvider
@@ -24,6 +25,11 @@ class MainPresenter(
     private val dataSourceManager: AirportDataSourceManager,
     private val view: MainViewInterface,
     private val windProfileProvider: WindProfileProvider,
+    private val settingsProvider: SettingsProvider,
+    private val atcClientFactory: AtcClientFactory,
+    private val sharedState: MasterSlaveSharedState,
+    private val cdmProvider: CdmProvider,
+    private val performanceProvider: AircraftPerformanceProvider,
 ) : MainPresenterInterface {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -34,8 +40,11 @@ class MainPresenter(
     private var controllerInfo: ControllerInfoData? = null
     private val myMasterRoles = mutableSetOf<String>()
 
-    private val euroScopeClient by lazy {
-        AtcClientEuroScope(
+    private val dataUpdatesServerSender by lazy {
+        DataUpdatesServerSender(sharedState)
+    }
+    private val atcClient by lazy {
+        atcClientFactory.create(
             controllerInfoCallback = { info -> handleControllerInfoUpdate(info) },
             onVersionMismatch = { clientVersion, pluginVersion ->
                 handleVersionMismatch(clientVersion, pluginVersion)
@@ -44,18 +53,6 @@ class MainPresenter(
                 handleAircraftSelectionChanged(callsign)
             }
         )
-    }
-
-    private val sharedState by lazy {
-        MasterSlaveSharedStateHttpClient()
-    }
-
-    private val dataUpdatesServerSender by lazy {
-        DataUpdatesServerSender(sharedState)
-    }
-
-    private val cdmClient by lazy {
-        CdmClient()
     }
 
     private val guiDataHandler = AirportDataRouter()
@@ -145,7 +142,7 @@ class MainPresenter(
     }
 
     override fun onNewTimelineGroup(airportIcao: String, userRole: UserRole) {
-        val airport = SettingsRepository.getAirportData().find { it.icao == airportIcao }
+        val airport = settingsProvider.getAirportData().find { it.icao == airportIcao }
 
         if (airport == null) {
             view.showErrorMessage("Airport $airportIcao not found in navdata")
@@ -179,8 +176,9 @@ class MainPresenter(
                 LocalSequencePlanner(
                     airport = airport,
                     windProfileProvider = windProfileProvider,
-                    atcClient = euroScopeClient,
-                    cdmClient = cdmClient,
+                    atcClient = atcClient,
+                    cdmClient = cdmProvider,
+                    aircraftPerformanceProvider = performanceProvider,
                     dataUpdateListeners = arrayOf(guiDataHandler, dataUpdatesServerSender),
                 )
             }
@@ -201,8 +199,9 @@ class MainPresenter(
                 LocalSequencePlanner(
                     airport = airport,
                     windProfileProvider = windProfileProvider,
-                    atcClient = euroScopeClient,
-                    cdmClient = cdmClient,
+                    atcClient = atcClient,
+                    cdmClient = cdmProvider,
+                    aircraftPerformanceProvider = performanceProvider,
                     dataUpdateListeners = arrayOf(guiDataHandler),
                 )
             }
@@ -218,6 +217,7 @@ class MainPresenter(
             airportIcao = airportIcao,
             dataSource = plannerService,
             view = airportView,
+            settingsProvider = settingsProvider,
             controllerInfoProvider = { controllerInfo },
             showErrorMessage = { view.showErrorMessage(it) },
             onAircraftSelectedCallback = { onAircraftSelected(it) },
@@ -247,9 +247,8 @@ class MainPresenter(
 
         if (serviceToRemove is LocalSequencePlanner) {
             val remainingPlanners = dataSourceManager.getAllSequencePlanners()
-
-            if (remainingPlanners.isEmpty() && euroScopeClient.isClientConnected) {
-                euroScopeClient.close()
+            if (remainingPlanners.isEmpty()) {
+                atcClient.close()
             }
         }
 

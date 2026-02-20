@@ -7,6 +7,7 @@ include(
     ":app",
     ":view",
     ":presenter",
-    ":model",
+    ":model-core",
+    ":model-infra",
     ":common",
 )

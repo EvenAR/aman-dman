@@ -5,7 +5,8 @@ repositories {
 dependencies {
     implementation(project(":presenter"))
     implementation(project(":view"))
-    implementation(project(":model"))
+    implementation(project(":model-core"))
+    implementation(project(":model-infra"))
     implementation(project(":common"))
 
     implementation("com.jtattoo:JTattoo:1.6.13")
@@ -16,6 +17,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
     jvmToolchain(21)
 }

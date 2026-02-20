@@ -49,7 +49,7 @@ application {
 }
 
 tasks.named<Jar>("shadowJar") {
-    dependsOn(":model:generateSchemas")
+    dependsOn(":model-infra:generateSchemas")
     manifest {
         attributes(
             "Implementation-Version" to project.version,

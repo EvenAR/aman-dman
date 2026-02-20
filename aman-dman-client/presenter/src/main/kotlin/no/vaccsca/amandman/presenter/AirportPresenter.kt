@@ -4,7 +4,7 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
-import no.vaccsca.amandman.model.config.SettingsRepository
+import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.planning.AirportDataSource
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.planning.SequencePlanner
@@ -24,6 +24,7 @@ class AirportPresenter(
     override val airportIcao: String,
     private val dataSource: AirportDataSource,
     private val view: AirportViewInterface,
+    private val settingsProvider: SettingsProvider,
     private val controllerInfoProvider: () -> ControllerInfoData?,
     private val showErrorMessage: (String) -> Unit,
     private val onAircraftSelectedCallback: (String) -> Unit,
@@ -49,7 +50,7 @@ class AirportPresenter(
     }
 
     private fun loadTimelineConfigsForAirport() {
-        SettingsRepository.getSettings().timelines[airportIcao]?.forEach { timeline ->
+        settingsProvider.getSettings().timelines[airportIcao]?.forEach { timeline ->
             val config = TimelineConfig(
                 title = timeline.title,
                 runwaysLeft = timeline.left?.runways ?: emptyList(),
@@ -213,8 +214,8 @@ class AirportPresenter(
 
     override fun onCreateNewTimelineClicked() {
         view.openTimelineConfigForm(
-            availableTagLayoutsDep = SettingsRepository.getSettings().departureLabelLayouts.keys,
-            availableTagLayoutsArr = SettingsRepository.getSettings().arrivalLabelLayouts.keys,
+            availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
+            availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
         )
     }
 
@@ -231,8 +232,8 @@ class AirportPresenter(
         val existingConfig = timelineConfigs[timelineTitle]
         if (existingConfig != null) {
             view.openTimelineConfigForm(
-                availableTagLayoutsDep = SettingsRepository.getSettings().departureLabelLayouts.keys,
-                availableTagLayoutsArr = SettingsRepository.getSettings().arrivalLabelLayouts.keys,
+                availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
+                availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
                 existingConfig = existingConfig
             )
         }
