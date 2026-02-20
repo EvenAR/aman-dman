@@ -61,39 +61,9 @@ Descent profile visualization used for debugging:
 
 <img width="798" height="599" alt="image" src="https://github.com/user-attachments/assets/9586e09d-173e-40ae-94ba-1db908f5ea60" />
 
-## Development
 
-### Java Application
+### Contributing
 
-[IntelliJ IDEA](https://www.jetbrains.com/idea/download/?section=windows) (Community Edition) is a great IDE for Kotlin development.
+Contributions to the project are welcome! If you have any ideas for improvements, bug fixes, or new features, please feel free to submit a pull request or open an issue in this GitHub repository.
 
-**Running the application from IntelliJ:**
-
-1. Open Project → select the `aman-dman-client` directory.
-2. Go to **Menu → Project Structure**:
-   - Select JDK 21 (e.g., `temurin-21`)
-   - Set **Language Level**: 21
-3. Open the file `app/src/kotlin/.../Main.kt` and press the green arrow next to `fun main()` to run the project.
-
----
-
-### EuroScope Bridge
-
-If you need to make changes to the EuroScope bridge C++ plugin you should use [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/).
-
-**Debugging with Visual Studio:**
-
-1. Open the project in the `euroscope-bridge` directory (double-click `Aman.sln`).
-2. In **Solution Explorer**, right-click on **Aman** → **Properties**.
-3. Under the **Debugging** page, navigate to your installation directory of `EuroScope.exe` and apply the changes.
-4. Run **Local Windows Debugger**.  
-   If everything works correctly, a `.dll` file is written to `euroscope-bridge\Debug`.
-5. Load the `.dll` plugin in EuroScope.
-
-## Contributing
-
-This project benefits most when behavioral changes are shared.
-
-If you fork the repository to experiment, that’s great — but if you change sequencing logic, trajectory modeling, or AMAN behavior, please consider submitting a Pull Request so improvements can be shared and discussed.
-
-The goal is not to be “perfect”, but to converge on realistic and understandable behavior.
+See the readmes in the `euroscope-bridge` and `aman-dman-client` directories for more information on how to set up a development environment for each component.
