@@ -52,10 +52,11 @@ object SettingsRepository : SettingsProvider {
                 airportJson.toDomain(icao, stars)
             } catch (e: FileNotFoundException) {
                 logger.warn("STAR data file not found for airport $icao. Trajectory calculations will have reduced accuracy.")
+                airportJson.toDomain(icao, StarYamlFile(emptyList()))
             } catch (e: Exception) {
                 logger.error("Error loading STAR data for airport $icao: ${e.message}")
+                airportJson.toDomain(icao, StarYamlFile(emptyList()))
             }
-            airportJson.toDomain(icao, StarYamlFile(emptyList()))
         }
     }
 
