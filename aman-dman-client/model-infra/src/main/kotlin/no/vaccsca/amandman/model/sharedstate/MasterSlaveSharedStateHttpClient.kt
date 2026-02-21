@@ -10,6 +10,8 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
@@ -24,7 +26,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import java.util.UUID.randomUUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 
@@ -48,44 +52,65 @@ class MasterSlaveSharedStateHttpClient(
     private val JSON = "application/json".toMediaType()
     private val BASE_URL: String = settingsProvider.getSettings(reload = true).connectionConfig.api.host
     private val clientVersion = ClientVersion.value
+    private val statusByAirport = ConcurrentHashMap<String, IntegrationStatus>()
+    private val loadingUntilByAirport = ConcurrentHashMap<String, Instant>()
 
     override fun hasMasterRoleStatus(airportIcao: String): Boolean {
+        markLoading(airportIcao)
         val request = baseApiRequest(airportIcao, "master-role")
             .header(SESSION_ID_HEADER, clientUuid)
             .get()
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return false
+            if (!response.isSuccessful) {
+                markError(airportIcao, "Master role status HTTP ${response.code}")
+                return false
+            }
 
             val body = response.body.string()
 
             return try {
                 val masterResp = objectMapper.readValue(body, MasterRoleResponse::class.java)
+                markOk(airportIcao, "Master role status received")
                 masterResp.isMaster
             } catch (ex: Exception) {
                 logger.error("Failed to parse master role response: $body", ex)
+                markError(airportIcao, "Failed to parse master role response")
                 false
             }
         }
     }
 
     override fun acquireMasterRole(airportIcao: String): Boolean {
+        markLoading(airportIcao, flash = true)
         val request = baseApiRequest(airportIcao, "master-role")
             .post("".toRequestBody()) // Empty body
             .build()
 
-        val response = httpClient.newCall(request).execute()
-
-        return response.isSuccessful
+        httpClient.newCall(request).execute().use { response ->
+            if (response.isSuccessful) {
+                markOk(airportIcao, "Master role acquired")
+                return true
+            }
+            markError(airportIcao, "Acquire master role failed HTTP ${response.code}")
+            return false
+        }
     }
 
     override fun releaseMasterRole(airportIcao: String) {
+        markLoading(airportIcao, flash = true)
         val request = baseApiRequest(airportIcao, "master-role")
             .delete()
             .build()
 
-        httpClient.newCall(request).execute().close()
+        httpClient.newCall(request).execute().use { response ->
+            if (response.isSuccessful) {
+                markOk(airportIcao, "Master role released")
+            } else {
+                markError(airportIcao, "Release master role failed HTTP ${response.code}")
+            }
+        }
     }
 
     override fun checkVersionCompatibility(): VersionCompatibilityResult {
@@ -123,6 +148,14 @@ class MasterSlaveSharedStateHttpClient(
         val typeRef = object : TypeReference<SharedStateJson<List<NonSequencedEvent>>>() {}
         val sharedState = fetchStateJson(airportIcao, "non-sequenced", typeRef)
         return sharedState.data
+    }
+
+    override fun getIntegrationStatus(airportIcao: String): IntegrationStatus {
+        val now = NtpClock.now()
+        val base = statusByAirport[airportIcao]
+            ?: IntegrationStatus(IntegrationStatusState.ERROR, detail = "No server status yet")
+        val shouldFlash = loadingUntilByAirport[airportIcao]?.let { now < it } ?: false
+        return base.copy(shouldFlash = shouldFlash)
     }
 
     override fun sendTimelineEvents(airportIcao: String, timelineEvents: List<TimelineEvent>) {
@@ -201,6 +234,7 @@ class MasterSlaveSharedStateHttpClient(
     }
 
     private fun sendStateJson(airportIcao: String, endpoint: String, data: Any) {
+        markLoading(airportIcao)
         val jsonBody = objectMapper.writeValueAsString(data)
         val request = baseApiRequest(airportIcao, endpoint)
             .post(jsonBody.toRequestBody(JSON))
@@ -209,18 +243,33 @@ class MasterSlaveSharedStateHttpClient(
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 logger.warn("Failed to send state $endpoint to server. Status: ${response.code}")
+                markError(airportIcao, "Send $endpoint failed HTTP ${response.code}")
+            } else {
+                markOk(airportIcao, "Sent $endpoint")
             }
         }
     }
 
     private fun <T> fetchStateJson(airportIcao: String, endpoint: String, typeRef: TypeReference<T>): T {
+        markLoading(airportIcao)
         val request = baseApiRequest(airportIcao, endpoint)
             .get()
             .build()
 
         httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                markError(airportIcao, "Fetch $endpoint failed HTTP ${response.code}")
+                throw IllegalStateException("Fetch $endpoint failed HTTP ${response.code}")
+            }
             val body = response.body.string()
-            return objectMapper.readValue(body, typeRef)
+            return try {
+                val parsed = objectMapper.readValue(body, typeRef)
+                markOk(airportIcao, "Fetched $endpoint")
+                parsed
+            } catch (e: Exception) {
+                markError(airportIcao, "Parse $endpoint failed: ${e.message}")
+                throw e
+            }
         }
     }
 
@@ -229,6 +278,30 @@ class MasterSlaveSharedStateHttpClient(
             .url("$BASE_URL/api/v1/airports/$airportIcao/$endpoint")
             .header(SESSION_ID_HEADER, clientUuid)
             .header(CLIENT_VERSION_HEADER, clientVersion)
+    }
+
+    private fun markLoading(airportIcao: String, flash: Boolean = false) {
+        if (flash) {
+            loadingUntilByAirport[airportIcao] = NtpClock.now() + 2.seconds
+        }
+        statusByAirport[airportIcao] = IntegrationStatus(
+            state = IntegrationStatusState.LOADING,
+            detail = "Contacting server"
+        )
+    }
+
+    private fun markOk(airportIcao: String, detail: String) {
+        statusByAirport[airportIcao] = IntegrationStatus(
+            state = IntegrationStatusState.OK,
+            detail = detail
+        )
+    }
+
+    private fun markError(airportIcao: String, detail: String) {
+        statusByAirport[airportIcao] = IntegrationStatus(
+            state = IntegrationStatusState.ERROR,
+            detail = detail
+        )
     }
 
 

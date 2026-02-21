@@ -46,7 +46,7 @@ class AirportView(
 
     val timelineScrollPane: TimelineScrollPane
     val topBar: TopBar
-    val footer = Footer(mainViewState)
+    val footer = Footer(mainViewState, airportViewState)
 
     private val landingRatesGraph = LandingRatesGraph(airportViewState)
     private var landingRatesFrame: JInternalFrame? = null

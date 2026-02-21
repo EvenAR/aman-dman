@@ -8,6 +8,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
+import no.vaccsca.amandman.model.integration.IntegrationKind
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.planning.AirportDataSource
@@ -26,6 +30,7 @@ class RemoteDataMirror(
     override val isReadOnly: Boolean = true
 
     private val logger = LoggerFactory.getLogger(javaClass)
+    private var hasWeatherData: Boolean = false
     private val scope =
         CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, exception ->
             logger.error("Unhandled exception in coroutine", exception)
@@ -48,6 +53,24 @@ class RemoteDataMirror(
         fetchDataFromRemote()
     }
 
+    override fun getIntegrationStatuses(): AirportIntegrationStatuses {
+        val serverStatus = sharedState.getIntegrationStatus(airportIcao)
+        val metStatus = if (hasWeatherData) {
+            IntegrationStatus(IntegrationStatusState.OK)
+        } else {
+            IntegrationStatus(IntegrationStatusState.ERROR, detail = "No MET data received")
+        }
+
+        return AirportIntegrationStatuses(
+            byKind = mapOf(
+                IntegrationKind.ATC to IntegrationStatus(IntegrationStatusState.ERROR, relevant = false, detail = "ATC not used in slave mode"),
+                IntegrationKind.CDM to IntegrationStatus(IntegrationStatusState.ERROR, relevant = false, detail = "CDM not used in slave mode"),
+                IntegrationKind.SERVER to serverStatus,
+                IntegrationKind.MET to metStatus,
+            )
+        )
+    }
+
     private fun fetchDataFromRemote() {
         logger.debug("Fetching remote data for $airportIcao")
 
@@ -60,7 +83,10 @@ class RemoteDataMirror(
             .onFailure { logger.error("Failed to fetch runway statuses: ${it.message}") }
 
         runCatching { sharedState.getWeatherData(airportIcao) }
-            .onSuccess { dataUpdateListener.onWeatherDataUpdated(airportIcao, it) }
+            .onSuccess {
+                hasWeatherData = it != null
+                dataUpdateListener.onWeatherDataUpdated(airportIcao, it)
+            }
             .onFailure { logger.error("Failed to fetch weather data: ${it.message}") }
 
         runCatching { sharedState.getMinimumSpacing(airportIcao) }

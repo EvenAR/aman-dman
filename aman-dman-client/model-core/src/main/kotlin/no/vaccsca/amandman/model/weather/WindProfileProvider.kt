@@ -1,5 +1,7 @@
 package no.vaccsca.amandman.model.weather
 
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+
 sealed class WindProfileResult {
     data class Success(val profile: VerticalWeatherProfile?) : WindProfileResult()
     data class Failure(val error: WindProfileError) : WindProfileResult()
@@ -12,5 +14,6 @@ sealed class WindProfileError(open val message: String) {
 }
 
 interface WindProfileProvider {
-    fun getVerticalProfileAtPoint(latitude: Double, longitude: Double): WindProfileResult
+    fun getVerticalProfileAtPoint(airportIcao: String, latitude: Double, longitude: Double): WindProfileResult
+    fun getIntegrationStatus(airportIcao: String): IntegrationStatus
 }

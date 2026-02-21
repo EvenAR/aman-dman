@@ -9,8 +9,11 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import no.vaccsca.amandman.common.NtpClock
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 
@@ -19,6 +22,7 @@ class RpuigCdmClient : CdmProvider {
     // https://cdm-server-production.up.railway.app/ifps/depAirport?airport=ENGM
 
     private val httpClient = OkHttpClient()
+    private val statusByAirport = ConcurrentHashMap<String, IntegrationStatus>()
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private data class CdmJson(
@@ -35,33 +39,57 @@ class RpuigCdmClient : CdmProvider {
     )
 
     override fun fetchCdmDepartures(airportIcao: String): List<CdmData>? {
-        val request = Request.Builder()
-            .url("https://cdm-server-production.up.railway.app/ifps/depAirport?airport=$airportIcao")
-            .get()
-            .build()
+        statusByAirport[airportIcao] = IntegrationStatus(
+            state = IntegrationStatusState.LOADING,
+            shouldFlash = true,
+            detail = "Fetching CDM data"
+        )
 
-        httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return emptyList()
+        return runCatching {
+            val request = Request.Builder()
+                .url("https://cdm-server-production.up.railway.app/ifps/depAirport?airport=$airportIcao")
+                .get()
+                .build()
 
-            // Parse response body
-            val body = response.body.string()
-            val objectMapper = ObjectMapper().registerKotlinModule()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    statusByAirport[airportIcao] = IntegrationStatus(
+                        state = IntegrationStatusState.ERROR,
+                        detail = "CDM HTTP ${response.code}"
+                    )
+                    return emptyList()
+                }
 
-            return try {
+                // Parse response body
+                val body = response.body.string()
+                val objectMapper = ObjectMapper().registerKotlinModule()
+
                 val reader = objectMapper.readerFor(CdmJson::class.java)
-                reader.readValues<CdmJson>(body).readAll().toList().map {
+                val data = reader.readValues<CdmJson>(body).readAll().toList().map {
                     CdmData(
                         callsign = it.callsign,
                         ttot = it.cdmData.ttot?.let { parseHhMmSsTimestamp(it) },
                         ctot = it.cdmData.ctot?.let { parseHhMmSsTimestamp(it) },
                     )
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                null
+                statusByAirport[airportIcao] = IntegrationStatus(
+                    state = IntegrationStatusState.OK,
+                    detail = "CDM data received"
+                )
+                data
             }
+        }.getOrElse {
+            statusByAirport[airportIcao] = IntegrationStatus(
+                state = IntegrationStatusState.ERROR,
+                detail = "CDM fetch failed: ${it.message}"
+            )
+            null
         }
     }
+
+    override fun getIntegrationStatus(airportIcao: String): IntegrationStatus =
+        statusByAirport[airportIcao]
+            ?: IntegrationStatus(IntegrationStatusState.ERROR, detail = "CDM not fetched yet")
 
     /**
      * Parses a UTC "HHMMSS" timestamp into an Instant,

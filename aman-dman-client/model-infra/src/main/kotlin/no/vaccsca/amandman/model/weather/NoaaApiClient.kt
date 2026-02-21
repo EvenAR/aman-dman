@@ -4,6 +4,8 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.util.NumberUtils.format
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import no.vaccsca.amandman.model.navigation.LatLng
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -13,6 +15,7 @@ import ucar.nc2.NetcdfFiles
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.round
@@ -31,8 +34,14 @@ class NoaaApiClient(
 ) : WindProfileProvider {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+    private val statusByAirport = ConcurrentHashMap<String, IntegrationStatus>()
 
-    override fun getVerticalProfileAtPoint(latitude: Double, longitude: Double): WindProfileResult {
+    override fun getVerticalProfileAtPoint(airportIcao: String, latitude: Double, longitude: Double): WindProfileResult {
+        statusByAirport[airportIcao] = IntegrationStatus(
+            state = IntegrationStatusState.LOADING,
+            shouldFlash = true,
+            detail = "Loading NOAA wind profile"
+        )
         val bbox = BoundingBox(
             topLat = latitude + bboxRadiusDeg,
             bottomLat = latitude - bboxRadiusDeg,
@@ -42,7 +51,13 @@ class NoaaApiClient(
 
         val forecast = fetchMostRecentForecast(bbox)
         return when (forecast) {
-            is ForecastResult.Failure -> WindProfileResult.Failure(forecast.error)
+            is ForecastResult.Failure -> {
+                statusByAirport[airportIcao] = IntegrationStatus(
+                    state = IntegrationStatusState.ERROR,
+                    detail = forecast.error.message
+                )
+                WindProfileResult.Failure(forecast.error)
+            }
             is ForecastResult.Success -> {
                 try {
                     forecast.grib.use {
@@ -50,9 +65,18 @@ class NoaaApiClient(
                         val closestPoint = gridPoints.minByOrNull { point ->
                             abs(point.latitude - latitude) + abs(point.longitude - longitude)
                         }
+                        statusByAirport[airportIcao] = if (closestPoint?.windProfile != null) {
+                            IntegrationStatus(IntegrationStatusState.OK, detail = "NOAA profile loaded")
+                        } else {
+                            IntegrationStatus(IntegrationStatusState.ERROR, detail = "No NOAA profile for point")
+                        }
                         WindProfileResult.Success(closestPoint?.windProfile)
                     }
                 } catch (e: Exception) {
+                    statusByAirport[airportIcao] = IntegrationStatus(
+                        state = IntegrationStatusState.ERROR,
+                        detail = "Failed to parse GRIB forecast: ${e.message}"
+                    )
                     WindProfileResult.Failure(
                         WindProfileError.Parse("Failed to parse GRIB forecast: ${e.message}")
                     )
@@ -60,6 +84,10 @@ class NoaaApiClient(
             }
         }
     }
+
+    override fun getIntegrationStatus(airportIcao: String): IntegrationStatus =
+        statusByAirport[airportIcao]
+            ?: IntegrationStatus(IntegrationStatusState.ERROR, detail = "MET not loaded yet")
 
     private fun getVerticalProfileGrid(grib: NetcdfFile, publishTime: Instant): List<WindProfileGridPoint> {
         val latitudes = grib.findVariable("lat") ?: throw IllegalStateException("Missing variable: lat")

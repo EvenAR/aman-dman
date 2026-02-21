@@ -5,6 +5,8 @@ import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
+import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import java.awt.Point
 
@@ -19,6 +21,7 @@ interface AirportViewInterface {
 
     fun updateTab(timelineEvents: List<TimelineEvent>, nonSequencedList: List<NonSequencedEvent>)
     fun updateWeatherData(weather: VerticalWeatherProfile?)
+    fun updateIntegrationStatuses(statuses: Map<IntegrationKind, IntegrationDisplayStatus>)
     fun updateRunwayModes(runwayModes: List<Pair<String, Boolean>>)
     fun updateMinimumSpacing(minimumSpacingNm: Double)
     fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean)

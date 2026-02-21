@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.model.planning
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 
 /**
@@ -15,6 +16,7 @@ interface AirportDataSource {
     fun start()
     fun stop()
     fun startDataCollection()
+    fun getIntegrationStatuses(): AirportIntegrationStatuses
 }
 
 /**

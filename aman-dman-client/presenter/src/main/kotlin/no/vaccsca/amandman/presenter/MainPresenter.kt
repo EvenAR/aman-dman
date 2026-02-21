@@ -178,6 +178,7 @@ class MainPresenter(
                     windProfileProvider = windProfileProvider,
                     atcClient = atcClient,
                     cdmClient = cdmProvider,
+                    sharedState = sharedState,
                     aircraftPerformanceProvider = performanceProvider,
                     dataUpdateListeners = arrayOf(guiDataHandler, dataUpdatesServerSender),
                 )
@@ -216,6 +217,7 @@ class MainPresenter(
         val airportPresenter = AirportPresenter(
             airportIcao = airportIcao,
             dataSource = plannerService,
+            userRole = userRole,
             view = airportView,
             settingsProvider = settingsProvider,
             controllerInfoProvider = { controllerInfo },

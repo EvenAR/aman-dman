@@ -5,6 +5,8 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
+import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.planning.AirportDataSource
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.planning.SequencePlanner
@@ -15,6 +17,7 @@ import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.user.UserRole
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import org.slf4j.LoggerFactory
 import java.awt.Point
@@ -23,6 +26,7 @@ import kotlin.time.Duration.Companion.seconds
 class AirportPresenter(
     override val airportIcao: String,
     private val dataSource: AirportDataSource,
+    private val userRole: UserRole,
     private val view: AirportViewInterface,
     private val settingsProvider: SettingsProvider,
     private val controllerInfoProvider: () -> ControllerInfoData?,
@@ -78,6 +82,7 @@ class AirportPresenter(
 
         val timelineEvents = cachedTimelineEvents.values.map { it.timelineEvent }
         view.updateTab(timelineEvents, cachedNonSequencedEvents)
+        pushIntegrationStatuses()
     }
 
     // DataUpdateListener implementations
@@ -262,6 +267,31 @@ class AirportPresenter(
 
     private fun showReadOnlyMessage() {
         showErrorMessage("This operation is not available in read-only mode")
+    }
+
+    private fun pushIntegrationStatuses() {
+        val statuses = dataSource.getIntegrationStatuses()
+        val orderedKinds = listOf(IntegrationKind.ATC, IntegrationKind.CDM, IntegrationKind.SERVER, IntegrationKind.MET)
+        val display = linkedMapOf<IntegrationKind, IntegrationDisplayStatus>()
+
+        orderedKinds.forEach { kind ->
+            val status = statuses.get(kind)
+            if (!status.relevant) return@forEach
+
+            val label = when (kind) {
+                IntegrationKind.SERVER -> when (userRole) {
+                    UserRole.MASTER -> "SRV M"
+                    UserRole.SLAVE -> "SRV S"
+                    UserRole.LOCAL -> "SRV"
+                }
+                IntegrationKind.ATC -> "ATC"
+                IntegrationKind.CDM -> "CDM"
+                IntegrationKind.MET -> "MET"
+            }
+
+            display[kind] = IntegrationDisplayStatus(label, status)
+        }
+        view.updateIntegrationStatuses(display)
     }
 
     private data class CachedTimelineEvent(

@@ -13,6 +13,10 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.atc.AtcClient
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceProvider
 import no.vaccsca.amandman.model.cdm.CdmProvider
+import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
+import no.vaccsca.amandman.model.integration.IntegrationKind
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import no.vaccsca.amandman.model.weather.WindProfileResult
 import no.vaccsca.amandman.model.timeline.NonSequencedReason
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
@@ -23,6 +27,7 @@ import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.atc.AtcClientDepartureData
 import no.vaccsca.amandman.model.atc.ControllerInfoData
+import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -43,6 +48,7 @@ class LocalSequencePlanner(
     private val windProfileProvider: WindProfileProvider,
     private val atcClient: AtcClient,
     private val cdmClient: CdmProvider,
+    private val sharedState: MasterSlaveSharedState? = null,
     private val aircraftPerformanceProvider: AircraftPerformanceProvider,
     private vararg val dataUpdateListeners: DataUpdateListener,
 ) : SequencePlanner {
@@ -94,6 +100,26 @@ class LocalSequencePlanner(
     }
 
     override fun getAvailableRunways(): List<String> = availableRunways
+
+    override fun getIntegrationStatuses(): AirportIntegrationStatuses {
+        val cdmStatus = if (fetchCdmData) {
+            cdmClient.getIntegrationStatus(airportIcao)
+        } else {
+            IntegrationStatus(state = IntegrationStatusState.ERROR, relevant = false, detail = "CDM disabled")
+        }
+
+        val serverStatus = sharedState?.getIntegrationStatus(airportIcao)
+            ?: IntegrationStatus(state = IntegrationStatusState.ERROR, relevant = false, detail = "Server not used")
+
+        return AirportIntegrationStatuses(
+            byKind = mapOf(
+                IntegrationKind.ATC to atcClient.getIntegrationStatus(airportIcao),
+                IntegrationKind.CDM to cdmStatus,
+                IntegrationKind.SERVER to serverStatus,
+                IntegrationKind.MET to windProfileProvider.getIntegrationStatus(airportIcao),
+            )
+        )
+    }
 
     override fun setShowDepartures(showDepartures: Boolean) {
         this.fetchCdmData = showDepartures
@@ -242,7 +268,7 @@ class LocalSequencePlanner(
     override fun refreshWeatherData() {
         scope.launch {
             logger.info("Fetching weather data for $airportIcao")
-            when (val result = windProfileProvider.getVerticalProfileAtPoint(airport.location.lat, airport.location.lon)) {
+            when (val result = windProfileProvider.getVerticalProfileAtPoint(airportIcao, airport.location.lat, airport.location.lon)) {
                 is WindProfileResult.Success -> {
                     weatherData = result.profile
                     dataUpdateListeners.forEach { it.onWeatherDataUpdated(airportIcao, result.profile) }

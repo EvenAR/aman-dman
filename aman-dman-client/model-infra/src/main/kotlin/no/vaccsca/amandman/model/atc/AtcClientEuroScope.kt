@@ -8,6 +8,8 @@ import no.vaccsca.amandman.model.ClientVersion
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.atc.euroscope.*
 import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.integration.IntegrationStatus
+import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
 import org.slf4j.LoggerFactory
@@ -16,6 +18,8 @@ import java.io.OutputStreamWriter
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.seconds
 
 class AtcClientEuroScope(
     private val controllerInfoCallback: ((ControllerInfoData) -> Unit),
@@ -40,6 +44,9 @@ class AtcClientEuroScope(
     private val arrivalCallbacks = mutableMapOf<String, (List<AtcClientArrivalData>) -> Unit>()
     private val departuresCallbacks = mutableMapOf<String, (List<AtcClientDepartureData>) -> Unit>()
     private val runwayStatusCallbacks = mutableMapOf<String, (List<AtcClientRunwaySelectionData>) -> Unit>()
+    private val latestMovementTimestampByAirport = ConcurrentHashMap<String, kotlinx.datetime.Instant>()
+    private val loadingUntilByAirport = ConcurrentHashMap<String, kotlinx.datetime.Instant>()
+    private val errorStatusByAirport = ConcurrentHashMap<String, IntegrationStatus>()
 
     private val objectMapper = jacksonObjectMapper().apply {
         // Configure Jackson for large messages
@@ -63,6 +70,7 @@ class AtcClientEuroScope(
         scope.launch {
             while (isRunning) {
                 if (!isConnected) {
+                    markAllSubscribedAirportsLoading()
                     logger.info("Attempting to connect to $host:$port")
                     try {
                         socket = Socket(host, port)
@@ -99,6 +107,7 @@ class AtcClientEuroScope(
         runwayStatusCallbacks[airportIcao] = onRunwaySelectionChanged
         arrivalCallbacks[airportIcao] = onArrivalsReceived
         departuresCallbacks[airportIcao] = onDeparturesReceived
+        markAirportLoading(airportIcao)
 
         reSubscribeToAllAirports()
     }
@@ -112,6 +121,9 @@ class AtcClientEuroScope(
         runwayStatusCallbacks.remove(airportIcao)
         arrivalCallbacks.remove(airportIcao)
         departuresCallbacks.remove(airportIcao)
+        latestMovementTimestampByAirport.remove(airportIcao)
+        loadingUntilByAirport.remove(airportIcao)
+        errorStatusByAirport.remove(airportIcao)
     }
 
     override fun assignRunway(callsign: String, newRunway: String) {
@@ -121,6 +133,40 @@ class AtcClientEuroScope(
                 callsign = callsign,
                 runway = newRunway
             )
+        )
+    }
+
+    override fun getIntegrationStatus(airportIcao: String): IntegrationStatus {
+        errorStatusByAirport[airportIcao]?.let { return it }
+
+        if (airportIcao !in arrivalCallbacks.keys && airportIcao !in departuresCallbacks.keys) {
+            return IntegrationStatus(
+                state = IntegrationStatusState.ERROR,
+                detail = "ATC not subscribed for airport $airportIcao"
+            )
+        }
+
+        val now = NtpClock.now()
+        val shouldFlash = loadingUntilByAirport[airportIcao]?.let { now < it } ?: false
+        val latestMovement = latestMovementTimestampByAirport[airportIcao]
+
+        val state = when {
+            !isRunning -> IntegrationStatusState.ERROR
+            !isConnected || !isVersionValidated -> IntegrationStatusState.LOADING
+            latestMovement == null -> IntegrationStatusState.LOADING
+            now - latestMovement > 5.seconds -> IntegrationStatusState.LOADING
+            else -> IntegrationStatusState.OK
+        }
+
+        return IntegrationStatus(
+            state = state,
+            updatedAt = now,
+            shouldFlash = shouldFlash,
+            detail = when (state) {
+                IntegrationStatusState.OK -> "ATC data received"
+                IntegrationStatusState.LOADING -> "Waiting for recent ATC data"
+                IntegrationStatusState.ERROR -> "ATC client not running"
+            }
         )
     }
 
@@ -159,6 +205,7 @@ class AtcClientEuroScope(
                     reader = null
                 }
             }
+            markAllSubscribedAirportsError("ATC client closed")
         } catch (e: Exception) {
             logger.error("Error closing connection: ${e.message}", e)
         }
@@ -166,6 +213,8 @@ class AtcClientEuroScope(
 
     private fun onConnectionEstablished() {
         isVersionValidated = false
+        // A reconnect gets a fresh socket; re-register all airport subscriptions.
+        reSubscribeToAllAirports()
     }
 
     private fun reSubscribeToAllAirports() {
@@ -198,6 +247,7 @@ class AtcClientEuroScope(
                 val bytesRead = reader?.read(buffer) ?: -1
                 if (bytesRead <= 0) {
                     isConnected = false
+                    resetConnectionResources()
                     return
                 }
 
@@ -219,14 +269,17 @@ class AtcClientEuroScope(
             } catch (e: SocketException) {
                 logger.error("SocketException: ${e.message}")
                 isConnected = false
+                resetConnectionResources()
                 return
             } catch (e: SocketTimeoutException) {
                 logger.error("SocketTimeoutException: ${e.message}")
                 isConnected = false
+                resetConnectionResources()
                 return
             } catch (e: Exception) {
                 logger.error("Unexpected error: ${e.message}")
                 isConnected = false
+                resetConnectionResources()
                 return
             }
         }
@@ -240,6 +293,7 @@ class AtcClientEuroScope(
                     if (!isVersionValidated) {
                         val clientVersion = ClientVersion.value
                         if (messageObj.version != clientVersion) {
+                            markAllSubscribedAirportsError("ATC version mismatch")
                             onVersionMismatch?.invoke(clientVersion, messageObj.version)
                             close()
                             return
@@ -252,6 +306,7 @@ class AtcClientEuroScope(
                     val arrivals = messageObj.inbounds.mapNotNull { it.toDomain() }
                     val grouped = arrivals.groupBy { it.arrivalAirportIcao }
                     grouped.forEach { (icao, list) ->
+                        markAirportDataReceived(icao)
                         arrivalCallbacks[icao]?.invoke(list)
                     }
                 }
@@ -260,6 +315,7 @@ class AtcClientEuroScope(
                     val departures = messageObj.outbounds.mapNotNull { it.toDomain() }
                     val grouped = departures.groupBy { it.departureIcao }
                     grouped.forEach { (icao, list) ->
+                        markAirportDataReceived(icao)
                         departuresCallbacks[icao]?.invoke(list)
                     }
                 }
@@ -340,5 +396,48 @@ class AtcClientEuroScope(
             logger.warn("Failed to parse departure data for $callsign: ${e.message}")
             null
         }
+    }
+
+    private fun markAirportLoading(airportIcao: String) {
+        loadingUntilByAirport[airportIcao] = NtpClock.now() + 2.seconds
+        errorStatusByAirport.remove(airportIcao)
+    }
+
+    private fun markAllSubscribedAirportsLoading() {
+        (arrivalCallbacks.keys + departuresCallbacks.keys + runwayStatusCallbacks.keys).forEach { markAirportLoading(it) }
+    }
+
+    private fun markAirportDataReceived(airportIcao: String) {
+        latestMovementTimestampByAirport[airportIcao] = NtpClock.now()
+        errorStatusByAirport.remove(airportIcao)
+    }
+
+    private fun markAllSubscribedAirportsError(detail: String) {
+        val now = NtpClock.now()
+        (arrivalCallbacks.keys + departuresCallbacks.keys + runwayStatusCallbacks.keys).forEach { airportIcao ->
+            errorStatusByAirport[airportIcao] = IntegrationStatus(
+                state = IntegrationStatusState.ERROR,
+                updatedAt = now,
+                detail = detail
+            )
+        }
+    }
+
+    private fun resetConnectionResources() {
+        try {
+            reader?.close()
+        } catch (_: Exception) {
+        }
+        try {
+            writer?.close()
+        } catch (_: Exception) {
+        }
+        try {
+            socket?.close()
+        } catch (_: Exception) {
+        }
+        reader = null
+        writer = null
+        socket = null
     }
 }

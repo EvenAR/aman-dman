@@ -6,6 +6,8 @@ import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
+import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.presenter.AirportViewInterface
@@ -45,6 +47,10 @@ class AirportViewDelegate(
 
     override fun updateWeatherData(weather: VerticalWeatherProfile?) = runOnUiThread {
         airportViewState.weatherProfile.value = weather
+    }
+
+    override fun updateIntegrationStatuses(statuses: Map<IntegrationKind, IntegrationDisplayStatus>) = runOnUiThread {
+        airportViewState.integrationStatuses.value = statuses
     }
 
     override fun updateRunwayModes(runwayModes: List<Pair<String, Boolean>>) = runOnUiThread {
