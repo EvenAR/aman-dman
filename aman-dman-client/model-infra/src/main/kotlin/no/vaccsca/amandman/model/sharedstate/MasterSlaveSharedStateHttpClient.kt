@@ -3,7 +3,11 @@ package no.vaccsca.amandman.model.sharedstate
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
@@ -29,8 +33,10 @@ import java.util.UUID.randomUUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
+import kotlin.time.toDuration
 
 class MasterSlaveSharedStateHttpClient(
     private val settingsProvider: SettingsProvider,
@@ -44,6 +50,7 @@ class MasterSlaveSharedStateHttpClient(
         registerModule(KotlinModule.Builder().build())
         registerModule(JavaTimeModule())
         registerModule(KotlinxInstantModule)
+        registerModule(KotlinDurationModule)
         findAndRegisterModules()
     }
 
@@ -313,15 +320,34 @@ class MasterSlaveSharedStateHttpClient(
         }
     }
 
-    private object KotlinxInstantSerializer : com.fasterxml.jackson.databind.JsonSerializer<Instant>() {
-        override fun serialize(value: Instant, gen: JsonGenerator, serializers: com.fasterxml.jackson.databind.SerializerProvider) {
+    private object KotlinxInstantSerializer : JsonSerializer<Instant>() {
+        override fun serialize(value: Instant, gen: JsonGenerator, serializers: SerializerProvider) {
             gen.writeString(value.toString())
         }
     }
 
-    private object KotlinxInstantDeserializer : com.fasterxml.jackson.databind.JsonDeserializer<Instant>() {
-        override fun deserialize(p: JsonParser, ctxt: com.fasterxml.jackson.databind.DeserializationContext): Instant {
+    private object KotlinxInstantDeserializer : JsonDeserializer<Instant>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Instant {
             return Instant.parse(p.text)
+        }
+    }
+
+    private object KotlinDurationModule : SimpleModule() {
+        init {
+            addSerializer(Duration::class.java, KotlinDurationSerializer)
+            addDeserializer(Duration::class.java, KotlinDurationDeserializer)
+        }
+    }
+
+    private object KotlinDurationSerializer : JsonSerializer<Duration>() {
+        override fun serialize(value: Duration, gen: JsonGenerator, serializers: SerializerProvider) {
+            gen.writeString(value.toIsoString())
+        }
+    }
+
+    private object KotlinDurationDeserializer : JsonDeserializer<Duration>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Duration {
+            return Duration.parseIsoString(p.text)
         }
     }
 
