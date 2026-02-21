@@ -34,6 +34,7 @@ class AirportPresenter(
     private val onAircraftSelectedCallback: (String) -> Unit,
     private val onOpenVerticalProfileCallback: (String) -> Unit,
     private val onRemove: () -> Unit,
+    private val uiDispatcher: UiDispatcher,
 ) : AirportPresenterInterface, DataUpdateListener {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -77,6 +78,10 @@ class AirportPresenter(
     }
 
     fun updateViewFromCache() {
+        runOnEdt { updateViewFromCacheOnEdt() }
+    }
+
+    private fun updateViewFromCacheOnEdt() {
         val cutoffTime = NtpClock.now() - 5.seconds
         cachedTimelineEvents.entries.removeIf { it.value.lastTimestamp < cutoffTime }
 
@@ -89,37 +94,47 @@ class AirportPresenter(
     override fun onTimelineEventsUpdated(airportIcao: String, timelineEvents: List<TimelineEvent>) {
         if (airportIcao != this.airportIcao) return
 
-        timelineEvents.filterIsInstance<RunwayFlightEvent>().forEach {
-            cachedTimelineEvents[it.callsign] = CachedTimelineEvent(
-                lastTimestamp = NtpClock.now(),
-                timelineEvent = it
-            )
+        runOnEdt {
+            timelineEvents.filterIsInstance<RunwayFlightEvent>().forEach {
+                cachedTimelineEvents[it.callsign] = CachedTimelineEvent(
+                    lastTimestamp = NtpClock.now(),
+                    timelineEvent = it
+                )
+            }
+            updateViewFromCacheOnEdt()
         }
-        updateViewFromCache()
     }
 
     override fun onRunwayModesUpdated(airportIcao: String, runwayStatuses: Map<String, RunwayStatus>) {
         if (airportIcao != this.airportIcao) return
-        availableRunways = runwayStatuses.keys
-        runwayModeStateManager.updateRunwayStatuses(runwayStatuses, minimumSpacingNm)
+        runOnEdt {
+            availableRunways = runwayStatuses.keys
+            runwayModeStateManager.updateRunwayStatuses(runwayStatuses, minimumSpacingNm)
+        }
     }
 
     override fun onMinimumSpacingUpdated(airportIcao: String, minimumSpacingNm: Double) {
         if (airportIcao != this.airportIcao) return
-        this.minimumSpacingNm = minimumSpacingNm
-        runwayModeStateManager.updateMinimumSpacing(minimumSpacingNm)
-        view.updateMinimumSpacing(minimumSpacingNm)
+        runOnEdt {
+            this.minimumSpacingNm = minimumSpacingNm
+            runwayModeStateManager.updateMinimumSpacing(minimumSpacingNm)
+            view.updateMinimumSpacing(minimumSpacingNm)
+        }
     }
 
     override fun onWeatherDataUpdated(airportIcao: String, data: VerticalWeatherProfile?) {
         if (airportIcao != this.airportIcao) return
-        view.updateWeatherData(data)
+        runOnEdt {
+            view.updateWeatherData(data)
+        }
     }
 
     override fun onNonSequencedListUpdated(airportIcao: String, nonSequencedList: List<NonSequencedEvent>) {
         if (airportIcao != this.airportIcao) return
-        cachedNonSequencedEvents = nonSequencedList
-        updateViewFromCache()
+        runOnEdt {
+            cachedNonSequencedEvents = nonSequencedList
+            updateViewFromCacheOnEdt()
+        }
     }
 
     // AirportPresenterInterface implementations
@@ -262,7 +277,9 @@ class AirportPresenter(
     }
 
     fun onAircraftSelectionChanged(callsign: String) {
-        view.setSelectedAircraftCallsign(callsign)
+        runOnEdt {
+            view.setSelectedAircraftCallsign(callsign)
+        }
     }
 
     private fun showReadOnlyMessage() {
@@ -298,4 +315,12 @@ class AirportPresenter(
         val lastTimestamp: Instant,
         val timelineEvent: TimelineEvent
     )
+
+    private fun runOnEdt(action: () -> Unit) {
+        if (uiDispatcher.isUiThread()) {
+            action()
+        } else {
+            uiDispatcher.dispatch(action)
+        }
+    }
 }

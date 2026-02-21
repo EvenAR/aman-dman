@@ -10,6 +10,10 @@ import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedStateHttpClient
 import no.vaccsca.amandman.model.cdm.RpuigCdmClient
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceData
 import no.vaccsca.amandman.view.AmanDmanMainFrame
+import org.slf4j.LoggerFactory
+import java.awt.AWTEvent
+import java.awt.EventQueue
+import java.awt.Toolkit
 import java.util.*
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
@@ -17,6 +21,28 @@ import javax.swing.UnsupportedLookAndFeelException
 
 
 fun main() {
+    val logger = LoggerFactory.getLogger("GlobalExceptionHandler")
+
+    fun installGlobalExceptionLogging() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            logger.error("Uncaught exception on thread '${thread.name}'", throwable)
+            previousHandler?.uncaughtException(thread, throwable)
+        }
+
+        Toolkit.getDefaultToolkit().systemEventQueue.push(object : EventQueue() {
+            override fun dispatchEvent(event: AWTEvent) {
+                try {
+                    super.dispatchEvent(event)
+                } catch (throwable: Throwable) {
+                    logger.error("Uncaught exception while dispatching AWT event '${event.javaClass.simpleName}'", throwable)
+                    throw throwable
+                }
+            }
+        })
+    }
+
     fun setTheme(theme: Theme) {
         when (theme) {
             Theme.JTATTOO -> {
@@ -42,6 +68,8 @@ fun main() {
     }
 
     fun initializeApplication() {
+        installGlobalExceptionLogging()
+
         val settings = SettingsRepository.getSettings()
         setTheme(settings.theme)
 
@@ -55,6 +83,7 @@ fun main() {
         val sharedState = MasterSlaveSharedStateHttpClient(settingsProvider)
         val cdmProvider = RpuigCdmClient()
         val performanceProvider = AircraftPerformanceData
+        val uiDispatcher = SwingUiDispatcher()
 
         MainPresenter(
             dataSourceManager,
@@ -64,7 +93,8 @@ fun main() {
             atcClientFactory,
             sharedState,
             cdmProvider,
-            performanceProvider
+            performanceProvider,
+            uiDispatcher
         )
 
         view.openWindow()

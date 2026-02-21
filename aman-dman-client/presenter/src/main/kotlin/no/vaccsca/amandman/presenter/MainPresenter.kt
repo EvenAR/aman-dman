@@ -30,6 +30,7 @@ class MainPresenter(
     private val sharedState: MasterSlaveSharedState,
     private val cdmProvider: CdmProvider,
     private val performanceProvider: AircraftPerformanceProvider,
+    private val uiDispatcher: UiDispatcher,
 ) : MainPresenterInterface {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -60,11 +61,11 @@ class MainPresenter(
     init {
         view.mainPresenterInterface = this
 
-        javax.swing.Timer(1000) {
+        uiDispatcher.scheduleRepeating(1000) {
             view.updateTime(NtpClock.now())
             updateAllAirportViews()
             checkMasterRoles()
-        }.start()
+        }
     }
 
     private fun updateAllAirportViews() {
@@ -82,7 +83,7 @@ class MainPresenter(
     }
 
     private fun handleVersionMismatch(clientVersion: String, pluginVersion: String) {
-        javax.swing.SwingUtilities.invokeLater {
+        runOnEdt {
             view.showErrorMessage(
                 """
                 VERSION MISMATCH DETECTED
@@ -224,7 +225,8 @@ class MainPresenter(
             showErrorMessage = { view.showErrorMessage(it) },
             onAircraftSelectedCallback = { onAircraftSelected(it) },
             onOpenVerticalProfileCallback = { onOpenVerticalProfileWindowClicked(it) },
-            onRemove = { removeAirportPresenter(airportIcao) }
+            onRemove = { removeAirportPresenter(airportIcao) },
+            uiDispatcher = uiDispatcher,
         )
 
         airportPresenters[airportIcao] = airportPresenter
@@ -285,19 +287,23 @@ class MainPresenter(
     }
 
     private fun handleAircraftSelectionChanged(callsign: String) {
-        // Update the local selected callsign
-        selectedCallsign = callsign.ifEmpty { null }
-        
-        // Notify all airport presenters about the selection change
-        airportPresenters.values.forEach { it.onAircraftSelectionChanged(callsign) }
-        
-        // Update descent profile
-        updateDescentProfileForSelectedCallsign()
+        runOnEdt {
+            // Update the local selected callsign
+            selectedCallsign = callsign.ifEmpty { null }
+
+            // Notify all airport presenters about the selection change
+            airportPresenters.values.forEach { it.onAircraftSelectionChanged(callsign) }
+
+            // Update descent profile
+            updateDescentProfileForSelectedCallsign()
+        }
     }
 
     private fun handleControllerInfoUpdate(info: ControllerInfoData) {
-        controllerInfo = info
-        view.updateControllerInfo(info)
+        runOnEdt {
+            controllerInfo = info
+            view.updateControllerInfo(info)
+        }
     }
 
     /**
@@ -319,23 +325,41 @@ class MainPresenter(
         }
 
         override fun onTimelineEventsUpdated(airportIcao: String, timelineEvents: List<TimelineEvent>) {
-            listeners[airportIcao]?.onTimelineEventsUpdated(airportIcao, timelineEvents)
+            runOnEdt {
+                listeners[airportIcao]?.onTimelineEventsUpdated(airportIcao, timelineEvents)
+            }
         }
 
         override fun onRunwayModesUpdated(airportIcao: String, runwayStatuses: Map<String, RunwayStatus>) {
-            listeners[airportIcao]?.onRunwayModesUpdated(airportIcao, runwayStatuses)
+            runOnEdt {
+                listeners[airportIcao]?.onRunwayModesUpdated(airportIcao, runwayStatuses)
+            }
         }
 
         override fun onWeatherDataUpdated(airportIcao: String, data: VerticalWeatherProfile?) {
-            listeners[airportIcao]?.onWeatherDataUpdated(airportIcao, data)
+            runOnEdt {
+                listeners[airportIcao]?.onWeatherDataUpdated(airportIcao, data)
+            }
         }
 
         override fun onNonSequencedListUpdated(airportIcao: String, nonSequencedList: List<NonSequencedEvent>) {
-            listeners[airportIcao]?.onNonSequencedListUpdated(airportIcao, nonSequencedList)
+            runOnEdt {
+                listeners[airportIcao]?.onNonSequencedListUpdated(airportIcao, nonSequencedList)
+            }
         }
 
         override fun onMinimumSpacingUpdated(airportIcao: String, minimumSpacingNm: Double) {
-            listeners[airportIcao]?.onMinimumSpacingUpdated(airportIcao, minimumSpacingNm)
+            runOnEdt {
+                listeners[airportIcao]?.onMinimumSpacingUpdated(airportIcao, minimumSpacingNm)
+            }
+        }
+    }
+
+    private fun runOnEdt(action: () -> Unit) {
+        if (uiDispatcher.isUiThread()) {
+            action()
+        } else {
+            uiDispatcher.dispatch(action)
         }
     }
 }
