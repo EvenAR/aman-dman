@@ -3,7 +3,6 @@ package no.vaccsca.amandman.model.airport
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Star
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 
 data class Airport(
     val icao: String,

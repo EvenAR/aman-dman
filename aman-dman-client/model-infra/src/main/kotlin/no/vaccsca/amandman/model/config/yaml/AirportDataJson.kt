@@ -1,8 +1,7 @@
 package no.vaccsca.amandman.model.config.yaml
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
+import java.time.Duration
 
 data class AirportDataJson(
     @field:NotNull
@@ -17,9 +16,9 @@ data class AirportJson(
 
     val independentRunwaySystems: List<List<String>>? = null,
 
-    val sequencingHorizonMinutes: Int? = null,
+    val sequencingHorizon: Duration? = null,
 
-    val lockedHorizonMinutes: Int? = null,
+    val lockedHorizon: Duration? = null,
 )
 
 data class RunwayThresholdJson(

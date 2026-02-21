@@ -5,8 +5,8 @@ airports:
     location:
       latitude: 60.19250943987119
       longitude: 11.096549971455543
-    sequencingHorizonMinutes: 30
-    lockedHorizonMinutes: 10
+    sequencingHorizon: PT30M
+    lockedHorizon: PT10M
     runwayThresholds:
       01L:
         location:
@@ -37,8 +37,8 @@ airports:
     location:
       latitude: 60.2938676
       longitude: 5.221587222
-    sequencingHorizonMinutes: 30
-    lockedHorizonMinutes: 10
+    sequencingHorizon: PT30M
+    lockedHorizon: PT10M
     runwayThresholds:
       35:
         location:
@@ -56,8 +56,8 @@ airports:
     location:
       latitude: 50.037054
       longitude: 8.570456
-    sequencingHorizonMinutes: 30
-    lockedHorizonMinutes: 10
+    sequencingHorizon: PT30M
+    lockedHorizon: PT10M
     runwayThresholds:
       07L:
         location:

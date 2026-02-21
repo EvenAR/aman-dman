@@ -30,6 +30,7 @@ import no.vaccsca.amandman.model.navigation.Star
 import no.vaccsca.amandman.model.navigation.StarFix
 import no.vaccsca.amandman.model.config.Theme
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toKotlinDuration
 
 fun AmanDmanSettingsYaml.toDomain(): AmanDmanSettings = AmanDmanSettings(
     timelines = timelines.mapValues { entry -> entry.value.map { it.toDomain() } },
@@ -94,8 +95,8 @@ fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
         icao = icao,
         location = LatLng(location.latitude, location.longitude),
         independentRunwaySystems = independentRunwaySystems?.map { it.toSet() } ?: listOf(runwayThresholds.keys),
-        sequencingHorizon = (sequencingHorizonMinutes ?: 30).minutes,
-        lockedHorizon = (lockedHorizonMinutes ?: 10).minutes,
+        sequencingHorizon = sequencingHorizon?.toKotlinDuration() ?: 30.minutes,
+        lockedHorizon = lockedHorizon?.toKotlinDuration() ?: 10.minutes,
         runways = runwayThresholds.mapValues { (id, value) ->
             RunwayThreshold(
                 id = id,

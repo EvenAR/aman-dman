@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.model.config
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import no.vaccsca.amandman.model.config.mapper.toDomain
@@ -22,7 +23,9 @@ object SettingsRepository : SettingsProvider {
     private const val SETTINGS_FILE_PATH = "config/settings.yaml"
     private const val AIRPORTS_FILE_PATH = "config/airports.yaml"
 
-    private val yamlMapper = YAMLMapper().apply { registerKotlinModule() }
+    private val yamlMapper = YAMLMapper()
+        .registerKotlinModule()
+        .registerModule(JavaTimeModule())
 
     override fun getSettings(reload: Boolean): AmanDmanSettings {
         if (settings == null || reload) loadSettings()
