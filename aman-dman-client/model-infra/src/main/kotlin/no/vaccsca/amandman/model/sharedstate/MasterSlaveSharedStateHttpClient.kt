@@ -231,9 +231,7 @@ class MasterSlaveSharedStateHttpClient(
             .header(CLIENT_VERSION_HEADER, clientVersion)
     }
 
-    private data class MasterRoleResponse(
-        val isMaster: Boolean
-    )
+
 
     private object KotlinxInstantModule : SimpleModule() {
         init {

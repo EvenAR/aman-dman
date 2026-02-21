@@ -18,6 +18,12 @@ data class SharedStateJson<T>(
     val data: T
 )
 
+data class MasterRoleResponse(
+    val isMaster: Boolean,
+    val currentMaster: String,
+    val sessionId: String,
+)
+
 /**
  * Wrapper for polymorphic TimelineEvent serialization/deserialization.
  * The "type" field is used to determine the concrete subclass of Timeline

@@ -234,9 +234,7 @@ class AtcClientEuroScope(
 
     private fun handleIncomingMessage(message: String) {
         try {
-            val messageObj = objectMapper.readValue(message, MessageFromEuroScopePluginJson::class.java)
-
-            when (messageObj) {
+            when (val messageObj = objectMapper.readValue(message, MessageFromEuroScopePluginJson::class.java)) {
                 is PluginVersionJson -> {
                     logger.info("Received plugin version: ${messageObj.version}")
                     if (!isVersionValidated) {
