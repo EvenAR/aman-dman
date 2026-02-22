@@ -6,6 +6,7 @@ import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.view.airport.TimeRangeScrollBarHorizontal
 import no.vaccsca.amandman.view.entity.AirportViewState
+import no.vaccsca.amandman.view.entity.MainViewState
 import no.vaccsca.amandman.view.entity.SharedValue
 import no.vaccsca.amandman.view.entity.TimeRange
 import org.jfree.chart.ChartFactory
@@ -39,7 +40,8 @@ import kotlin.time.Duration.Companion.minutes
 
 
 class LandingRatesGraph(
-    val airportViewState: AirportViewState
+    val airportViewState: AirportViewState,
+    mainViewState: MainViewState
 ) : JPanel() {
 
     private val timeSeries = TimeSeries("Landings")
@@ -47,7 +49,8 @@ class LandingRatesGraph(
     private var chart: JFreeChart? = null
     private var plot: XYPlot? = null
     private var barDataset: XYBarDataset? = null
-    private var currentBucketMillis = 10 * 60 * 1000L
+    private var currentBucketSize = 10.minutes
+    private var currentTime = NtpClock.now()
 
     private val bucketSelector = JComboBox(arrayOf("10 min", "30 min", "60 min"))
 
@@ -80,11 +83,11 @@ class LandingRatesGraph(
         }
 
         bucketSelector.addActionListener {
-            currentBucketMillis = when (bucketSelector.selectedItem as String) {
-                "10 min" -> 10 * 60 * 1000L
-                "30 min" -> 30 * 60 * 1000L
-                "60 min" -> 60 * 60 * 1000L
-                else -> 10 * 60 * 1000L
+            currentBucketSize = when (bucketSelector.selectedItem as String) {
+                "10 min" -> 10.minutes
+                "30 min" -> 30.minutes
+                "60 min" -> 60.minutes
+                else -> 10.minutes
             }
             updateChartBarWidth()
             showEvents(currentEvents)
@@ -92,6 +95,20 @@ class LandingRatesGraph(
 
         selectedTimeRange.addListener {
             updateXAxisRange()
+        }
+
+        mainViewState.currentClock.addListener { newTime ->
+            val delta = newTime - this.currentTime
+            this.currentTime = newTime
+
+            selectedTimeRange.value = TimeRange(
+                selectedTimeRange.value.start + delta,
+                selectedTimeRange.value.end + delta,
+            )
+            availableTimeRange.value = TimeRange(
+                newTime - 30.minutes,
+                newTime + 2.hours,
+            )
         }
 
         airportViewState.events.addListener { updatedEvents ->
@@ -115,7 +132,7 @@ class LandingRatesGraph(
         )
 
         plot = baseChart.plot as XYPlot
-        barDataset = XYBarDataset(dataset, currentBucketMillis.toDouble())
+        barDataset = XYBarDataset(dataset, currentBucketSize.inWholeMilliseconds.toDouble())
         plot!!.dataset = barDataset
         plot!!.isOutlineVisible = false
 
@@ -177,7 +194,7 @@ class LandingRatesGraph(
     }
 
     private fun updateChartBarWidth() {
-        barDataset = XYBarDataset(dataset, currentBucketMillis.toDouble())
+        barDataset = XYBarDataset(dataset, currentBucketSize.inWholeMilliseconds.toDouble())
         plot?.dataset = barDataset
     }
 
@@ -189,8 +206,9 @@ class LandingRatesGraph(
         }
 
         val grouped = events.groupBy {
-            val timeUtc = it.scheduledTime.toEpochMilliseconds() / 1000
-            Instant.fromEpochSeconds(timeUtc / (currentBucketMillis / 1000) * (currentBucketMillis / 1000))
+            val timeUtc = it.scheduledTime.epochSeconds
+            val bucketSizeSeconds = currentBucketSize.inWholeSeconds
+            Instant.fromEpochSeconds(timeUtc / bucketSizeSeconds * bucketSizeSeconds)
         }.mapValues { (_, occurrences) -> occurrences.size }
 
         timeSeries.clear()

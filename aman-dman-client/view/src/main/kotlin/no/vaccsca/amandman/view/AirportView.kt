@@ -48,7 +48,7 @@ class AirportView(
     val topBar: TopBar
     val footer = Footer(mainViewState, airportViewState)
 
-    private val landingRatesGraph = LandingRatesGraph(airportViewState)
+    private val landingRatesGraph = LandingRatesGraph(airportViewState, mainViewState)
     private var landingRatesFrame: JInternalFrame? = null
 
     private val nonSeqView = NonSeqView(airportViewState)
