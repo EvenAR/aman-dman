@@ -5,7 +5,7 @@ airports:
     location:
       latitude: 60.19250943987119
       longitude: 11.096549971455543
-    sequencingHorizon: PT30M
+    sequencingHorizon: PT60M
     lockedHorizon: PT10M
     runwayThresholds:
       01L:
