@@ -12,6 +12,8 @@ import java.awt.Font
 import javax.swing.BoxLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JSeparator
+import javax.swing.SwingConstants
 import javax.swing.Timer
 
 class Footer(
@@ -33,8 +35,8 @@ class Footer(
 
     init {
         border = javax.swing.BorderFactory.createEmptyBorder(0, 0, 2, 4)
-        val spacer = JLabel().apply {
-            preferredSize = Dimension(8, 1)
+        val spacer = JSeparator(SwingConstants.VERTICAL).apply {
+            preferredSize = Dimension(2, 16)
         }
         statusItems.values.forEach { statusContainer.add(it) }
         add(statusContainer)
