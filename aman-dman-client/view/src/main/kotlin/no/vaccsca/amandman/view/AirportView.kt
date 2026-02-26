@@ -131,7 +131,7 @@ class AirportView(
 
     fun openLandingRatesWindow() {
         if (landingRatesFrame == null) {
-            landingRatesFrame = JInternalFrame("Landing Rates - $airportIcao", true, true, true, true).apply {
+            landingRatesFrame = JInternalFrame("Traffic Load Monitoring - $airportIcao", true, true, true, true).apply {
                 add(landingRatesGraph)
                 setSize(500, 300)
                 setLocation(50, 50)

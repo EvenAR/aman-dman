@@ -17,10 +17,14 @@ class TopBar(
     private val presenter: AirportPresenterInterface get() = presenterProvider()
 
     private val departuresCheckbox = JCheckBox("Departures")
-    private val nonSequencedButton = JButton("NonSeq")
-    private val landingRatesButton = JButton("Landing Rates")
 
-    private val initialBorder = BorderFactory.createEmptyBorder(5, 5, -5, 0)
+    private val nonSequencedButton = JButton("NonSeq")
+        .apply { preferredSize = this.preferredSize.apply { width = 100 } }
+
+    private val landingRatesButton = JButton("TLM")
+        .apply { preferredSize = this.preferredSize.apply { width = 100 } }
+
+    private val initialBorder = BorderFactory.createEmptyBorder(0, 5, 0, 0)
 
     /** Row 1 container */
     private val topRow = JPanel(BorderLayout())
@@ -28,17 +32,18 @@ class TopBar(
     /** Runway modes */
     private val runwayModePanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.X_AXIS)
+        border = BorderFactory.createEmptyBorder(0, 0, 0, 0)
     }
 
     /** Buttons – can move to second row */
     private val buttonsPanel = JPanel().apply {
-        layout = FlowLayout(FlowLayout.RIGHT, 5, 0)
+        layout = FlowLayout(FlowLayout.LEFT, 5, 0)
         border = BorderFactory.createEmptyBorder(0, 0, 0, 0)
     }
 
     /** Row 2 container (buttons overflow) */
     private val bottomRow = JPanel().apply {
-        layout = FlowLayout(FlowLayout.RIGHT, 5, 0)
+        layout = FlowLayout(FlowLayout.LEFT, 5, 0)
         border = BorderFactory.createEmptyBorder(5, 0, 5, -5)
     }
 
@@ -79,12 +84,12 @@ class TopBar(
     }
 
     private fun initLayout() {
-        buttonsPanel.add(departuresCheckbox)
         buttonsPanel.add(nonSequencedButton)
         buttonsPanel.add(landingRatesButton)
+        buttonsPanel.add(departuresCheckbox)
 
-        topRow.add(runwayModePanel, BorderLayout.CENTER)
-        topRow.add(buttonsPanel, BorderLayout.EAST)
+        bottomRow.add(runwayModePanel)
+        bottomRow.add(buttonsPanel)
 
         add(topRow, BorderLayout.NORTH)
         add(bottomRow, BorderLayout.SOUTH)
@@ -106,13 +111,13 @@ class TopBar(
 
         val shouldWrap = requiredWidth > availableWidth
 
-        if (shouldWrap && buttonsPanel.parent !== bottomRow) {
+        if (shouldWrap && buttonsPanel.parent !== topRow) {
+            bottomRow.remove(buttonsPanel)
+            topRow.add(buttonsPanel)
+            border = BorderFactory.createEmptyBorder(5, 0, 0, 0)
+        } else if (!shouldWrap && buttonsPanel.parent !== bottomRow) {
             topRow.remove(buttonsPanel)
             bottomRow.add(buttonsPanel)
-            border = BorderFactory.createEmptyBorder(5, 5, 0, 0)
-        } else if (!shouldWrap && buttonsPanel.parent !== topRow) {
-            bottomRow.remove(buttonsPanel)
-            topRow.add(buttonsPanel, BorderLayout.EAST)
             border = initialBorder
         }
 
