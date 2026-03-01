@@ -45,7 +45,9 @@ class TimelineOverlay(
     private val pointDiameter = 6       // Diameter of the dot on the timescale
     private val scaleMargin = 30        // Distance between timescale and labels
     private val timelinePadding = 10   // Padding between timeline edge and labels
-    private val timeFormat = SimpleDateFormat("HH:mm")
+    private val timeFormat = SimpleDateFormat("HH:mm").apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 
     // --- State ---
     private val labels = hashMapOf<String, TimelineLabel>()

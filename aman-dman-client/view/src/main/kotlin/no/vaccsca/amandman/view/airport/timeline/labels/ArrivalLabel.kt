@@ -13,6 +13,7 @@ import java.awt.Color
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.text.SimpleDateFormat
+import java.util.TimeZone
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -88,7 +89,9 @@ class ArrivalLabel(
                 LabelStyleOptions(text = arrival.scratchPad ?: "")
 
             LabelItemSource.ESTIMATED_LANDING_TIME ->
-                LabelStyleOptions(text = SimpleDateFormat("HH:mm").format(arrival.estimatedTime.epochSeconds * 1000))
+                LabelStyleOptions(text = SimpleDateFormat("HH:mm").apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.format(arrival.estimatedTime.epochSeconds * 1000))
 
             LabelItemSource.GROUND_SPEED ->
                 LabelStyleOptions(text = arrival.groundSpeed.toString())
