@@ -5,6 +5,12 @@
 This file guides coding agents working in this repository.
 It is intentionally principle-based so small restructures do not require frequent updates.
 
+## Canonical Policy
+
+AGENTS.md is the canonical policy for this repository.
+If a repo skill and AGENTS.md ever conflict, follow AGENTS.md.
+Repo skills should contain task workflow/checklists and avoid duplicating policy text from this file.
+
 ## System Intent
 
 This project implements an AMAN/DMAN system for virtual ATC operations.
