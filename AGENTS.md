@@ -175,3 +175,5 @@ Before finishing:
 - Confirm affected tests/lint/build steps were run (or explicitly note if not run).
 - Call out any contract changes (API/schema/protocol) and migration impact.
 - Avoid incidental refactors unrelated to the requested change.
+- Do not remove or rewrite existing comments in untouched code; preserve them unless the requested change requires updating that exact comment.
+
