@@ -50,7 +50,6 @@ Please visit [the wiki](https://github.com/EvenAR/aman-dman/wiki) for more infor
 
 - Supported aircraft types are limited to those listed [here](https://github.com/EvenAR/aman-dman/blob/main/aman-dman-client/config/aircraft-performance.yaml). If no performance data exists for an aircraft type, an ETA cannot be calculated and the aircraft will not appear on the timeline.
 - The application assumes that all pilots are using **live real-world weather** in their simulator.
-- Currently, only timelines based on **landing time** are supported. In the future, it might also be possible to create timelines for inbound **fixes**.
 - Local QNH and air temperature are not currently accounted for in the descent trajectory. This is expected to have only a minor impact on ETA accuracy.
 
 ### Screenshots
