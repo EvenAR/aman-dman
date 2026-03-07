@@ -88,12 +88,14 @@ class ArrivalLabel(
             LabelItemSource.SCRATCH_PAD ->
                 LabelStyleOptions(text = arrival.scratchPad ?: "")
 
-            LabelItemSource.ESTIMATED_LANDING_TIME -> {
+            LabelItemSource.ESTIMATED_LANDING_TIME,
+            LabelItemSource.ESTIMATED_ARRIVAL_TIME -> {
                 val referenceEta = displayEstimatedTime ?: arrival.estimatedTime
-                LabelStyleOptions(text = SimpleDateFormat("HH:mm").apply {
-                    timeZone = TimeZone.getTimeZone("UTC")
-                }.format(referenceEta.epochSeconds * 1000))
+                LabelStyleOptions(text = formatUtc(referenceEta, timePattern(item, "HH:mm:ss")))
             }
+
+            LabelItemSource.SCHEDULED_ARRIVAL_TIME ->
+                LabelStyleOptions(text = formatUtc(displayScheduledTime, timePattern(item, "HH:mm:ss")))
 
             LabelItemSource.GROUND_SPEED ->
                 LabelStyleOptions(text = arrival.groundSpeed.toString())
@@ -157,4 +159,14 @@ class ArrivalLabel(
         val seconds = duration.inWholeSeconds % 60
         return "%02d:%02d".format(minutes, seconds)
     }
+
+    private fun timePattern(item: LabelItem, defaultPattern: String): String =
+        item.timeFormat ?: defaultPattern
+
+    private fun formatUtc(instant: Instant, pattern: String): String =
+        SimpleDateFormat(pattern).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(instant.epochSeconds * 1000)
 }
+
+

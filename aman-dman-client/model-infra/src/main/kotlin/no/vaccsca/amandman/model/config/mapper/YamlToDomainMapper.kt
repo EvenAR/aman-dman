@@ -66,7 +66,8 @@ fun LabelItemYaml.toDomain() = LabelItem(
     width = w,
     alignment = align?.toDomain(),
     defaultValue = def,
-    maxLength = maxLen
+    maxLength = maxLen,
+    timeFormat = timeFormat
 )
 
 fun LabelItemAlignmentEnumYaml.toDomain() = when(this) {
@@ -88,6 +89,8 @@ fun LabelItemSourceEnumYaml.toDomain() = when(this) {
     LabelItemSourceEnumYaml.DIRECT_ROUTING -> LabelItemSource.DIRECT_ROUTING
     LabelItemSourceEnumYaml.SCRATCH_PAD -> LabelItemSource.SCRATCH_PAD
     LabelItemSourceEnumYaml.ESTIMATED_LANDING_TIME -> LabelItemSource.ESTIMATED_LANDING_TIME
+    LabelItemSourceEnumYaml.ESTIMATED_ARRIVAL_TIME -> LabelItemSource.ESTIMATED_ARRIVAL_TIME
+    LabelItemSourceEnumYaml.SCHEDULED_ARRIVAL_TIME -> LabelItemSource.SCHEDULED_ARRIVAL_TIME
     LabelItemSourceEnumYaml.GROUND_SPEED -> LabelItemSource.GROUND_SPEED
     LabelItemSourceEnumYaml.GROUND_SPEED_10 -> LabelItemSource.GROUND_SPEED_10
     LabelItemSourceEnumYaml.ALTITUDE -> LabelItemSource.ALTITUDE
@@ -162,3 +165,4 @@ fun AircraftPerformanceYaml.toDomain() = AircraftPerformance(
         landingDistance = this.landingDistance,
         landingAPC = this.landingAPC
     )
+

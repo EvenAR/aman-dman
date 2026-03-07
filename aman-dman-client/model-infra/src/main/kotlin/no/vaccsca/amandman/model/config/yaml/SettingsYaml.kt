@@ -100,8 +100,17 @@ data class LabelItemYaml(
     val def: String? = null,
 
     @field:Min(1)
-    val maxLen: Int? = null
-)
+    val maxLen: Int? = null,
+
+    val timeFormat: String? = null
+) {
+    init {
+        require(timeFormat == null || timeFormat.isNotBlank()) { "Label item timeFormat must not be blank" }
+        require(timeFormat == null || src.supportsTimeFormat()) {
+            "Label item timeFormat is only supported for time-based label sources"
+        }
+    }
+}
 
 enum class LabelItemAlignmentEnumYaml(@JsonValue val value: String) {
     LEFT("left"),
@@ -132,11 +141,19 @@ enum class LabelItemSourceEnumYaml(@JsonValue val value: String) {
     DISTANCE_BEHIND_PRECEDING("distanceBehindPreceding"),
     DIRECT_ROUTING("directRouting"),
     SCRATCH_PAD("scratchPad"),
+    @Deprecated("Use estimatedArrivalTime instead")
     ESTIMATED_LANDING_TIME("estimatedLandingTime"),
+    ESTIMATED_ARRIVAL_TIME("estimatedArrivalTime"),
+    SCHEDULED_ARRIVAL_TIME("scheduledArrivalTime"),
     GROUND_SPEED("groundSpeed"),
     GROUND_SPEED_10("groundSpeed10"),
     ALTITUDE("altitude"),
     TTL_TTG("timeToLoseOrGain");
+
+    fun supportsTimeFormat(): Boolean = when (this) {
+        ESTIMATED_LANDING_TIME, ESTIMATED_ARRIVAL_TIME, SCHEDULED_ARRIVAL_TIME -> true
+        else -> false
+    }
 
     companion object {
         @JsonCreator
