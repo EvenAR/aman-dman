@@ -40,6 +40,8 @@ This implies:
 - Keep client-side domain logic independent from UI and framework details.
 - Keep low coupling between domain and infrastructure.
 - Prefer explicit interfaces/ports at boundaries.
+- Keep ATC client integration swappable: design against a stable AtcClient-style interface so different ATC clients can replace the current client in the future with minimal core rewrite.
+- If core logic is moved to a server, ATC client plugins should integrate with the server API rather than coupling directly to the Swing app process.
 - Keep the client thin where practical.
 
 ## Architecture Rules
@@ -48,6 +50,7 @@ This implies:
 - Do not let UI concerns leak into domain logic.
 - Keep external I/O and adapter code outside the domain layer.
 - Prefer package-by-feature over package-by-technical-layer where practical.
+- VACCs define relevant airports and operational setup through YAML config files, so AMAN/DMAN core rules must be configurable rather than hardcoded per deployment.
 - Preserve backward compatibility for inter-process/API contracts unless intentionally versioned.
 
 ## Package-By-Feature
