@@ -110,6 +110,14 @@ Avoid fancy, academic, or enterprise-heavy terms.
 - Document behavioral intent when changing sequencing/trajectory behavior.
 - Keep changes scoped to one logical concern when possible.
 
+### Time And Duration Format
+
+- All time and duration values in config files and API contracts must use ISO-8601 string formats.
+- All displayed/user-facing time must be rendered in UTC.
+- Datetime values must include timezone information and preferably use UTC (`Z` suffix).
+- Duration values must use ISO-8601 duration notation (for example `PT10M`, `PT8M30S`).
+- Do not use numeric minute/hour shorthand for durations in config or API payloads.
+
 ### Kotlin/JVM
 
 - Use official Kotlin style.
