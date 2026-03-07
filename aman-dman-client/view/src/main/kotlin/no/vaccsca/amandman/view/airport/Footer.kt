@@ -9,6 +9,9 @@ import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.RenderingHints
 import javax.swing.BoxLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -19,9 +22,9 @@ import javax.swing.Timer
 class Footer(
     mainViewState: MainViewState,
     airportViewState: AirportViewState,
-) : JPanel(FlowLayout(FlowLayout.RIGHT)) {
+) : JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)) {
     private val timeLabel = JLabel("--:--:--")
-    private val statusContainer = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
+    private val statusContainer = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
         isOpaque = false
     }
     private val statusItems = IntegrationKind.entries.associateWith { kind -> StatusItem(kind.name) }
@@ -34,14 +37,10 @@ class Footer(
     }
 
     init {
-        border = javax.swing.BorderFactory.createEmptyBorder(0, 0, 2, 4)
-        val spacer = JSeparator(SwingConstants.VERTICAL).apply {
-            preferredSize = Dimension(2, 16)
-        }
+        border = javax.swing.BorderFactory.createEmptyBorder(1, 4, 1, 4)
         statusItems.values.forEach { statusContainer.add(it) }
-        add(statusContainer)
-        add(spacer)
         add(timeLabel)
+        add(statusContainer)
 
         airportViewState.integrationStatuses.addListener {
             currentStatuses = it
@@ -90,17 +89,14 @@ class Footer(
             foreground = Color.WHITE
             font = Font(font.name, Font.BOLD, 11)
         }
-        private val circleLabel = JLabel("●").apply {
-            font = Font(font.name, Font.BOLD, 12)
-            foreground = Color(190, 60, 60)
-        }
+        private val statusIndicator = StatusIndicator()
 
         init {
             isOpaque = false
             layout = BoxLayout(this, BoxLayout.X_AXIS)
-            add(abbreviationLabel)
+            add(statusIndicator)
             add(JLabel(" "))
-            add(circleLabel)
+            add(abbreviationLabel)
         }
 
         fun setAbbreviation(text: String) {
@@ -108,7 +104,33 @@ class Footer(
         }
 
         fun setCircleColor(color: Color) {
-            circleLabel.foreground = color
+            statusIndicator.color = color
+        }
+
+        private class StatusIndicator : JPanel() {
+            var color: Color = Color(190, 60, 60)
+                set(value) {
+                    field = value
+                    repaint()
+                }
+
+            init {
+                isOpaque = false
+                preferredSize = Dimension(12, 12)
+                minimumSize = preferredSize
+                maximumSize = preferredSize
+                alignmentY = CENTER_ALIGNMENT
+            }
+
+            override fun paintComponent(g: Graphics) {
+                super.paintComponent(g)
+
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = color
+                g2.fillOval(1, 1, width - 2, height - 2)
+                g2.dispose()
+            }
         }
     }
 }

@@ -2,17 +2,14 @@ package no.vaccsca.amandman.view.airport
 
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.entity.AirportViewState
-import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.FlowLayout
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import javax.swing.*
 
 class TopBar(
     private val airportViewState: AirportViewState,
     private val presenterProvider: () -> AirportPresenterInterface,
-) : JPanel(BorderLayout()) {
+) : JPanel() {
 
     private val presenter: AirportPresenterInterface get() = presenterProvider()
 
@@ -24,10 +21,10 @@ class TopBar(
     private val landingRatesButton = JButton("TLM")
         .apply { preferredSize = this.preferredSize.apply { width = 100 } }
 
-    private val initialBorder = BorderFactory.createEmptyBorder(0, 5, 0, 0)
+    private val initialBorder = BorderFactory.createEmptyBorder(0, 0, 0, 0)
 
     /** Row 1 container */
-    private val topRow = JPanel(BorderLayout())
+    private val topRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
 
     /** Runway modes */
     private val runwayModePanel = JPanel().apply {
@@ -35,23 +32,29 @@ class TopBar(
         border = BorderFactory.createEmptyBorder(0, 0, 0, 0)
     }
 
-    /** Buttons – can move to second row */
+    /** Buttons */
     private val buttonsPanel = JPanel().apply {
         layout = FlowLayout(FlowLayout.LEFT, 5, 0)
-        border = BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        border = BorderFactory.createEmptyBorder(3, -2, 2, 0)
     }
 
-    /** Row 2 container (buttons overflow) */
+    /** Row 2 container */
     private val bottomRow = JPanel().apply {
         layout = FlowLayout(FlowLayout.LEFT, 5, 0)
-        border = BorderFactory.createEmptyBorder(5, 0, 5, -5)
+        border = BorderFactory.createEmptyBorder(6, 3, 6, -3)
+    }
+
+    private val rowSeparator = JPanel().apply {
+        background = Color.DARK_GRAY
+        preferredSize = java.awt.Dimension(1, 1)
+        maximumSize = java.awt.Dimension(Int.MAX_VALUE, 1)
     }
 
     init {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
         initActions()
         initStateListeners()
         initLayout()
-        initResizeHandling()
         border = initialBorder
     }
 
@@ -88,41 +91,15 @@ class TopBar(
         buttonsPanel.add(landingRatesButton)
         buttonsPanel.add(departuresCheckbox)
 
+        topRow.add(buttonsPanel)
+        topRow.alignmentX = LEFT_ALIGNMENT
         bottomRow.add(runwayModePanel)
-        bottomRow.add(buttonsPanel)
+        bottomRow.alignmentX = LEFT_ALIGNMENT
+        rowSeparator.alignmentX = LEFT_ALIGNMENT
 
-        add(topRow, BorderLayout.NORTH)
-        add(bottomRow, BorderLayout.SOUTH)
-    }
-
-    private fun initResizeHandling() {
-        addComponentListener(object : ComponentAdapter() {
-            override fun componentResized(e: ComponentEvent?) {
-                SwingUtilities.invokeLater {
-                    updateButtonsRowPlacement()
-                }
-            }
-        })
-    }
-
-    private fun updateButtonsRowPlacement() {
-        val availableWidth = topRow.width
-        val requiredWidth = runwayModePanel.preferredSize.width + buttonsPanel.preferredSize.width
-
-        val shouldWrap = requiredWidth > availableWidth
-
-        if (shouldWrap && buttonsPanel.parent !== topRow) {
-            bottomRow.remove(buttonsPanel)
-            topRow.add(buttonsPanel)
-            border = BorderFactory.createEmptyBorder(5, 0, 0, 0)
-        } else if (!shouldWrap && buttonsPanel.parent !== bottomRow) {
-            topRow.remove(buttonsPanel)
-            bottomRow.add(buttonsPanel)
-            border = initialBorder
-        }
-
-        revalidate()
-        repaint()
+        add(topRow)
+        add(rowSeparator)
+        add(bottomRow)
     }
 
     private fun updateNonSeqNumbers(numberOfNonSeq: Int) {

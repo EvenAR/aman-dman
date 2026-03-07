@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import javax.swing.UIManager
 
 class TimelineOverlay(
     val timelineConfig: TimelineConfig,
@@ -37,6 +38,16 @@ class TimelineOverlay(
     val arrivalLabelLayout: List<LabelItem>,
     val departureLabelLayout: List<LabelItem>,
 ) : JPanel(null) {
+
+    private val titleBackgroundColor: Color
+        get() = UIManager.getColor("InternalFrame.activeTitleBackground")
+            ?: UIManager.getColor("Panel.background")
+            ?: Color.DARK_GRAY
+
+    private val titleForegroundColor: Color
+        get() = UIManager.getColor("InternalFrame.activeTitleForeground")
+            ?: UIManager.getColor("Label.foreground")
+            ?: Color.WHITE
 
     private val presenter: AirportPresenterInterface get() = presenterProvider()
     private val baseFont = Font(Font.MONOSPACED, Font.PLAIN, 12)
@@ -203,14 +214,15 @@ class TimelineOverlay(
 
     private fun drawTimelineTitle(g: Graphics) {
         val scaleBounds = timelineView.getScaleBounds()
-        g.color = Color.BLACK
+        g.color = titleForegroundColor
         val vPadding = 2
         val hPadding = 4
         g.drawStringAdvanced(
             text = timelineConfig.title,
             x = if (isDualTimeline()) scaleBounds.x + scaleBounds.width / 2 else scaleBounds.x,
             y = scaleBounds.y + scaleBounds.height - g.fontMetrics.height - vPadding * 2,
-            backgroundColor = Color.LIGHT_GRAY,
+            backgroundColor = titleBackgroundColor,
+            borderColor = titleForegroundColor,
             hPadding = hPadding,
             vPadding = vPadding,
             hCenter = isDualTimeline(),

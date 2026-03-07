@@ -9,6 +9,7 @@ object GraphicUtils {
         x: Int,
         y: Int,
         backgroundColor: Color? = null,
+        borderColor: Color? = null,
         hPadding: Int = 0,
         vPadding: Int = 0,
         hCenter: Boolean = true,
@@ -31,6 +32,13 @@ object GraphicUtils {
             val originalColor = this.color
             this.color = backgroundColor
             this.fillRect(rectX, rectY, rectWidth, rectHeight)
+            this.color = originalColor
+        }
+
+        if (borderColor != null) {
+            val originalColor = this.color
+            this.color = borderColor
+            this.drawRect(rectX, rectY, rectWidth - 1, rectHeight - 1)
             this.color = originalColor
         }
 
