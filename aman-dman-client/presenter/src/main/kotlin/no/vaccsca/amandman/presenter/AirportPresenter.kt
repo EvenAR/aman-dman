@@ -3,13 +3,16 @@ package no.vaccsca.amandman.presenter
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
+import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.config.Side
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.planning.AirportDataSource
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.planning.SequencePlanner
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.ControllerInfoData
@@ -47,6 +50,7 @@ class AirportPresenter(
     private val runwayModeStateManager = AirportRunwayModeStateManager(airportIcao, view)
     private var minimumSpacingNm: Double = 3.0
     private var availableRunways = setOf<String>()
+    private var meteringPointState: MeteringPointState = MeteringPointState()
     private val timelineConfigs = mutableMapOf<String, TimelineConfig>()
 
     init {
@@ -58,8 +62,8 @@ class AirportPresenter(
         settingsProvider.getSettings().timelines[airportIcao]?.forEach { timeline ->
             val config = TimelineConfig(
                 title = timeline.title,
-                runwaysLeft = timeline.left?.runways ?: emptyList(),
-                runwaysRight = timeline.right.runways,
+                left = timeline.left?.toTimelineSideConfig() ?: TimelineSideConfig.Runways(emptyList()),
+                right = timeline.right.toTimelineSideConfig(),
                 airportIcao = airportIcao,
                 depLabelLayout = timeline.departureLabelLayoutId,
                 arrLabelLayout = timeline.arrivalLabelLayoutId,
@@ -134,6 +138,14 @@ class AirportPresenter(
         runOnEdt {
             cachedNonSequencedEvents = nonSequencedList
             updateViewFromCacheOnEdt()
+        }
+    }
+
+    override fun onMeteringPointStateUpdated(airportIcao: String, meteringPointState: MeteringPointState) {
+        if (airportIcao != this.airportIcao) return
+        runOnEdt {
+            this.meteringPointState = meteringPointState
+            view.updateMeteringPointState(meteringPointState)
         }
     }
 
@@ -236,6 +248,8 @@ class AirportPresenter(
         view.openTimelineConfigForm(
             availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
             availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
+            availableRunways = getKnownRunways(),
+            availableMeteringPoints = getKnownMeteringPoints(),
         )
     }
 
@@ -254,6 +268,8 @@ class AirportPresenter(
             view.openTimelineConfigForm(
                 availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
                 availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
+                availableRunways = getKnownRunways(),
+                availableMeteringPoints = getKnownMeteringPoints(),
                 existingConfig = existingConfig
             )
         }
@@ -262,8 +278,8 @@ class AirportPresenter(
     override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
         val timelineConfig = TimelineConfig(
             title = config.title,
-            runwaysLeft = config.left.targetRunways,
-            runwaysRight = config.right.targetRunways,
+            left = config.left.toTimelineSideConfig(),
+            right = config.right.toTimelineSideConfig(),
             airportIcao = airportIcao,
             depLabelLayout = config.depLabelLayout,
             arrLabelLayout = config.arrLabelLayout
@@ -311,10 +327,46 @@ class AirportPresenter(
         view.updateIntegrationStatuses(display)
     }
 
+    private fun getKnownRunways(): Set<String> {
+        if (availableRunways.isNotEmpty()) {
+            return availableRunways.map { it.uppercase() }.toSet()
+        }
+
+        return settingsProvider.getAirportData()
+            .find { it.icao == airportIcao }
+            ?.runways
+            ?.keys
+            ?.map { it.uppercase() }
+            ?.toSet()
+            ?: emptySet()
+    }
+
+    private fun getKnownMeteringPoints(): Set<String> {
+        if (meteringPointState.availableMeteringPoints.isNotEmpty()) {
+            return meteringPointState.availableMeteringPoints.toSet()
+        }
+
+        return settingsProvider.getAirportData()
+            .find { it.icao == airportIcao }
+            ?.meteringPoints
+            ?.toSet()
+            ?: emptySet()
+    }
+
     private data class CachedTimelineEvent(
         val lastTimestamp: Instant,
         val timelineEvent: TimelineEvent
     )
+
+    private fun Side.toTimelineSideConfig(): TimelineSideConfig = when (this) {
+        is Side.Runways -> TimelineSideConfig.Runways(runways)
+        is Side.MeteringPoints -> TimelineSideConfig.MeteringPoints(meteringPoints)
+    }
+
+    private fun CreateOrUpdateTimelineDto.TimeLineSide.toTimelineSideConfig(): TimelineSideConfig = when (this) {
+        is CreateOrUpdateTimelineDto.TimeLineSide.Runways -> TimelineSideConfig.Runways(targetRunways)
+        is CreateOrUpdateTimelineDto.TimeLineSide.MeteringPoints -> TimelineSideConfig.MeteringPoints(targetMeteringPoints)
+    }
 
     private fun runOnEdt(action: () -> Unit) {
         if (uiDispatcher.isUiThread()) {
@@ -324,3 +376,4 @@ class AirportPresenter(
         }
     }
 }
+

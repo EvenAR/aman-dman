@@ -16,6 +16,7 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.integration.IntegrationStatus
 import no.vaccsca.amandman.model.integration.IntegrationStatusState
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
@@ -33,10 +34,6 @@ import java.util.UUID.randomUUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.DurationUnit
-import kotlin.time.toJavaDuration
-import kotlin.time.toKotlinDuration
-import kotlin.time.toDuration
 
 class MasterSlaveSharedStateHttpClient(
     private val settingsProvider: SettingsProvider,
@@ -157,6 +154,20 @@ class MasterSlaveSharedStateHttpClient(
         return sharedState.data
     }
 
+    override fun sendMeteringPointState(airportIcao: String, meteringPointState: MeteringPointState) {
+        val sharedStateJson = SharedStateJson(
+            lastUpdate = NtpClock.now(),
+            data = meteringPointState
+        )
+        sendStateJson(airportIcao, "metering-points", sharedStateJson)
+    }
+
+    override fun getMeteringPointState(airportIcao: String): MeteringPointState {
+        val typeRef = object : TypeReference<SharedStateJson<MeteringPointState>>() {}
+        val sharedState = fetchStateJsonOrNull(airportIcao, "metering-points", typeRef)
+        return sharedState?.data ?: MeteringPointState()
+    }
+
     override fun getIntegrationStatus(airportIcao: String): IntegrationStatus {
         val now = NtpClock.now()
         val base = statusByAirport[airportIcao]
@@ -265,6 +276,34 @@ class MasterSlaveSharedStateHttpClient(
 
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
+                markError(airportIcao, "Fetch $endpoint failed HTTP ${response.code}")
+                throw IllegalStateException("Fetch $endpoint failed HTTP ${response.code}")
+            }
+            val body = response.body.string()
+            return try {
+                val parsed = objectMapper.readValue(body, typeRef)
+                markOk(airportIcao, "Fetched $endpoint")
+                parsed
+            } catch (e: Exception) {
+                markError(airportIcao, "Parse $endpoint failed: ${e.message}")
+                throw e
+            }
+        }
+    }
+
+    private fun <T> fetchStateJsonOrNull(airportIcao: String, endpoint: String, typeRef: TypeReference<T>): T? {
+        markLoading(airportIcao)
+        val request = baseApiRequest(airportIcao, endpoint)
+            .get()
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                if (response.code == 404) {
+                    // Backward compatibility: old servers don't expose this endpoint.
+                    markOk(airportIcao, "Endpoint $endpoint not available")
+                    return null
+                }
                 markError(airportIcao, "Fetch $endpoint failed HTTP ${response.code}")
                 throw IllegalStateException("Fetch $endpoint failed HTTP ${response.code}")
             }

@@ -42,11 +42,11 @@ class ArrivalLabel(
         })
     }
 
-    override fun getTimelinePlacement(): Instant = timelineEvent.scheduledTime
+    override fun getTimelinePlacement(): Instant = displayScheduledTime
 
     override fun decideLabelItemStyle(item: LabelItem, event: TimelineEvent): LabelStyleOptions {
         val arrival = event as RunwayArrivalEvent
-        
+
         return when (item.source) {
             LabelItemSource.CALL_SIGN ->
                 LabelStyleOptions(text = arrival.callsign)
@@ -64,7 +64,7 @@ class ArrivalLabel(
                 LabelStyleOptions(text = arrival.wakeCategory.toString(), textColor = wakeCatColor(arrival.wakeCategory))
 
             LabelItemSource.TTL_TTG ->
-                LabelStyleOptions(text = formatTtlTtgValue(arrival), textColor = ttlTtgColor(arrival.scheduledTime - arrival.estimatedTime))
+                LabelStyleOptions(text = formatTtlTtgValue(), textColor = ttlTtgColor((displayScheduledTime - (displayEstimatedTime ?: arrival.estimatedTime))))
 
             LabelItemSource.TIME_BEHIND_PRECEDING -> {
                 val text = arrival.timeToPreceding?.let { toHhMm(it) } ?: "--:--"
@@ -88,10 +88,12 @@ class ArrivalLabel(
             LabelItemSource.SCRATCH_PAD ->
                 LabelStyleOptions(text = arrival.scratchPad ?: "")
 
-            LabelItemSource.ESTIMATED_LANDING_TIME ->
+            LabelItemSource.ESTIMATED_LANDING_TIME -> {
+                val referenceEta = displayEstimatedTime ?: arrival.estimatedTime
                 LabelStyleOptions(text = SimpleDateFormat("HH:mm").apply {
                     timeZone = TimeZone.getTimeZone("UTC")
-                }.format(arrival.estimatedTime.epochSeconds * 1000))
+                }.format(referenceEta.epochSeconds * 1000))
+            }
 
             LabelItemSource.GROUND_SPEED ->
                 LabelStyleOptions(text = arrival.groundSpeed.toString())
@@ -130,8 +132,9 @@ class ArrivalLabel(
             else -> null
         }
 
-    private fun formatTtlTtgValue(flight: RunwayArrivalEvent): String {
-        val timeToLoseOrGain = flight.scheduledTime - flight.estimatedTime
+    private fun formatTtlTtgValue(): String {
+        val eta = displayEstimatedTime ?: arrivalEvent.estimatedTime
+        val timeToLoseOrGain = displayScheduledTime - eta
         val minutesToLoseOrGain = toNormalizedMinutes(timeToLoseOrGain)
         return when {
             timeToLoseOrGain > TTL_TTG_THRESHOLD -> "+$minutesToLoseOrGain"

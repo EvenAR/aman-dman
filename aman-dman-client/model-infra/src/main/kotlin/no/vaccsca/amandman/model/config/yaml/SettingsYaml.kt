@@ -47,11 +47,20 @@ data class TimelineYaml(
 )
 
 data class SideYaml(
-    @field:NotEmpty
     val runways: List<
             @Pattern(regexp = "^[0-9]{2}[A-Z]?$") String
-            >
-)
+            >? = null,
+
+    val meteringPoints: List<
+            @Pattern(regexp = "^[A-Z0-9]{2,10}$") String
+            >? = null,
+) {
+    init {
+        val hasRunways = !runways.isNullOrEmpty()
+        val hasMeteringPoints = !meteringPoints.isNullOrEmpty()
+        require(hasRunways.xor(hasMeteringPoints)) { "SideYaml must define exactly one of runways or meteringPoints" }
+    }
+}
 
 data class ConnectionConfigYaml(
     @field:Valid

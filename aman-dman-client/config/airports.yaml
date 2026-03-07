@@ -7,6 +7,7 @@ airports:
       longitude: 11.096549971455543
     sequencingHorizon: PT60M
     lockedHorizon: PT10M
+    meteringPoints: ["LUNIP", "ADOPI", "ESEBA", "BELGU", "INREX", "RIPAM", "VALPU", "INSUV", "TITLA", "BAVAD"]
     runwayThresholds:
       01L:
         location:
@@ -52,6 +53,7 @@ airports:
           longitude: 5.214462654076689
         elevation: 166
         trueHeading: 350
+
   EDDF:
     location:
       latitude: 50.037054

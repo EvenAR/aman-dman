@@ -55,8 +55,5 @@ class DepartureLabel(
         }
     }
 
-    override fun getTimelinePlacement(): Instant {
-        return (timelineEvent as DepartureEvent).scheduledTime
-    }
-
+    override fun getTimelinePlacement(): Instant = displayScheduledTime
 }

@@ -6,6 +6,7 @@ import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.user.UserRole
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
@@ -36,6 +37,7 @@ data class AirportViewState(
     val weatherProfile: SharedValue<VerticalWeatherProfile?> = SharedValue(null),
     val integrationStatuses: SharedValue<Map<IntegrationKind, IntegrationDisplayStatus>> = SharedValue(emptyMap()),
     val minimumSpacingNm: SharedValue<Double> = SharedValue(3.0),
+    val meteringPointState: SharedValue<MeteringPointState> = SharedValue(MeteringPointState()),
     val showDepartures: SharedValue<Boolean> = SharedValue(false),
     val aircraftSelection: SharedValue<AircraftSelection?> = SharedValue(null),
     val draggedLabelState: SharedValue<DraggedLabelState?> = SharedValue(null),
