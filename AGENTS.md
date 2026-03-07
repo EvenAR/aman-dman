@@ -11,6 +11,11 @@ AGENTS.md is the canonical policy for this repository.
 If a repo skill and AGENTS.md ever conflict, follow AGENTS.md.
 Repo skills should contain task workflow/checklists and avoid duplicating policy text from this file.
 
+## Domain Context
+
+For AMAN operational background and controller workflow context, refer to docs/domain/aman-concept.md.
+This context document informs feature behavior and terminology, but it does not override the rules in AGENTS.md.
+
 ## System Intent
 
 This project implements an AMAN/DMAN system for virtual ATC operations.
