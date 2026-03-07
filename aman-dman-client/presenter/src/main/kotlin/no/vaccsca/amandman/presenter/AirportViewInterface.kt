@@ -7,6 +7,7 @@ import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import java.awt.Point
 
@@ -25,6 +26,7 @@ interface AirportViewInterface {
     fun updateRunwayModes(runwayModes: List<Pair<String, Boolean>>)
     fun updateMinimumSpacing(minimumSpacingNm: Double)
     fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean)
+    fun updateMeteringPointState(meteringPointState: MeteringPointState)
 
     fun showAirportContextMenu(availableTimelines: List<TimelineConfig>, screenPos: Point)
     fun openMetWindow()
@@ -41,12 +43,15 @@ interface AirportViewInterface {
     fun openTimelineConfigForm(
         availableTagLayoutsDep: Set<String>,
         availableTagLayoutsArr: Set<String>,
+        availableRunways: Set<String>,
+        availableMeteringPoints: Set<String>,
         existingConfig: TimelineConfig? = null
     )
     fun closeTimelineForm()
 
     fun addNewTimeline(timelineConfig: TimelineConfig)
     fun removeTimeline(timelineConfig: TimelineConfig)
-    
+
     fun setSelectedAircraftCallsign(callsign: String)
 }
+

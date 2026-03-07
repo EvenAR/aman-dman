@@ -26,6 +26,50 @@ timelines:
       right:
         runways: ["01R"]
 
+    - timelineTitle: "BAVAD / TITLA"
+      arrivalLabelLayoutId: osloArr
+      left:
+        meteringPoints: ["BAVAD"]
+      right:
+        meteringPoints: ["TITLA"]
+
+    - timelineTitle: "VALPU / INSUV"
+      arrivalLabelLayoutId: osloArr
+      left:
+        meteringPoints: ["VALPU"]
+      right:
+        meteringPoints: ["INSUV"]
+
+    - timelineTitle: "RIPAM"
+      arrivalLabelLayoutId: osloArr
+      right:
+        meteringPoints: ["RIPAM"]
+
+    - timelineTitle: "LUNIP"
+      arrivalLabelLayoutId: osloArr
+      right:
+        meteringPoints: [ "LUNIP" ]
+
+    - timelineTitle: "ADOPI"
+      arrivalLabelLayoutId: osloArr
+      right:
+        meteringPoints: [ "ADOPI" ]
+
+    - timelineTitle: "ESEBA"
+      arrivalLabelLayoutId: osloArr
+      right:
+        meteringPoints: [ "ESEBA" ]
+
+    - timelineTitle: "BELGU"
+      arrivalLabelLayoutId: osloArr
+      right:
+        meteringPoints: [ "BELGU" ]
+
+    - timelineTitle: "INREX"
+      arrivalLabelLayoutId: osloArr
+      right:
+        meteringPoints: [ "INREX" ]
+
   ENBR:
     - timelineTitle: "BR17"
       arrivalLabelLayoutId: osloArr

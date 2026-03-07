@@ -3,6 +3,7 @@ package no.vaccsca.amandman.model.sharedstate
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 
 /**
@@ -34,4 +35,9 @@ interface DataUpdateListener {
      * Called when non-sequenced events are updated
      */
     fun onNonSequencedListUpdated(airportIcao: String, nonSequencedList: List<NonSequencedEvent>)
+
+    /**
+     * Called when metering point timings are updated
+     */
+    fun onMeteringPointStateUpdated(airportIcao: String, meteringPointState: MeteringPointState)
 }

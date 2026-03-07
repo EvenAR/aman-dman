@@ -2,6 +2,7 @@ package no.vaccsca.amandman.model.sharedstate
 
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 
@@ -31,5 +32,9 @@ class DataUpdatesServerSender(
 
     override fun onMinimumSpacingUpdated(airportIcao: String, minimumSpacingNm: Double) {
         sharedState.sendMinimumSpacing(airportIcao, minimumSpacingNm)
+    }
+
+    override fun onMeteringPointStateUpdated(airportIcao: String, meteringPointState: MeteringPointState) {
+        sharedState.sendMeteringPointState(airportIcao, meteringPointState)
     }
 }

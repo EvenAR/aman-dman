@@ -4,8 +4,8 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.util.NumberUtils.format
 import no.vaccsca.amandman.model.timeline.TimelineData
+import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
 import no.vaccsca.amandman.view.airport.timeline.utils.GraphicUtils.drawStringAdvanced
@@ -31,8 +31,8 @@ class TimeScale(
     private val lineColor = Color.decode("#C8C8C8")
     private val pastColor = Color.decode("#4B4B4B")
 
-    private var leftEvents: List<TimelineEvent>? = null
-    private var rightEvents: List<TimelineEvent>? = null
+    private var leftEvents: List<TimelineDisplayEvent>? = null
+    private var rightEvents: List<TimelineDisplayEvent>? = null
 
     init {
         background = Color.decode("#646464")
@@ -95,17 +95,18 @@ class TimeScale(
         }
 
         leftEvents?.let {
-            drawDelays(g, it.filterIsInstance<RunwayDelayEvent>())
+            drawDelays(g, it.filter { sideEvent -> sideEvent.event is RunwayDelayEvent })
         }
         rightEvents?.let {
-            drawDelays(g, it.filterIsInstance<RunwayDelayEvent>())
+            drawDelays(g, it.filter { sideEvent -> sideEvent.event is RunwayDelayEvent })
         }
     }
 
-    private fun drawDelays(g: Graphics, delays: List<RunwayDelayEvent>) {
-        delays.forEach {
-            val topY = timelineView.calculateYPositionForInstant(it.scheduledTime + it.delay)
-            val height = timelineView.calculateYPositionForInstant(it.scheduledTime) - topY
+    private fun drawDelays(g: Graphics, delays: List<TimelineDisplayEvent>) {
+        delays.forEach { sideEvent ->
+            val event = sideEvent.event as? RunwayDelayEvent ?: return@forEach
+            val topY = timelineView.calculateYPositionForInstant(sideEvent.displayScheduledTime + event.delay)
+            val height = timelineView.calculateYPositionForInstant(sideEvent.displayScheduledTime) - topY
             g.color = Color.RED
             g.fillRect(0, topY, 2, height)
         }

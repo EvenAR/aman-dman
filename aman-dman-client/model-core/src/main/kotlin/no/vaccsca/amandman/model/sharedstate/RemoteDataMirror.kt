@@ -12,8 +12,6 @@ import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.integration.IntegrationStatus
 import no.vaccsca.amandman.model.integration.IntegrationStatusState
-import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
-import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.planning.AirportDataSource
 import org.slf4j.LoggerFactory
 
@@ -96,5 +94,9 @@ class RemoteDataMirror(
         runCatching { sharedState.getNonSequencedList(airportIcao) }
             .onSuccess { dataUpdateListener.onNonSequencedListUpdated(airportIcao, it) }
             .onFailure { logger.error("Failed to fetch non-sequenced list: ${it.message}") }
+
+        runCatching { sharedState.getMeteringPointState(airportIcao) }
+            .onSuccess { dataUpdateListener.onMeteringPointStateUpdated(airportIcao, it) }
+            .onFailure { logger.error("Failed to fetch metering point state: ${it.message}") }
     }
 }

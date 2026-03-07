@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.config.LabelItem
 import no.vaccsca.amandman.model.config.LabelItemAlignment
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.view.entity.AircraftSelection
@@ -29,6 +30,9 @@ abstract class TimelineLabel(
     vBorder: Int,
     protected val aircraftSelection: SharedValue<AircraftSelection?>,
 ) : JLabel() {
+
+    var displayScheduledTime: Instant = timelineEvent.scheduledTime
+    var displayEstimatedTime: Instant? = (timelineEvent as? RunwayEvent)?.estimatedTime
 
     private var isHovered: Boolean = false
     private var isDragging: Boolean = false
@@ -59,14 +63,19 @@ abstract class TimelineLabel(
                 updateColors()
             }
         })
-        
+
         // Listen for selection changes
         aircraftSelection.addListener {
             repaint()
             scheduleRepaintAfterTimeout()
         }
     }
-    
+
+    fun applyDisplayTimes(scheduledTime: Instant, estimatedTime: Instant?) {
+        displayScheduledTime = scheduledTime
+        displayEstimatedTime = estimatedTime
+    }
+
     private fun scheduleRepaintAfterTimeout() {
         // Cancel existing timer
         repaintTimer?.stop()
@@ -156,18 +165,18 @@ abstract class TimelineLabel(
         if (aircraftSelection.value?.callsign != flight.callsign) {
             return false
         }
-        
+
         // Check if selection is within 3 seconds
         val timestamp = aircraftSelection.value?.timestamp ?: return false
         val now = NtpClock.now()
         val elapsed = now - timestamp
-        
+
         return elapsed < highlightDuration
     }
 
     override fun paintBorder(g: java.awt.Graphics) {
         super.paintBorder(g)
-        
+
         // Draw white border if this aircraft is selected and within 3 seconds
         if (isSelected()) {
             g.color = Color.WHITE

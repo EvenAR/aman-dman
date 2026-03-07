@@ -5,10 +5,12 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.config.LabelItem
 import no.vaccsca.amandman.model.timeline.TimelineData
+import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
 import no.vaccsca.amandman.model.planning.SequenceStatus
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
@@ -51,8 +53,8 @@ class TimelineOverlay(
 
     // --- State ---
     private val labels = hashMapOf<String, TimelineLabel>()
-    private var leftEvents: List<TimelineEvent>? = null
-    private var rightEvents: List<TimelineEvent>? = null
+    private var leftEvents: List<TimelineDisplayEvent>? = null
+    private var rightEvents: List<TimelineDisplayEvent>? = null
     private var isDraggingLabel = false
     private var draggedLabelCopy: TimelineLabel? = null
     private var draggedLabelOriginalX = 0
@@ -95,11 +97,17 @@ class TimelineOverlay(
         val sourceEvent = newState.timelineEvent
 
         fun reposition(copy: TimelineLabel) {
-            val yOnTimeline = timelineView.calculateYPositionForInstant(newState.proposedTime)
+            val displayProposedTime = toDisplayInstant(sourceEvent, newState.proposedTime)
+            val yOnTimeline = timelineView.calculateYPositionForInstant(displayProposedTime)
             val pointInOverlay = SwingUtilities.convertPoint(timelineView, 0, yOnTimeline, this)
             val targetY = pointInOverlay.y - copy.preferredSize.height / 2
             copy.setLocation(copy.x, targetY)
             copy.timelineEvent = sourceEvent
+
+            val displayEstimated = (sourceEvent as? RunwayEvent)?.estimatedTime?.let { canonicalEta ->
+                toDisplayInstant(sourceEvent, canonicalEta)
+            }
+            copy.applyDisplayTimes(displayProposedTime, displayEstimated)
             copy.updateText()
             copy.updateColors()
             copy.repaint()
@@ -108,7 +116,7 @@ class TimelineOverlay(
         if (draggedLabelCopy != null) {
             reposition(draggedLabelCopy!!)
         } else {
-            val original = labels.values.firstOrNull { it.timelineEvent == sourceEvent }
+            val original = labels[labelKeyFor(sourceEvent)]
             if (original != null) {
                 val copy = createLabelCopy(original)
                 if (copy != null) {
@@ -125,9 +133,9 @@ class TimelineOverlay(
     }
 
     private fun containsEventLabel(timelineEvent: TimelineEvent) =
-        labels.values.any { it.timelineEvent.getFlight()?.callsign == timelineEvent.getFlight()?.callsign }
+        labels.containsKey(labelKeyFor(timelineEvent))
 
-    private fun isDualTimeline() = timelineConfig.runwaysLeft.isNotEmpty() && timelineConfig.runwaysRight.isNotEmpty()
+    private fun isDualTimeline() = timelineConfig.left.targets.isNotEmpty() && timelineConfig.right.targets.isNotEmpty()
 
     private fun computedLabelWidth(): Int {
         val maxLabelLength = maxOf(
@@ -157,11 +165,11 @@ class TimelineOverlay(
         var previousTopRight: Int? = null
         val labelWidth = computedLabelWidth()
 
-        val leftSet = (leftEvents ?: emptyList()).toSet()
-        val rightSet = (rightEvents ?: emptyList()).toSet()
+        val leftSet = (leftEvents ?: emptyList()).map { labelKeyFor(it.event) }.toSet()
+        val rightSet = (rightEvents ?: emptyList()).map { labelKeyFor(it.event) }.toSet()
 
-        val leftLabels = labels.values.filter { it.timelineEvent in leftSet }
-        val rightLabels = labels.values.filter { it.timelineEvent in rightSet }
+        val leftLabels = labels.values.filter { labelKeyFor(it.timelineEvent) in leftSet }
+        val rightLabels = labels.values.filter { labelKeyFor(it.timelineEvent) in rightSet }
 
         leftLabels.sortedBy { it.getTimelinePlacement() }.forEach { label ->
             val dotY = timelineView.calculateYPositionForInstant(label.getTimelinePlacement())
@@ -234,8 +242,9 @@ class TimelineOverlay(
 
             val availableTime = draggedLabelState?.takeIf { it.isAvailable }?.proposedTime
             if (availableTime != null) {
+                val displayTime = toDisplayInstant(copy.timelineEvent, availableTime)
                 g.color = Color.WHITE
-                paintHourglass(g, dotX, availableTime)
+                paintHourglass(g, dotX, displayTime)
                 g.drawLine(labelX, labelCenterY, dotX, labelCenterY)
             }
         }
@@ -245,8 +254,8 @@ class TimelineOverlay(
         val scaleBounds = timelineView.getScaleBounds()
         val now = NtpClock.now()
         g.color = Color.decode("#ff4800")
-        if (timelineConfig.runwaysLeft.isNotEmpty()) paintHourglass(g, scaleBounds.x, now)
-        if (timelineConfig.runwaysRight.isNotEmpty()) paintHourglass(g, scaleBounds.x + scaleBounds.width, now)
+        if (timelineConfig.left.targets.isNotEmpty()) paintHourglass(g, scaleBounds.x, now)
+        if (timelineConfig.right.targets.isNotEmpty()) paintHourglass(g, scaleBounds.x + scaleBounds.width, now)
     }
 
     private fun drawProposedTime(g: Graphics) {
@@ -257,8 +266,9 @@ class TimelineOverlay(
 
         if (shouldBeVisible) {
             val scaleBounds = timelineView.getScaleBounds()
-            val proposedY = timelineView.calculateYPositionForInstant(state.proposedTime)
-            val text = timeFormat.format(Date(state.proposedTime.toEpochMilliseconds()))
+            val proposedDisplayTime = toDisplayInstant(state.timelineEvent, state.proposedTime)
+            val proposedY = timelineView.calculateYPositionForInstant(proposedDisplayTime)
+            val text = timeFormat.format(Date(proposedDisplayTime.toEpochMilliseconds()))
             g.color = Color.YELLOW
             g.drawStringAdvanced(
                 text = text,
@@ -272,27 +282,29 @@ class TimelineOverlay(
     }
 
     // --- Label/Event Sync ---
-    private fun syncLabelsWithEvents(events: List<TimelineEvent>?) {
-        val flights = events?.mapNotNull { it.getFlight() } ?: emptyList()
-        val validCallsigns = flights.map { it.callsign }.toSet()
+    private fun syncLabelsWithEvents(events: List<TimelineDisplayEvent>?) {
+        val flights = events?.mapNotNull { it.event.getFlight() } ?: emptyList()
+        val validKeys = flights.map { it.callsign }.toSet()
 
-        val toRemove = labels.keys - validCallsigns
-        toRemove.forEach { cs ->
-            labels.remove(cs)?.let { remove(it) }
+        val toRemove = labels.keys - validKeys
+        toRemove.forEach { key ->
+            labels.remove(key)?.let { remove(it) }
         }
 
-        val eventsByCallsign: Map<String, TimelineEvent> = events
-            ?.mapNotNull { ev -> ev.getFlight()?.callsign?.let { it to ev } }
+        val eventsByCallsign: Map<String, TimelineDisplayEvent> = events
+            ?.mapNotNull { sideEvent -> sideEvent.event.getFlight()?.callsign?.let { it to sideEvent } }
             ?.toMap()
             ?: emptyMap()
 
         flights.forEach { flight ->
             val callsign = flight.callsign
-            val event = eventsByCallsign[callsign] ?: return@forEach
+            val sideEvent = eventsByCallsign[callsign] ?: return@forEach
+            val event = sideEvent.event
             val existing = labels[callsign]
             if (existing == null) {
                 val newLabel = event.createLabel()
                 newLabel.font = baseFont
+                newLabel.applyDisplayTimes(sideEvent.displayScheduledTime, sideEvent.displayEstimatedTime)
                 newLabel.addMouseListener(labelMouseAdapter(newLabel))
                 newLabel.addMouseMotionListener(labelMouseMotionAdapter(newLabel))
                 newLabel.updateText()
@@ -301,6 +313,7 @@ class TimelineOverlay(
                 add(newLabel)
             } else {
                 existing.timelineEvent = event
+                existing.applyDisplayTimes(sideEvent.displayScheduledTime, sideEvent.displayEstimatedTime)
                 existing.updateText()
                 existing.updateColors()
             }
@@ -317,18 +330,18 @@ class TimelineOverlay(
     private fun TimelineEvent.createLabel(): TimelineLabel {
         val label = when (this) {
             is DepartureEvent -> DepartureLabel(
-                departureLabelLayout, 
-                this, 
-                hBorder = labelHBorder, 
+                departureLabelLayout,
+                this,
+                hBorder = labelHBorder,
                 vBorder = labelVBorder,
                 aircraftSelection = airportViewState.aircraftSelection
             )
             is RunwayArrivalEvent -> ArrivalLabel(
-                arrivalLabelLayout, 
-                this, 
-                presenter, 
-                hBorder = labelHBorder, 
-                vBorder = labelVBorder, 
+                arrivalLabelLayout,
+                this,
+                presenter,
+                hBorder = labelHBorder,
+                vBorder = labelVBorder,
                 aircraftSelection = airportViewState.aircraftSelection
             )
             else -> throw IllegalArgumentException("Unsupported occurrence type")
@@ -350,8 +363,9 @@ class TimelineOverlay(
         override fun mouseReleased(e: MouseEvent) {
             if (isDraggingLabel && e.isLeftButton()) {
                 val pointInView = SwingUtilities.convertPoint(e.component, e.point, timelineView)
-                val newInstant = timelineView.calculateInstantForYPosition(pointInView.y)
-                onLabelDropped(label.timelineEvent, newInstant)
+                val displayInstant = timelineView.calculateInstantForYPosition(pointInView.y)
+                val newCanonicalInstant = toCanonicalScheduledInstant(label, displayInstant)
+                onLabelDropped(label.timelineEvent, newCanonicalInstant)
                 label.onDragEnd()
             }
         }
@@ -362,32 +376,34 @@ class TimelineOverlay(
             if (!e.isLeftButtonDown()) return
             isDraggingLabel = true
             val pointInView = SwingUtilities.convertPoint(e.component, e.point, timelineView)
-            val newInstant = timelineView.calculateInstantForYPosition(pointInView.y)
-            presenter.onLabelDrag(label.timelineEvent, newInstant)
+            val displayInstant = timelineView.calculateInstantForYPosition(pointInView.y)
+            val newCanonicalInstant = toCanonicalScheduledInstant(label, displayInstant)
+            presenter.onLabelDrag(label.timelineEvent, newCanonicalInstant)
         }
     }
 
     private fun createLabelCopy(label: TimelineLabel): TimelineLabel? {
         val copy = when (label.timelineEvent) {
             is DepartureEvent -> DepartureLabel(
-                departureLabelLayout, 
+                departureLabelLayout,
                 label.timelineEvent as DepartureEvent,
-                hBorder = labelHBorder, 
-                vBorder = labelVBorder, 
+                hBorder = labelHBorder,
+                vBorder = labelVBorder,
                 aircraftSelection = airportViewState.aircraftSelection
             )
             is RunwayArrivalEvent -> ArrivalLabel(
-                arrivalLabelLayout, 
+                arrivalLabelLayout,
                 label.timelineEvent as RunwayArrivalEvent,
-                presenter, 
-                hBorder = labelHBorder, 
-                vBorder = labelVBorder, 
+                presenter,
+                hBorder = labelHBorder,
+                vBorder = labelVBorder,
                 aircraftSelection = airportViewState.aircraftSelection
             )
             else -> return null
         }
         copy.font = label.font
         copy.bounds = label.bounds
+        copy.applyDisplayTimes(label.displayScheduledTime, label.displayEstimatedTime)
         return copy
     }
 
@@ -407,6 +423,21 @@ class TimelineOverlay(
                 }
             )
         }
+    }
+
+    private fun labelKeyFor(event: TimelineEvent): String {
+        return event.getFlight()?.callsign ?: event.hashCode().toString()
+    }
+
+    private fun toCanonicalScheduledInstant(label: TimelineLabel, displayedInstant: Instant): Instant {
+        val canonicalMinusDisplay = label.timelineEvent.scheduledTime - label.displayScheduledTime
+        return displayedInstant + canonicalMinusDisplay
+    }
+
+    private fun toDisplayInstant(timelineEvent: TimelineEvent, canonicalInstant: Instant): Instant {
+        val label = labels[labelKeyFor(timelineEvent)] ?: return canonicalInstant
+        val canonicalMinusDisplay = label.timelineEvent.scheduledTime - label.displayScheduledTime
+        return canonicalInstant - canonicalMinusDisplay
     }
 
     // --- Drawing Helpers ---

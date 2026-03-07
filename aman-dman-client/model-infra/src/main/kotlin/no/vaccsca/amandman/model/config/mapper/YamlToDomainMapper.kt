@@ -48,7 +48,11 @@ fun TimelineYaml.toDomain() = Timeline(
     departureLabelLayoutId = null // TODO
 )
 
-fun SideYaml.toDomain() = Side(runways)
+fun SideYaml.toDomain(): Side = when {
+    !runways.isNullOrEmpty() -> Side.Runways(runways.map { it.uppercase() })
+    !meteringPoints.isNullOrEmpty() -> Side.MeteringPoints(meteringPoints.map { it.uppercase() })
+    else -> error("Timeline side must contain runways or meteringPoints")
+}
 
 fun ConnectionConfigYaml.toDomain() = ConnectionConfig(
     atcClient = atcClient.toDomain(),
@@ -111,6 +115,11 @@ fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
                 }
             )
         },
+        meteringPoints = meteringPoints?.map { it.uppercase() } ?: emptyList(),
+        meteringPointTransitTimesMinutes = meteringPointTransitTimesMinutes
+            ?.mapKeys { (fix, _) -> fix.uppercase() }
+            ?.mapValues { (_, byRunway) -> byRunway.mapKeys { (runway, _) -> runway.uppercase() } }
+            ?: emptyMap(),
     )
 
 fun StarYamlEntry.toDomain() = Star(

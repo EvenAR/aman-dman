@@ -3,11 +3,12 @@ package no.vaccsca.amandman.view
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
+import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
+import no.vaccsca.amandman.model.integration.IntegrationKind
+import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
-import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
-import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.presenter.AirportViewInterface
@@ -17,6 +18,7 @@ import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.AirportViewState
 import no.vaccsca.amandman.view.entity.DraggedLabelState
 import no.vaccsca.amandman.view.forms.NewTimelineForm
+import java.awt.Dimension
 import java.awt.Point
 import javax.swing.JDialog
 import javax.swing.JFrame
@@ -69,6 +71,10 @@ class AirportViewDelegate(
         )
     }
 
+    override fun updateMeteringPointState(meteringPointState: MeteringPointState) = runOnUiThread {
+        airportViewState.meteringPointState.value = meteringPointState
+    }
+
     override fun showAirportContextMenu(availableTimelines: List<TimelineConfig>, screenPos: Point) = runOnUiThread {
         airportView.openPopupMenu(availableTimelines, screenPos)
     }
@@ -109,6 +115,8 @@ class AirportViewDelegate(
     override fun openTimelineConfigForm(
         availableTagLayoutsDep: Set<String>,
         availableTagLayoutsArr: Set<String>,
+        availableRunways: Set<String>,
+        availableMeteringPoints: Set<String>,
         existingConfig: TimelineConfig?
     ) = runOnUiThread {
         val groupId = airportViewState.airportIcao
@@ -117,16 +125,21 @@ class AirportViewDelegate(
         } else {
             newTimelineForm = JDialog(parentFrame, "New timeline for $groupId").apply {
                 defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
-                contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig)
+                contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableMeteringPoints)
                 pack()
+                minimumSize = Dimension(520, 460)
+                isResizable = true
                 setLocationRelativeTo(null)
                 isVisible = true
             }
         }
+
         val timelineForm = newTimelineForm?.contentPane as? NewTimelineForm
         timelineForm?.update(
             arrLayouts = availableTagLayoutsArr,
-            depLayouts = availableTagLayoutsDep
+            depLayouts = availableTagLayoutsDep,
+            availableRunways = availableRunways,
+            availableMeteringPoints = availableMeteringPoints,
         )
     }
 

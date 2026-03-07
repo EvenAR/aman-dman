@@ -16,9 +16,29 @@ data class Timeline(
     val departureLabelLayoutId: String?,
 )
 
-data class Side(
-    val runways: List<String>
-)
+sealed interface Side {
+    val targets: List<String>
+
+    data class Runways(
+        val runways: List<String>,
+    ) : Side {
+        init {
+            require(runways.isNotEmpty()) { "Runway side cannot be empty" }
+        }
+
+        override val targets: List<String> = runways
+    }
+
+    data class MeteringPoints(
+        val meteringPoints: List<String>,
+    ) : Side {
+        init {
+            require(meteringPoints.isNotEmpty()) { "Metering points side cannot be empty" }
+        }
+
+        override val targets: List<String> = meteringPoints
+    }
+}
 
 data class ConnectionConfig(
     val atcClient: AtcClientConnectionParameters,
