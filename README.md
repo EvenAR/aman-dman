@@ -66,3 +66,7 @@ Descent profile visualization used for debugging:
 Contributions to the project are welcome! If you have any ideas for improvements, bug fixes, or new features, please feel free to submit a pull request or open an issue in this GitHub repository.
 
 See the readmes in the `euroscope-bridge` and `aman-dman-client` directories for more information on how to set up a development environment for each component.
+
+## Change log
+
+See https://github.com/EvenAR/aman-dman/releases
