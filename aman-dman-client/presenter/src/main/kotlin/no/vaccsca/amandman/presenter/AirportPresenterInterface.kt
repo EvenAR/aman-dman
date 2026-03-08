@@ -38,7 +38,7 @@ interface AirportPresenterInterface {
     fun onCreateNewTimelineClicked()
     fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig)
     fun onRemoveTimelineClicked(timelineConfig: TimelineConfig)
-    fun onEditTimelineRequested(timelineTitle: String)
+    fun onEditTimelineRequested(timelineConfig: TimelineConfig)
     fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto)
 
     fun onRemoveTab()

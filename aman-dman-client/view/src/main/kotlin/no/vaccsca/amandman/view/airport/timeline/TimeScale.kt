@@ -2,6 +2,7 @@ package no.vaccsca.amandman.view.airport.timeline
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
+import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.common.util.NumberUtils.format
 import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
@@ -113,12 +114,25 @@ class TimeScale(
     }
 
     private fun showPopupMenu(e: MouseEvent) {
-        val popup = AmanPopupMenu("Timeline Actions") {
-            item("Remove timeline", action = {
-                presenter.onRemoveTimelineClicked(timelineView.timelineConfig)
-            })
-        }
-
+        val popup = buildPopupMenu()
         popup.show(e.component, e.x, e.y)
+    }
+
+    internal fun buildPopupMenu(): AmanPopupMenu {
+        return buildTimelinePopupMenu(presenter, timelineView.timelineConfig)
+    }
+}
+
+internal fun buildTimelinePopupMenu(
+    presenter: AirportPresenterInterface,
+    timelineConfig: TimelineConfig
+): AmanPopupMenu {
+    return AmanPopupMenu("Timeline Actions") {
+        item("Edit timeline", action = {
+            presenter.onEditTimelineRequested(timelineConfig)
+        })
+        item("Remove timeline", action = {
+            presenter.onRemoveTimelineClicked(timelineConfig)
+        })
     }
 }

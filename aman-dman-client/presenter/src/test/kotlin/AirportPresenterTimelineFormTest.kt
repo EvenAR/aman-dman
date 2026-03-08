@@ -18,6 +18,7 @@ import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.planning.AirportDataSource
+import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
@@ -32,8 +33,8 @@ import no.vaccsca.amandman.presenter.UiDispatcher
 import java.awt.Point
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 class AirportPresenterTimelineFormTest {
@@ -84,8 +85,8 @@ class AirportPresenterTimelineFormTest {
     }
 
     @Test
-    fun `onEditTimelineRequested passes existing config and available runway list`() {
-        val timeline = Timeline(
+    fun `onEditTimelineRequested passes exact config and available runway list`() {
+        val timelineInSettings = Timeline(
             title = "FLOW",
             left = Side.MeteringPoints(listOf("MPX")),
             right = Side.Runways(listOf("19L")),
@@ -94,19 +95,88 @@ class AirportPresenterTimelineFormTest {
         )
 
         val settingsProvider = FakeSettingsProvider(
-            settings = baseSettings(timelines = mapOf("TEST" to listOf(timeline))),
+            settings = baseSettings(timelines = mapOf("TEST" to listOf(timelineInSettings))),
             airports = listOf(airport("TEST", runways = setOf("19L", "19R"), meteringPoints = setOf("MPX")))
         )
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, view)
 
-        presenter.onEditTimelineRequested("FLOW")
+        val generatedTimeline = TimelineConfig(
+            title = "FLOW-GEN",
+            left = TimelineSideConfig.Runways(emptyList()),
+            right = TimelineSideConfig.MeteringPoints(listOf("MPX")),
+            airportIcao = "TEST",
+            depLabelLayout = null,
+            arrLabelLayout = "ARR"
+        )
+
+        presenter.onEditTimelineRequested(generatedTimeline)
 
         val args = assertNotNull(view.lastOpenTimelineConfigFormArgs)
         assertNotNull(args.existingConfig)
-        assertEquals("FLOW", args.existingConfig.title)
+        assertEquals(generatedTimeline, args.existingConfig)
         assertEquals(setOf("19L", "19R"), args.availableRunways)
         assertEquals(setOf("MPX"), args.availableMeteringPoints)
+    }
+
+    @Test
+    fun `onCreateNewTimeline replaces original when edit mode is active`() {
+        val settingsProvider = FakeSettingsProvider(
+            settings = baseSettings(),
+            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+        )
+        val view = CapturingAirportView()
+        val presenter = createPresenter(settingsProvider, view)
+
+        val existing = TimelineConfig(
+            title = "OLD",
+            left = TimelineSideConfig.Runways(emptyList()),
+            right = TimelineSideConfig.Runways(listOf("19L")),
+            airportIcao = "TEST",
+            depLabelLayout = "DEP",
+            arrLabelLayout = "ARR"
+        )
+        presenter.onEditTimelineRequested(existing)
+
+        presenter.onCreateNewTimeline(
+            CreateOrUpdateTimelineDto(
+                airportIcao = "TEST",
+                title = "NEW",
+                left = CreateOrUpdateTimelineDto.TimeLineSide.Runways(emptyList()),
+                right = CreateOrUpdateTimelineDto.TimeLineSide.Runways(listOf("19L")),
+                depLabelLayout = "DEP",
+                arrLabelLayout = "ARR"
+            )
+        )
+
+        assertEquals(listOf(existing), view.removedTimelines)
+        assertEquals(1, view.addedTimelines.size)
+        assertEquals("NEW", view.addedTimelines.single().title)
+    }
+
+    @Test
+    fun `onCreateNewTimeline adds without removal when not editing`() {
+        val settingsProvider = FakeSettingsProvider(
+            settings = baseSettings(),
+            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+        )
+        val view = CapturingAirportView()
+        val presenter = createPresenter(settingsProvider, view)
+
+        presenter.onCreateNewTimeline(
+            CreateOrUpdateTimelineDto(
+                airportIcao = "TEST",
+                title = "NEW",
+                left = CreateOrUpdateTimelineDto.TimeLineSide.Runways(emptyList()),
+                right = CreateOrUpdateTimelineDto.TimeLineSide.Runways(listOf("19L")),
+                depLabelLayout = "DEP",
+                arrLabelLayout = "ARR"
+            )
+        )
+
+        assertTrue(view.removedTimelines.isEmpty())
+        assertEquals(1, view.addedTimelines.size)
+        assertEquals("NEW", view.addedTimelines.single().title)
     }
 
     @Test
@@ -282,6 +352,8 @@ class AirportPresenterTimelineFormTest {
         var lastOpenTimelineConfigFormArgs: OpenTimelineConfigFormArgs? = null
         var lastContextMenuConfiguredTimelines: List<TimelineConfig> = emptyList()
         var lastContextMenuGeneratedTimelines: List<TimelineConfig> = emptyList()
+        val addedTimelines = mutableListOf<TimelineConfig>()
+        val removedTimelines = mutableListOf<TimelineConfig>()
 
         override fun updateTab(timelineEvents: List<TimelineEvent>, nonSequencedList: List<NonSequencedEvent>) {}
         override fun updateWeatherData(weather: VerticalWeatherProfile?) {}
@@ -326,8 +398,12 @@ class AirportPresenterTimelineFormTest {
         }
 
         override fun closeTimelineForm() {}
-        override fun addNewTimeline(timelineConfig: TimelineConfig) {}
-        override fun removeTimeline(timelineConfig: TimelineConfig) {}
+        override fun addNewTimeline(timelineConfig: TimelineConfig) {
+            addedTimelines += timelineConfig
+        }
+        override fun removeTimeline(timelineConfig: TimelineConfig) {
+            removedTimelines += timelineConfig
+        }
         override fun setSelectedAircraftCallsign(callsign: String) {}
     }
 }

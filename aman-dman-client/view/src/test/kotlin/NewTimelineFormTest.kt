@@ -332,7 +332,7 @@ class NewTimelineFormTest {
         override fun onCreateNewTimelineClicked() {}
         override fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig) {}
         override fun onRemoveTimelineClicked(timelineConfig: TimelineConfig) {}
-        override fun onEditTimelineRequested(timelineTitle: String) {}
+        override fun onEditTimelineRequested(timelineConfig: TimelineConfig) {}
         override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
             createdTimelines += config
         }
@@ -340,4 +340,3 @@ class NewTimelineFormTest {
         override fun onRemoveTab() {}
     }
 }
-

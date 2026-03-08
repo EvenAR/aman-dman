@@ -52,6 +52,7 @@ class AirportPresenter(
     private var availableRunways = setOf<String>()
     private var meteringPointState: MeteringPointState = MeteringPointState()
     private val timelineConfigs = mutableMapOf<String, TimelineConfig>()
+    private var editingTimelineConfig: TimelineConfig? = null
     private var hasLoggedMissingMeteringTimelineLayout = false
 
     init {
@@ -247,6 +248,7 @@ class AirportPresenter(
     }
 
     override fun onCreateNewTimelineClicked() {
+        editingTimelineConfig = null
         view.openTimelineConfigForm(
             availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
             availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
@@ -256,6 +258,7 @@ class AirportPresenter(
     }
 
     override fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig) {
+        editingTimelineConfig = null
         view.addNewTimeline(timelineConfig)
         view.closeTimelineForm()
     }
@@ -264,17 +267,15 @@ class AirportPresenter(
         view.removeTimeline(timelineConfig)
     }
 
-    override fun onEditTimelineRequested(timelineTitle: String) {
-        val existingConfig = timelineConfigs[timelineTitle]
-        if (existingConfig != null) {
-            view.openTimelineConfigForm(
-                availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
-                availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
-                availableRunways = getKnownRunways(),
-                availableMeteringPoints = getKnownMeteringPoints(),
-                existingConfig = existingConfig
-            )
-        }
+    override fun onEditTimelineRequested(timelineConfig: TimelineConfig) {
+        editingTimelineConfig = timelineConfig
+        view.openTimelineConfigForm(
+            availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
+            availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
+            availableRunways = getKnownRunways(),
+            availableMeteringPoints = getKnownMeteringPoints(),
+            existingConfig = timelineConfig
+        )
     }
 
     override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
@@ -286,6 +287,8 @@ class AirportPresenter(
             depLabelLayout = config.depLabelLayout,
             arrLabelLayout = config.arrLabelLayout
         )
+        editingTimelineConfig?.let { view.removeTimeline(it) }
+        editingTimelineConfig = null
         view.addNewTimeline(timelineConfig)
         view.closeTimelineForm()
     }
