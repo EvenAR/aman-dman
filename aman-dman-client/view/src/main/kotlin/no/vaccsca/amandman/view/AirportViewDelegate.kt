@@ -123,18 +123,16 @@ class AirportViewDelegate(
         existingConfig: TimelineConfig?
     ) = runOnUiThread {
         val groupId = airportViewState.airportIcao
-        if (newTimelineForm != null) {
-            newTimelineForm?.isVisible = true
-        } else {
-            newTimelineForm = JDialog(parentFrame, "New timeline for $groupId").apply {
-                defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
-                contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableMeteringPoints)
-                pack()
-                minimumSize = Dimension(520, 460)
-                isResizable = true
-                setLocationRelativeTo(null)
-                isVisible = true
-            }
+        // Always recreate the form when opening so edit/create requests never reuse stale prefilled values.
+        newTimelineForm?.dispose()
+        newTimelineForm = JDialog(parentFrame, "New timeline for $groupId").apply {
+            defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
+            contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableMeteringPoints)
+            pack()
+            minimumSize = Dimension(520, 460)
+            isResizable = true
+            setLocationRelativeTo(null)
+            isVisible = true
         }
 
         val timelineForm = newTimelineForm?.contentPane as? NewTimelineForm
