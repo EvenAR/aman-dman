@@ -128,6 +128,7 @@ Avoid fancy, academic, or enterprise-heavy terms.
 - Keep domain code pure/testable.
 - Do not over-engineer: favor straightforward code that OO-oriented contributors can follow.
 - Add or update tests for behavior changes in planning, sequencing, navigation, weather, or timeline logic; if skipped, include explicit justification in the final handoff.
+- Prefer imports over fully qualified class names in code and tests; use a fully qualified reference only when it is necessary to avoid ambiguity.
 
 ### TypeScript/Node
 

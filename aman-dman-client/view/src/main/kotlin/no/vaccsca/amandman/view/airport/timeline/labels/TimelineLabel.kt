@@ -119,7 +119,7 @@ abstract class TimelineLabel(
     fun updateText() {
         // Create labels only once
         if (labels.isEmpty()) {
-            labelItems.forEach { item ->
+            labelItems.forEach { _ ->
                 val lbl = JLabel()
                 lbl.font = baseFont
                 lbl.border = BorderFactory.createEmptyBorder(-1, 0, -1, 0)
@@ -142,21 +142,14 @@ abstract class TimelineLabel(
 
     fun LabelItem.formatText(value: String?): String {
         val originalValueAsString = value ?: this.defaultValue ?: ""
-        val maxCharacters = this.width.coerceAtMost(this.maxLength ?: Int.MAX_VALUE)
-        val truncatedValue =
-            if (originalValueAsString.length > maxCharacters) {
-                originalValueAsString.substring(0, maxCharacters)
-            } else {
-                originalValueAsString
-            }
+        val croppedValue = maxLength?.let { originalValueAsString.take(it) } ?: originalValueAsString
+        val truncatedValue = croppedValue.take(width)
 
-        val paddedValue = when (this.alignment) {
+        return when (this.alignment) {
             null, LabelItemAlignment.LEFT -> truncatedValue.padEnd(width)
             LabelItemAlignment.CENTER -> truncatedValue.padStart(((width - truncatedValue.length) / 2) + truncatedValue.length).padEnd(width)
             LabelItemAlignment.RIGHT -> truncatedValue.padStart(width)
         }
-
-        return paddedValue
     }
 
     protected open fun isSelected(): Boolean {
