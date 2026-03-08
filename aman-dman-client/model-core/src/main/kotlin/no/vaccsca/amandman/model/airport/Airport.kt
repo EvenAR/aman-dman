@@ -12,6 +12,7 @@ data class Airport(
     val sequencingHorizon: Duration,
     val lockedHorizon: Duration,
     val meteringPoints: List<String> = emptyList(),
+    val meteringTimelineArrivalLabelLayoutId: String? = null,
     // Reserved for future fixed-transit metering point timing strategy.
     val meteringPointTransitTimesMinutes: Map<String, Map<String, Int>> = emptyMap(),
 )

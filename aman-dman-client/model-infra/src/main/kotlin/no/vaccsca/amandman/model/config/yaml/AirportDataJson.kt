@@ -22,6 +22,8 @@ data class AirportJson(
 
     val meteringPoints: List<String>? = null,
 
+    val meteringTimelineArrivalLabelLayoutId: String? = null,
+
     // Reserved for future fixed-transit strategy, currently not used in projection.
     val meteringPointTransitTimesMinutes: Map<String, Map<String, Int>>? = null,
 )

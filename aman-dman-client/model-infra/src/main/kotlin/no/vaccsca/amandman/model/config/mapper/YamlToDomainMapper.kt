@@ -116,6 +116,7 @@ fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
             )
         },
         meteringPoints = meteringPoints?.map { it.uppercase() } ?: emptyList(),
+        meteringTimelineArrivalLabelLayoutId = meteringTimelineArrivalLabelLayoutId,
         meteringPointTransitTimesMinutes = meteringPointTransitTimesMinutes
             ?.mapKeys { (fix, _) -> fix.uppercase() }
             ?.mapValues { (_, byRunway) -> byRunway.mapKeys { (runway, _) -> runway.uppercase() } }

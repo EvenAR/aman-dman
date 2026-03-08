@@ -195,18 +195,47 @@ class TimelineScrollPane(
         e.consume()
     }
 
-    fun openPopupMenu(availableTimelines: List<TimelineConfig>, screenPos: Point) {
-        val sorted = availableTimelines.sortedBy { it.title }
+    fun openPopupMenu(
+        customizedTimelines: List<TimelineConfig>,
+        generatedMeteringPointTimelines: List<TimelineConfig>,
+        screenPos: Point
+    ) {
+        val popup = buildPopupMenu(customizedTimelines, generatedMeteringPointTimelines)
+        popup.show(this, screenPos.x, screenPos.y)
+    }
 
-        val popup = AmanPopupMenu("${airportViewState.airportIcao} Actions") {
+    internal fun buildPopupMenu(
+        customizedTimelines: List<TimelineConfig>,
+        generatedMeteringPointTimelines: List<TimelineConfig>,
+    ): AmanPopupMenu {
+        val customizedSorted = customizedTimelines.sortedBy { it.title }
+        val meteringPointSorted = generatedMeteringPointTimelines.sortedBy { it.title }
+        return AmanPopupMenu("${airportViewState.airportIcao} Actions") {
             item("Add timeline") {
-                sorted.forEach { timeline ->
-                    item(timeline.title, action = {
-                        presenter.onAddTimelineButtonClicked(timeline)
-                    })
+                if (customizedSorted.isNotEmpty()) {
+                    item("Custom timelines") {
+                        customizedSorted.forEach { timeline ->
+                            item(timeline.title, action = {
+                                presenter.onAddTimelineButtonClicked(timeline)
+                            })
+                        }
+                    }
                 }
-                separator()
-                item("Custom ...", action = {
+
+                if (meteringPointSorted.isNotEmpty()) {
+                    item("Metering points") {
+                        meteringPointSorted.forEach { timeline ->
+                            item(timeline.title, action = {
+                                presenter.onAddTimelineButtonClicked(timeline)
+                            })
+                        }
+                    }
+                }
+
+                if (customizedSorted.isNotEmpty() || meteringPointSorted.isNotEmpty()) {
+                    separator()
+                }
+                item("Create ...", action = {
                     presenter.onCreateNewTimelineClicked()
                 })
             }
@@ -225,7 +254,5 @@ class TimelineScrollPane(
                 presenter.onRemoveTab()
             })
         }
-
-        popup.show(this, screenPos.x, screenPos.y)
     }
 }

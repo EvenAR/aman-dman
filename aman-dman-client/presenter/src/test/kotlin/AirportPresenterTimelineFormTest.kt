@@ -4,7 +4,6 @@ import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.airport.RunwayThreshold
-import no.vaccsca.amandman.model.atc.ControllerInfoData
 import no.vaccsca.amandman.model.config.AmanDmanSettings
 import no.vaccsca.amandman.model.config.AtcClientConnectionParameters
 import no.vaccsca.amandman.model.config.ConnectionConfig
@@ -19,7 +18,6 @@ import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.planning.AirportDataSource
-import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
@@ -34,6 +32,7 @@ import no.vaccsca.amandman.presenter.UiDispatcher
 import java.awt.Point
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.minutes
 
@@ -110,6 +109,82 @@ class AirportPresenterTimelineFormTest {
         assertEquals(setOf("MPX"), args.availableMeteringPoints)
     }
 
+    @Test
+    fun `onTabMenu generates metering point timelines using airport default layout and live fixes`() {
+        val settingsProvider = FakeSettingsProvider(
+            settings = baseSettings(timelines = mapOf("TEST" to listOf(
+                Timeline(
+                    title = "M2",
+                    right = Side.MeteringPoints(listOf("M2")),
+                    arrivalLabelLayoutId = "ARR",
+                    departureLabelLayoutId = null
+                )
+            ))),
+            airports = listOf(
+                airport(
+                    "TEST",
+                    runways = setOf("19L"),
+                    meteringPoints = setOf("M1"),
+                    meteringTimelineArrivalLabelLayoutId = "ARR"
+                )
+            )
+        )
+        val view = CapturingAirportView()
+        val presenter = createPresenter(settingsProvider, view)
+
+        presenter.onMeteringPointStateUpdated("TEST", MeteringPointState(availableMeteringPoints = listOf("M2", "M3")))
+        presenter.onTabMenu(Point(5, 5))
+
+        assertEquals(1, view.lastContextMenuConfiguredTimelines.size)
+        assertEquals("M2", view.lastContextMenuConfiguredTimelines.single().title)
+        assertEquals(listOf("M2", "M3"), view.lastContextMenuGeneratedTimelines.map { it.title })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { it.depLabelLayout == null })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { it.arrLabelLayout == "ARR" })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { it.right is TimelineSideConfig.MeteringPoints })
+    }
+
+    @Test
+    fun `onTabMenu falls back to airport metering points when live fixes unavailable`() {
+        val settingsProvider = FakeSettingsProvider(
+            settings = baseSettings(),
+            airports = listOf(
+                airport(
+                    "TEST",
+                    runways = setOf("19L"),
+                    meteringPoints = setOf("M9", "M1"),
+                    meteringTimelineArrivalLabelLayoutId = "ARR"
+                )
+            )
+        )
+        val view = CapturingAirportView()
+        val presenter = createPresenter(settingsProvider, view)
+
+        presenter.onTabMenu(Point(1, 1))
+
+        assertEquals(listOf("M1", "M9"), view.lastContextMenuGeneratedTimelines.map { it.title })
+    }
+
+    @Test
+    fun `onTabMenu generates no metering timelines when airport default layout is missing`() {
+        val settingsProvider = FakeSettingsProvider(
+            settings = baseSettings(),
+            airports = listOf(
+                airport(
+                    "TEST",
+                    runways = setOf("19L"),
+                    meteringPoints = setOf("M1"),
+                    meteringTimelineArrivalLabelLayoutId = null
+                )
+            )
+        )
+        val view = CapturingAirportView()
+        val presenter = createPresenter(settingsProvider, view)
+
+        presenter.onTabMenu(Point(1, 1))
+
+        assertTrue(view.lastContextMenuGeneratedTimelines.isEmpty())
+    }
+
     private fun createPresenter(
         settingsProvider: SettingsProvider,
         view: CapturingAirportView,
@@ -142,7 +217,12 @@ class AirportPresenterTimelineFormTest {
         )
     }
 
-    private fun airport(icao: String, runways: Set<String>, meteringPoints: Set<String>): Airport {
+    private fun airport(
+        icao: String,
+        runways: Set<String>,
+        meteringPoints: Set<String>,
+        meteringTimelineArrivalLabelLayoutId: String? = null
+    ): Airport {
         val runwayMap = runways.associateWith { id ->
             RunwayThreshold(
                 id = id,
@@ -159,7 +239,8 @@ class AirportPresenterTimelineFormTest {
             independentRunwaySystems = emptyList(),
             sequencingHorizon = 30.minutes,
             lockedHorizon = 10.minutes,
-            meteringPoints = meteringPoints.toList()
+            meteringPoints = meteringPoints.toList(),
+            meteringTimelineArrivalLabelLayoutId = meteringTimelineArrivalLabelLayoutId
         )
     }
 
@@ -199,6 +280,8 @@ class AirportPresenterTimelineFormTest {
         override lateinit var airportPresenterInterface: AirportPresenterInterface
 
         var lastOpenTimelineConfigFormArgs: OpenTimelineConfigFormArgs? = null
+        var lastContextMenuConfiguredTimelines: List<TimelineConfig> = emptyList()
+        var lastContextMenuGeneratedTimelines: List<TimelineConfig> = emptyList()
 
         override fun updateTab(timelineEvents: List<TimelineEvent>, nonSequencedList: List<NonSequencedEvent>) {}
         override fun updateWeatherData(weather: VerticalWeatherProfile?) {}
@@ -207,7 +290,14 @@ class AirportPresenterTimelineFormTest {
         override fun updateMinimumSpacing(minimumSpacingNm: Double) {}
         override fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean) {}
         override fun updateMeteringPointState(meteringPointState: MeteringPointState) {}
-        override fun showAirportContextMenu(availableTimelines: List<TimelineConfig>, screenPos: Point) {}
+        override fun showAirportContextMenu(
+            cusomizedTimelines: List<TimelineConfig>,
+            generatedMeteringPointTimelines: List<TimelineConfig>,
+            screenPos: Point
+        ) {
+            lastContextMenuConfiguredTimelines = cusomizedTimelines
+            lastContextMenuGeneratedTimelines = generatedMeteringPointTimelines
+        }
         override fun openMetWindow() {}
         override fun openLandingRatesWindow() {}
         override fun openNonSequencedWindow() {}
@@ -241,4 +331,3 @@ class AirportPresenterTimelineFormTest {
         override fun setSelectedAircraftCallsign(callsign: String) {}
     }
 }
-

@@ -74,8 +74,12 @@ class AirportViewDelegate(
         airportViewState.meteringPointState.value = meteringPointState
     }
 
-    override fun showAirportContextMenu(availableTimelines: List<TimelineConfig>, screenPos: Point) = runOnUiThread {
-        airportView.openPopupMenu(availableTimelines, screenPos)
+    override fun showAirportContextMenu(
+        customizedTimelines: List<TimelineConfig>,
+        generatedMeteringPointTimelines: List<TimelineConfig>,
+        screenPos: Point
+    ) = runOnUiThread {
+        airportView.openPopupMenu(customizedTimelines, generatedMeteringPointTimelines, screenPos)
     }
 
     override fun openMetWindow() = runOnUiThread {

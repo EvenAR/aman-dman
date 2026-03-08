@@ -8,6 +8,7 @@ airports:
     sequencingHorizon: PT60M
     lockedHorizon: PT10M
     meteringPoints: ["LUNIP", "ADOPI", "ESEBA", "BELGU", "INREX", "RIPAM", "VALPU", "INSUV", "TITLA", "BAVAD"]
+    meteringTimelineArrivalLabelLayoutId: "osloArr"
     runwayThresholds:
       01L:
         location:

@@ -43,6 +43,7 @@ object SettingsRepository : SettingsProvider {
 
     private fun loadSettings() {
         settings = readYamlFile<AmanDmanSettingsYaml>(SETTINGS_FILE_PATH).toDomain()
+        validateAirportMeteringTimelineLayouts()
     }
 
     private fun loadAirportData() {
@@ -59,6 +60,21 @@ object SettingsRepository : SettingsProvider {
             } catch (e: Exception) {
                 logger.error("Error loading STAR data for airport $icao: ${e.message}")
                 airportJson.toDomain(icao, StarYamlFile(emptyList()))
+            }
+        }
+        validateAirportMeteringTimelineLayouts()
+    }
+
+    private fun validateAirportMeteringTimelineLayouts() {
+        val loadedSettings = settings ?: return
+        val loadedAirportData = airportData ?: return
+        val availableArrivalLayouts = loadedSettings.arrivalLabelLayouts.keys
+
+        loadedAirportData.forEach { airport ->
+            val layoutId = airport.meteringTimelineArrivalLabelLayoutId ?: return@forEach
+            require(layoutId in availableArrivalLayouts) {
+                "Airport ${airport.icao} uses unknown meteringTimelineArrivalLabelLayoutId '$layoutId'. " +
+                    "Available arrival layouts: ${availableArrivalLayouts.sorted().joinToString(", ")}"
             }
         }
     }

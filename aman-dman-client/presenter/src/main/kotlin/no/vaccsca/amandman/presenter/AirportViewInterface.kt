@@ -28,7 +28,11 @@ interface AirportViewInterface {
     fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean)
     fun updateMeteringPointState(meteringPointState: MeteringPointState)
 
-    fun showAirportContextMenu(availableTimelines: List<TimelineConfig>, screenPos: Point)
+    fun showAirportContextMenu(
+        cusomizedTimelines: List<TimelineConfig>,
+        generatedMeteringPointTimelines: List<TimelineConfig>,
+        screenPos: Point
+    )
     fun openMetWindow()
     fun openLandingRatesWindow()
     fun openNonSequencedWindow()
@@ -54,4 +58,3 @@ interface AirportViewInterface {
 
     fun setSelectedAircraftCallsign(callsign: String)
 }
-

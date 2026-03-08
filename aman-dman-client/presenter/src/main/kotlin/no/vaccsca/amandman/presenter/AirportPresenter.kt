@@ -52,6 +52,7 @@ class AirportPresenter(
     private var availableRunways = setOf<String>()
     private var meteringPointState: MeteringPointState = MeteringPointState()
     private val timelineConfigs = mutableMapOf<String, TimelineConfig>()
+    private var hasLoggedMissingMeteringTimelineLayout = false
 
     init {
         view.airportPresenterInterface = this
@@ -240,8 +241,9 @@ class AirportPresenter(
     }
 
     override fun onTabMenu(screenPos: Point) {
-        val availableTimelinesForIcao = timelineConfigs.values.toList()
-        view.showAirportContextMenu(availableTimelinesForIcao, screenPos)
+        val customizedTimelines = timelineConfigs.values.toList()
+        val generatedMeteringPointTimelines = buildGeneratedMeteringPointTimelines()
+        view.showAirportContextMenu(customizedTimelines, generatedMeteringPointTimelines, screenPos)
     }
 
     override fun onCreateNewTimelineClicked() {
@@ -343,14 +345,48 @@ class AirportPresenter(
 
     private fun getKnownMeteringPoints(): Set<String> {
         if (meteringPointState.availableMeteringPoints.isNotEmpty()) {
-            return meteringPointState.availableMeteringPoints.toSet()
+            return meteringPointState.availableMeteringPoints.map { it.uppercase() }.toSet()
         }
 
         return settingsProvider.getAirportData()
             .find { it.icao == airportIcao }
             ?.meteringPoints
+            ?.map { it.uppercase() }
             ?.toSet()
             ?: emptySet()
+    }
+
+    private fun buildGeneratedMeteringPointTimelines(): List<TimelineConfig> {
+        val knownMeteringPoints = getKnownMeteringPoints()
+            .map { it.uppercase() }
+            .sorted()
+        if (knownMeteringPoints.isEmpty()) {
+            return emptyList()
+        }
+
+        val airport = settingsProvider.getAirportData().find { it.icao == airportIcao } ?: return emptyList()
+        val arrivalLayout = airport.meteringTimelineArrivalLabelLayoutId
+        if (arrivalLayout.isNullOrBlank()) {
+            if (!hasLoggedMissingMeteringTimelineLayout) {
+                logger.warn(
+                    "Airport $airportIcao has metering points but no meteringTimelineArrivalLabelLayoutId configured. " +
+                        "Metering point auto-timelines are disabled."
+                )
+                hasLoggedMissingMeteringTimelineLayout = true
+            }
+            return emptyList()
+        }
+
+        return knownMeteringPoints.map { meteringPoint ->
+            TimelineConfig(
+                title = meteringPoint,
+                left = TimelineSideConfig.Runways(emptyList()),
+                right = TimelineSideConfig.MeteringPoints(listOf(meteringPoint)),
+                airportIcao = airportIcao,
+                depLabelLayout = null,
+                arrLabelLayout = arrivalLayout
+            )
+        }
     }
 
     private data class CachedTimelineEvent(
@@ -376,4 +412,3 @@ class AirportPresenter(
         }
     }
 }
-
