@@ -16,12 +16,17 @@ import no.vaccsca.amandman.view.visualizations.LandingRatesGraph
 import no.vaccsca.amandman.view.visualizations.NonSeqView
 import no.vaccsca.amandman.view.visualizations.VerticalWindView
 import java.awt.BorderLayout
+import java.awt.FlowLayout
 import java.awt.Point
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import javax.swing.JButton
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
+import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JSpinner
+import javax.swing.SpinnerNumberModel
 import javax.swing.WindowConstants
 import kotlin.time.Duration
 
@@ -56,6 +61,10 @@ class AirportView(
 
     private lateinit var verticalWindView: VerticalWindView
     private var windFrame: JInternalFrame? = null
+
+    private var minimumSpacingFrame: JInternalFrame? = null
+    private val minimumSpacingModel = SpinnerNumberModel(3.0, 0.0, 100.0, 0.1)
+    private var onMinimumSpacingSubmit: ((Double) -> Unit)? = null
 
     private var currentTime: Instant? = null
 
@@ -184,6 +193,48 @@ class AirportView(
         }
         windFrame?.isVisible = true
         windFrame?.toFront()
+    }
+
+    fun openMinimumSpacingWindow(default: Double, onSubmit: (Double) -> Unit) {
+        onMinimumSpacingSubmit = onSubmit
+        minimumSpacingModel.value = default
+        if (minimumSpacingFrame == null) {
+            val spinner = JSpinner(minimumSpacingModel)
+            val content = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+                add(JLabel("Minimum Spacing:"))
+                add(spinner)
+                add(JLabel("NM"))
+            }
+            val buttonBar = JPanel(FlowLayout(FlowLayout.RIGHT)).apply {
+                add(JButton("Apply").apply {
+                    addActionListener {
+                        onMinimumSpacingSubmit?.invoke(minimumSpacingModel.number.toDouble())
+                        minimumSpacingFrame?.isVisible = false
+                    }
+                })
+                add(JButton("Cancel").apply {
+                    addActionListener {
+                        minimumSpacingFrame?.isVisible = false
+                    }
+                })
+            }
+
+            minimumSpacingFrame = JInternalFrame("Set Minimum Spacing - $airportIcao", true, true, true, true).apply {
+                layout = BorderLayout()
+                add(content, BorderLayout.CENTER)
+                add(buttonBar, BorderLayout.SOUTH)
+                setSize(320, 120)
+                setLocation(200, 120)
+                isVisible = true
+                isIconifiable = false
+                frameIcon = null
+                isMaximizable = false
+                defaultCloseOperation = WindowConstants.HIDE_ON_CLOSE
+            }
+            add(minimumSpacingFrame)
+        }
+        minimumSpacingFrame?.isVisible = true
+        minimumSpacingFrame?.toFront()
     }
 
     private fun forceInternalFramesToStayInBounds() {

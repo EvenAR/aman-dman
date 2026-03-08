@@ -13,7 +13,6 @@ import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.presenter.AirportViewInterface
 import no.vaccsca.amandman.view.dialogs.RunwayDialog
-import no.vaccsca.amandman.view.dialogs.SpacingDialog
 import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.AirportViewState
 import no.vaccsca.amandman.view.entity.DraggedLabelState
@@ -92,7 +91,7 @@ class AirportViewDelegate(
     }
 
     override fun showMinimumSpacingDialog(default: Double) = runOnUiThread {
-        SpacingDialog.open(parentFrame, airportViewState.airportIcao, default) { newValue ->
+        airportView.openMinimumSpacingWindow(default) { newValue ->
             airportPresenterInterface.onMinimumSpacingDistanceSet(newValue)
         }
     }
