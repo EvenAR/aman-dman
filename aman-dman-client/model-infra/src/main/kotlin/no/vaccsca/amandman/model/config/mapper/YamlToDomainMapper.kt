@@ -1,46 +1,55 @@
 package no.vaccsca.amandman.model.config.mapper
 
-import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceYaml
-import no.vaccsca.amandman.model.config.yaml.AirportJson
-import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
-import no.vaccsca.amandman.model.config.yaml.MasterSlaveApiConnectionParamsYaml
-import no.vaccsca.amandman.model.config.yaml.AtcClientConnectionParamsYaml
-import no.vaccsca.amandman.model.config.yaml.ConnectionConfigYaml
-import no.vaccsca.amandman.model.config.yaml.LabelItemAlignmentEnumYaml
-import no.vaccsca.amandman.model.config.yaml.LabelItemSourceEnumYaml
-import no.vaccsca.amandman.model.config.yaml.LabelItemYaml
-import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
-import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
-import no.vaccsca.amandman.model.config.yaml.MeteringPointTimelineYaml
-import no.vaccsca.amandman.model.config.yaml.StarYamlEntry
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
 import no.vaccsca.amandman.model.airport.Airport
-import no.vaccsca.amandman.model.config.AmanDmanSettings
+import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.config.AirportTimelines
-import no.vaccsca.amandman.model.config.TimelineDefaults
-import no.vaccsca.amandman.model.config.RunwayTimeline
-import no.vaccsca.amandman.model.config.MeteringPointTimeline
-import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
+import no.vaccsca.amandman.model.config.AmanDmanSettings
 import no.vaccsca.amandman.model.config.AtcClientConnectionParameters
 import no.vaccsca.amandman.model.config.ConnectionConfig
 import no.vaccsca.amandman.model.config.LabelItem
 import no.vaccsca.amandman.model.config.LabelItemAlignment
 import no.vaccsca.amandman.model.config.LabelItemSource
+import no.vaccsca.amandman.model.config.MeteringPointTimeline
+import no.vaccsca.amandman.model.config.RunwayTimeline
+import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
+import no.vaccsca.amandman.model.config.Theme
+import no.vaccsca.amandman.model.config.TimelineDefaults
+import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceYaml
+import no.vaccsca.amandman.model.config.yaml.AirportJson
+import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
+import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
+import no.vaccsca.amandman.model.config.yaml.AtcClientConnectionParamsYaml
+import no.vaccsca.amandman.model.config.yaml.ConnectionConfigYaml
+import no.vaccsca.amandman.model.config.yaml.LabelItemAlignmentEnumYaml
+import no.vaccsca.amandman.model.config.yaml.LabelItemSourceEnumYaml
+import no.vaccsca.amandman.model.config.yaml.LabelItemYaml
+import no.vaccsca.amandman.model.config.yaml.MasterSlaveApiConnectionParamsYaml
+import no.vaccsca.amandman.model.config.yaml.MeteringPointTimelineYaml
+import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
+import no.vaccsca.amandman.model.config.yaml.StarYamlEntry
+import no.vaccsca.amandman.model.config.yaml.StarYamlFile
+import no.vaccsca.amandman.model.config.yaml.ThemeYaml
+import no.vaccsca.amandman.model.config.yaml.TimelineDefaultsYaml
+import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
 import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.navigation.Star
 import no.vaccsca.amandman.model.navigation.StarFix
-import no.vaccsca.amandman.model.config.Theme
+import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toKotlinDuration
 
 fun AmanDmanSettingsYaml.toDomain(): AmanDmanSettings = AmanDmanSettings(
-    timelines = timelines.mapValues { entry -> entry.value.toDomain() },
     connectionConfig = connectionConfig.toDomain(),
     arrivalLabelLayouts = arrivalLabelLayouts.mapValues { entry -> entry.value.map { it.toDomain() } },
     departureLabelLayouts = departureLabelLayouts?.mapValues { entry -> entry.value.map { it.toDomain() } } ?: emptyMap(),
     theme = theme?.toDomain() ?: Theme.FLATLAF_DARK,
+)
+
+fun TimelineSettingsYaml.toDomain(): Map<String, AirportTimelines> = timelines.mapValues { entry -> entry.value.toDomain() }
+
+fun Map<String, AirportTimelines>.toYaml(): TimelineSettingsYaml = TimelineSettingsYaml(
+    timelines = entries.associate { (icao, airportTimelines) -> icao to airportTimelines.toYaml() }
 )
 
 fun AirportTimelinesYaml.toDomain(): AirportTimelines {
@@ -59,6 +68,17 @@ fun AirportTimelinesYaml.toDomain(): AirportTimelines {
     )
 }
 
+fun AirportTimelines.toYaml(): AirportTimelinesYaml = AirportTimelinesYaml(
+    defaults = defaults.toYaml(),
+    runwayBased = runwayBased.map { it.toYaml() },
+    meteringPointBased = meteringPointBased.map { it.toYaml() },
+)
+
+fun TimelineDefaults.toYaml(): TimelineDefaultsYaml = TimelineDefaultsYaml(
+    defaultArrivalLabelLayoutId = defaultArrivalLabelLayoutId,
+    defaultDepartureLabelLayoutId = defaultDepartureLabelLayoutId,
+)
+
 fun RunwayTimelineYaml.toDomain(defaults: TimelineDefaults): RunwayTimeline {
     val effectiveArrivalLayout = arrivalLabelLayoutId ?: defaults.defaultArrivalLabelLayoutId
     val effectiveDepartureLayout = departureLabelLayoutId ?: defaults.defaultDepartureLabelLayoutId
@@ -71,9 +91,19 @@ fun RunwayTimelineYaml.toDomain(defaults: TimelineDefaults): RunwayTimeline {
         left = left.map { it.uppercase() },
         right = right.map { it.uppercase() },
         arrivalLabelLayoutId = effectiveArrivalLayout,
-        departureLabelLayoutId = effectiveDepartureLayout
+        departureLabelLayoutId = effectiveDepartureLayout,
+        timelineId = timelineId ?: generateTimelineId(),
     )
 }
+
+fun RunwayTimeline.toYaml(): RunwayTimelineYaml = RunwayTimelineYaml(
+    timelineTitle = title,
+    timelineId = timelineId,
+    left = left.map { it.uppercase() },
+    right = right.map { it.uppercase() },
+    arrivalLabelLayoutId = arrivalLabelLayoutId,
+    departureLabelLayoutId = departureLabelLayoutId,
+)
 
 fun MeteringPointTimelineYaml.toDomain(defaults: TimelineDefaults): MeteringPointTimeline {
     val effectiveArrivalLayout = arrivalLabelLayoutId ?: defaults.defaultArrivalLabelLayoutId
@@ -82,8 +112,17 @@ fun MeteringPointTimelineYaml.toDomain(defaults: TimelineDefaults): MeteringPoin
         left = left.map { it.uppercase() },
         right = right.map { it.uppercase() },
         arrivalLabelLayoutId = effectiveArrivalLayout,
+        timelineId = timelineId ?: generateTimelineId(),
     )
 }
+
+fun MeteringPointTimeline.toYaml(): MeteringPointTimelineYaml = MeteringPointTimelineYaml(
+    timelineTitle = title,
+    timelineId = timelineId,
+    left = left.map { it.uppercase() },
+    right = right.map { it.uppercase() },
+    arrivalLabelLayoutId = arrivalLabelLayoutId,
+)
 
 fun ConnectionConfigYaml.toDomain() = ConnectionConfig(
     atcClient = atcClient.toDomain(),
@@ -198,3 +237,4 @@ fun AircraftPerformanceYaml.toDomain() = AircraftPerformance(
         landingAPC = this.landingAPC
     )
 
+private fun generateTimelineId(): String = UUID.randomUUID().toString()

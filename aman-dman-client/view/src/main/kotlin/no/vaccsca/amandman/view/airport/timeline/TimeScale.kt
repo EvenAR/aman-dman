@@ -8,6 +8,7 @@ import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
+import no.vaccsca.amandman.view.AmanMenuItemData
 import no.vaccsca.amandman.view.AmanPopupMenu
 import no.vaccsca.amandman.view.airport.timeline.utils.GraphicUtils.drawStringAdvanced
 import no.vaccsca.amandman.view.entity.SharedValue
@@ -123,22 +124,15 @@ class TimeScale(
     }
 }
 
-internal fun buildTimelinePopupMenu(
+fun buildTimelinePopupMenu(
     presenter: AirportPresenterInterface,
     timelineConfig: TimelineConfig
 ): AmanPopupMenu {
-    return AmanPopupMenu("Timeline Actions") {
-        item("Edit timeline", action = {
-            presenter.onEditTimelineRequested(timelineConfig)
-        })
-        item("Move left", action = {
-            presenter.onMoveTimelineLeftRequested(timelineConfig)
-        })
-        item("Move right", action = {
-            presenter.onMoveTimelineRightRequested(timelineConfig)
-        })
-        item("Remove timeline", action = {
-            presenter.onRemoveTimelineClicked(timelineConfig)
-        })
-    }
+    return AmanPopupMenu(
+        "Timeline Actions",
+        AmanMenuItemData("Edit timeline", action = { presenter.onEditTimelineRequested(timelineConfig) }),
+        AmanMenuItemData("Move left", action = { presenter.onMoveTimelineLeftRequested(timelineConfig) }),
+        AmanMenuItemData("Move right", action = { presenter.onMoveTimelineRightRequested(timelineConfig) }),
+        AmanMenuItemData("Remove timeline", action = { presenter.onRemoveTimelineClicked(timelineConfig) }),
+    )
 }

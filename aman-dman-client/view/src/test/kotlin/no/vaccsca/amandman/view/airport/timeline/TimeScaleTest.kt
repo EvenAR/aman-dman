@@ -92,6 +92,7 @@ class TimeScaleTest {
             moveRightRequests += timelineConfig
         }
         override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {}
+        override fun onDeleteEditedTimeline() {}
         override fun onRemoveTab() {}
     }
 }

@@ -2,20 +2,25 @@ package no.vaccsca.amandman.presenter
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.MeteringPointTimelineConfig
-import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.NtpClock
+import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
+import no.vaccsca.amandman.model.airport.RunwayStatus
+import no.vaccsca.amandman.model.atc.ControllerInfoData
+import no.vaccsca.amandman.model.config.AirportTimelines
+import no.vaccsca.amandman.model.config.MeteringPointTimeline
+import no.vaccsca.amandman.model.config.RunwayTimeline
 import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.config.TimelineDefaults
+import no.vaccsca.amandman.model.config.TimelineSettingsStore
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.planning.AirportDataSource
-import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.planning.SequencePlanner
+import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
+import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
-import no.vaccsca.amandman.model.airport.RunwayStatus
-import no.vaccsca.amandman.model.atc.ControllerInfoData
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
@@ -24,6 +29,7 @@ import no.vaccsca.amandman.model.user.UserRole
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import org.slf4j.LoggerFactory
 import java.awt.Point
+import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
 class AirportPresenter(
@@ -32,6 +38,7 @@ class AirportPresenter(
     private val userRole: UserRole,
     private val view: AirportViewInterface,
     private val settingsProvider: SettingsProvider,
+    private val timelineSettingsStore: TimelineSettingsStore,
     private val controllerInfoProvider: () -> ControllerInfoData?,
     private val showErrorMessage: (String) -> Unit,
     private val onAircraftSelectedCallback: (String) -> Unit,
@@ -51,8 +58,10 @@ class AirportPresenter(
     private var minimumSpacingNm: Double = 3.0
     private var availableRunways = setOf<String>()
     private var meteringPointState: MeteringPointState = MeteringPointState()
-    private val timelineConfigs = mutableMapOf<String, TimelineConfig>()
+    private val savedTimelineConfigs = mutableListOf<TimelineConfig>()
+    private val liveTimelineSavedOrigins = mutableMapOf<TimelineConfig, TimelineConfig>()
     private var editingTimelineConfig: TimelineConfig? = null
+    private var editingSavedTimelineConfig: TimelineConfig? = null
     private var hasLoggedMissingMeteringTimelineLayout = false
 
     init {
@@ -61,27 +70,13 @@ class AirportPresenter(
     }
 
     private fun loadTimelineConfigsForAirport() {
-        val airportTimelines = settingsProvider.getSettings().timelines[airportIcao] ?: return
+        savedTimelineConfigs.clear()
+        val airportTimelines = timelineSettingsStore.getTimelines().getValueOrNull(airportIcao) ?: return
         airportTimelines.runwayBased.forEach { timeline ->
-            val config = RunwayTimelineConfig(
-                title = timeline.title,
-                airportIcao = airportIcao,
-                leftRunways = timeline.left,
-                rightRunways = timeline.right,
-                depLabelLayout = timeline.departureLabelLayoutId,
-                arrLabelLayout = timeline.arrivalLabelLayoutId,
-            )
-            timelineConfigs[timeline.title] = config
+            savedTimelineConfigs += timeline.toViewConfig()
         }
         airportTimelines.meteringPointBased.forEach { timeline ->
-            val config = MeteringPointTimelineConfig(
-                title = timeline.title,
-                airportIcao = airportIcao,
-                leftMeteringPoints = timeline.left,
-                rightMeteringPoints = timeline.right,
-                arrLabelLayout = timeline.arrivalLabelLayoutId,
-            )
-            timelineConfigs[timeline.title] = config
+            savedTimelineConfigs += timeline.toViewConfig()
         }
     }
 
@@ -253,13 +248,14 @@ class AirportPresenter(
     }
 
     override fun onTabMenu(screenPos: Point) {
-        val customizedTimelines = timelineConfigs.values.toList()
+        val customizedTimelines = savedTimelineConfigs.toList()
         val generatedMeteringPointTimelines = buildGeneratedMeteringPointTimelines()
         view.showAirportContextMenu(customizedTimelines, generatedMeteringPointTimelines, screenPos)
     }
 
     override fun onCreateNewTimelineClicked() {
         editingTimelineConfig = null
+        editingSavedTimelineConfig = null
         view.openTimelineConfigForm(
             availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
             availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
@@ -270,22 +266,27 @@ class AirportPresenter(
 
     override fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig) {
         editingTimelineConfig = null
+        editingSavedTimelineConfig = null
+        trackLiveTimelineSavedOrigin(timelineConfig, findSavedTimelineConfig(timelineConfig))
         view.addNewTimeline(timelineConfig)
         view.closeTimelineForm()
     }
 
     override fun onRemoveTimelineClicked(timelineConfig: TimelineConfig) {
+        liveTimelineSavedOrigins.remove(timelineConfig)
         view.removeTimeline(timelineConfig)
     }
 
     override fun onEditTimelineRequested(timelineConfig: TimelineConfig) {
         editingTimelineConfig = timelineConfig
+        editingSavedTimelineConfig = liveTimelineSavedOrigins[timelineConfig] ?: findSavedTimelineConfig(timelineConfig)
         view.openTimelineConfigForm(
             availableTagLayoutsDep = settingsProvider.getSettings().departureLabelLayouts.keys,
             availableTagLayoutsArr = settingsProvider.getSettings().arrivalLabelLayouts.keys,
             availableRunways = getKnownRunways(),
             availableMeteringPoints = getKnownMeteringPoints(),
-            existingConfig = timelineConfig
+            existingConfig = timelineConfig,
+            canDeleteExistingConfig = editingSavedTimelineConfig != null,
         )
     }
 
@@ -296,29 +297,89 @@ class AirportPresenter(
     override fun onMoveTimelineRightRequested(timelineConfig: TimelineConfig) {
         view.moveTimeline(timelineConfig, positions = 1)
     }
-
     override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
-        val timelineConfig: TimelineConfig = when (config) {
-            is CreateOrUpdateTimelineDto.Runway -> RunwayTimelineConfig(
-                title = config.title,
-                airportIcao = airportIcao,
-                leftRunways = config.left,
-                rightRunways = config.right,
-                depLabelLayout = config.depLabelLayout,
-                arrLabelLayout = config.arrLabelLayout,
-            )
-            is CreateOrUpdateTimelineDto.MeteringPoint -> MeteringPointTimelineConfig(
-                title = config.title,
-                airportIcao = airportIcao,
-                leftMeteringPoints = config.left,
-                rightMeteringPoints = config.right,
-                arrLabelLayout = config.arrLabelLayout,
-            )
+        val updatedTimelineConfig = config.toViewConfig()
+        val previousTimelineConfig = editingTimelineConfig
+        val previousSavedTimelineConfig = editingSavedTimelineConfig
+
+        val currentAirportTimelines = try {
+            timelineSettingsStore.getTimelines(reload = true).getValueOrNull(airportIcao)
+        } catch (e: Exception) {
+            showErrorMessage("Unable to save timeline: ${e.message}")
+            return
         }
-        editingTimelineConfig?.let { previous ->
-            view.replaceTimeline(previous, timelineConfig)
-        } ?: view.addNewTimeline(timelineConfig)
+        val currentSavedTimelineConfigs = currentAirportTimelines?.toSavedViewConfigs() ?: savedTimelineConfigs.toList()
+        val conflictingSavedTimelineConfig = findConflictingSavedTimeline(
+            timelineConfig = updatedTimelineConfig,
+            previousSavedTimelineConfig = previousSavedTimelineConfig,
+            currentSavedTimelineConfigs = currentSavedTimelineConfigs,
+        )
+
+        if (conflictingSavedTimelineConfig != null && !view.confirmTimelineOverwrite(conflictingSavedTimelineConfig.title)) {
+            return
+        }
+
+        val conflictingLiveTimelineConfig = conflictingSavedTimelineConfig?.let { findLiveTimelineForSavedTimeline(it) }
+        val savedTimelinesToReplace = listOfNotNull(previousSavedTimelineConfig, conflictingSavedTimelineConfig)
+            .distinctBy { it.timelineId ?: it.title }
+
+        try {
+            val updatedAirportTimelines = buildUpdatedAirportTimelines(
+                currentAirportTimelines = currentAirportTimelines,
+                updatedTimelineConfig = updatedTimelineConfig,
+                savedTimelinesToReplace = savedTimelinesToReplace,
+            )
+            timelineSettingsStore.saveAirportTimelines(airportIcao, updatedAirportTimelines)
+            refreshSavedTimelineConfigs(updatedAirportTimelines)
+        } catch (e: Exception) {
+            showErrorMessage("Unable to save timeline: ${e.message}")
+            return
+        }
+
+        when {
+            previousTimelineConfig != null -> {
+                if (conflictingLiveTimelineConfig != null && conflictingLiveTimelineConfig != previousTimelineConfig) {
+                    liveTimelineSavedOrigins.remove(conflictingLiveTimelineConfig)
+                    view.removeTimeline(conflictingLiveTimelineConfig)
+                }
+                liveTimelineSavedOrigins.remove(previousTimelineConfig)
+                view.replaceTimeline(previousTimelineConfig, updatedTimelineConfig)
+            }
+            conflictingLiveTimelineConfig != null -> {
+                liveTimelineSavedOrigins.remove(conflictingLiveTimelineConfig)
+                view.replaceTimeline(conflictingLiveTimelineConfig, updatedTimelineConfig)
+            }
+            else -> view.addNewTimeline(updatedTimelineConfig)
+        }
+        trackLiveTimelineSavedOrigin(updatedTimelineConfig, findSavedTimelineConfig(updatedTimelineConfig))
         editingTimelineConfig = null
+        editingSavedTimelineConfig = null
+        view.closeTimelineForm()
+    }
+
+    override fun onDeleteEditedTimeline() {
+        val savedTimelineToDelete = editingSavedTimelineConfig ?: run {
+            showErrorMessage("Only saved timelines can be deleted")
+            return
+        }
+
+        try {
+            val currentAirportTimelines = timelineSettingsStore.getTimelines(reload = true).getValueOrNull(airportIcao)
+                ?: throw IllegalArgumentException("No saved timelines exist for $airportIcao")
+            val updatedAirportTimelines = buildDeletedAirportTimelines(currentAirportTimelines, savedTimelineToDelete)
+            timelineSettingsStore.saveAirportTimelines(airportIcao, updatedAirportTimelines)
+            refreshSavedTimelineConfigs(updatedAirportTimelines)
+        } catch (e: Exception) {
+            showErrorMessage("Unable to delete timeline: ${e.message}")
+            return
+        }
+
+        (editingTimelineConfig ?: savedTimelineToDelete).let { liveTimelineConfig ->
+            liveTimelineSavedOrigins.remove(liveTimelineConfig)
+            view.removeTimeline(liveTimelineConfig)
+        }
+        editingTimelineConfig = null
+        editingSavedTimelineConfig = null
         view.closeTimelineForm()
     }
 
@@ -419,6 +480,211 @@ class AirportPresenter(
             )
         }
     }
+    private fun buildUpdatedAirportTimelines(
+        currentAirportTimelines: AirportTimelines?,
+        updatedTimelineConfig: TimelineConfig,
+        savedTimelinesToReplace: List<TimelineConfig>,
+    ): AirportTimelines {
+        val runwayTimelines = currentAirportTimelines?.runwayBased?.toMutableList() ?: mutableListOf()
+        val meteringTimelines = currentAirportTimelines?.meteringPointBased?.toMutableList() ?: mutableListOf()
+
+        savedTimelinesToReplace.forEach {
+            removeSavedTimeline(it, runwayTimelines, meteringTimelines)
+        }
+        removeSavedTimeline(updatedTimelineConfig, runwayTimelines, meteringTimelines)
+        addSavedTimeline(updatedTimelineConfig, runwayTimelines, meteringTimelines)
+        validateUniqueTimelineTitles(runwayTimelines, meteringTimelines)
+
+        val defaults = currentAirportTimelines?.defaults ?: defaultTimelinesFor(updatedTimelineConfig)
+        return AirportTimelines(
+            defaults = defaults,
+            runwayBased = runwayTimelines,
+            meteringPointBased = meteringTimelines,
+        )
+    }
+
+    private fun buildDeletedAirportTimelines(
+        currentAirportTimelines: AirportTimelines,
+        savedTimelineToDelete: TimelineConfig,
+    ): AirportTimelines? {
+        val runwayTimelines = currentAirportTimelines.runwayBased.toMutableList()
+        val meteringTimelines = currentAirportTimelines.meteringPointBased.toMutableList()
+
+        removeSavedTimeline(savedTimelineToDelete, runwayTimelines, meteringTimelines)
+        if (runwayTimelines.isEmpty() && meteringTimelines.isEmpty()) {
+            return null
+        }
+
+        return AirportTimelines(
+            defaults = currentAirportTimelines.defaults,
+            runwayBased = runwayTimelines,
+            meteringPointBased = meteringTimelines,
+        )
+    }
+
+    private fun refreshSavedTimelineConfigs(airportTimelines: AirportTimelines?) {
+        savedTimelineConfigs.clear()
+        airportTimelines?.runwayBased?.forEach { savedTimelineConfigs += it.toViewConfig() }
+        airportTimelines?.meteringPointBased?.forEach { savedTimelineConfigs += it.toViewConfig() }
+    }
+
+    private fun findSavedTimelineConfig(timelineConfig: TimelineConfig): TimelineConfig? =
+        timelineConfig.timelineId
+            ?.let { timelineId -> savedTimelineConfigs.find { it.timelineId == timelineId } }
+            ?: findSavedTimelineConfigByTitle(timelineConfig.title)
+    private fun findSavedTimelineConfigByTitle(
+        title: String,
+        currentSavedTimelineConfigs: List<TimelineConfig> = savedTimelineConfigs,
+    ): TimelineConfig? = currentSavedTimelineConfigs.find { it.title == title }
+
+    private fun findConflictingSavedTimeline(
+        timelineConfig: TimelineConfig,
+        previousSavedTimelineConfig: TimelineConfig?,
+        currentSavedTimelineConfigs: List<TimelineConfig>,
+    ): TimelineConfig? {
+        val conflictingTimeline = findSavedTimelineConfigByTitle(timelineConfig.title, currentSavedTimelineConfigs) ?: return null
+        val previousSavedTimelineId = previousSavedTimelineConfig?.timelineId
+        if (conflictingTimeline.timelineId != null && conflictingTimeline.timelineId == previousSavedTimelineId) {
+            return null
+        }
+        return if (conflictingTimeline == previousSavedTimelineConfig) null else conflictingTimeline
+    }
+
+    private fun AirportTimelines.toSavedViewConfigs(): List<TimelineConfig> =
+        runwayBased.map { it.toViewConfig() } + meteringPointBased.map { it.toViewConfig() }
+
+    private fun findLiveTimelineForSavedTimeline(savedTimelineConfig: TimelineConfig): TimelineConfig? {
+        val savedTimelineId = savedTimelineConfig.timelineId
+        return liveTimelineSavedOrigins.entries.firstOrNull { (_, liveOrigin) ->
+            if (savedTimelineId != null && liveOrigin.timelineId != null) {
+                liveOrigin.timelineId == savedTimelineId
+            } else {
+                liveOrigin.title == savedTimelineConfig.title
+            }
+        }?.key
+    }
+
+    private fun trackLiveTimelineSavedOrigin(
+        timelineConfig: TimelineConfig,
+        savedTimelineConfig: TimelineConfig?,
+    ) {
+        if (savedTimelineConfig == null) {
+            liveTimelineSavedOrigins.remove(timelineConfig)
+        } else {
+            liveTimelineSavedOrigins[timelineConfig] = savedTimelineConfig
+        }
+    }
+
+    private fun addSavedTimeline(
+        timelineConfig: TimelineConfig,
+        runwayTimelines: MutableList<RunwayTimeline>,
+        meteringTimelines: MutableList<MeteringPointTimeline>,
+    ) {
+        when (timelineConfig) {
+            is RunwayTimelineConfig -> runwayTimelines += timelineConfig.toDomain()
+            is MeteringPointTimelineConfig -> meteringTimelines += timelineConfig.toDomain()
+        }
+    }
+
+    private fun removeSavedTimeline(
+        timelineConfig: TimelineConfig,
+        runwayTimelines: MutableList<RunwayTimeline>,
+        meteringTimelines: MutableList<MeteringPointTimeline>,
+    ) {
+        val timelineId = timelineConfig.timelineId
+        if (timelineId != null) {
+            runwayTimelines.removeAll { it.timelineId == timelineId }
+            meteringTimelines.removeAll { it.timelineId == timelineId }
+            return
+        }
+
+        runwayTimelines.removeAll { it.title == timelineConfig.title }
+        meteringTimelines.removeAll { it.title == timelineConfig.title }
+    }
+
+    private fun validateUniqueTimelineTitles(
+        runwayTimelines: List<RunwayTimeline>,
+        meteringTimelines: List<MeteringPointTimeline>,
+    ) {
+        val duplicates = (runwayTimelines.map { it.title } + meteringTimelines.map { it.title })
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+            .sorted()
+        if (duplicates.isNotEmpty()) {
+            throw IllegalArgumentException("Timeline title already exists: ${duplicates.joinToString(", ")}")
+        }
+    }
+
+    private fun defaultTimelinesFor(timelineConfig: TimelineConfig): TimelineDefaults = when (timelineConfig) {
+        is RunwayTimelineConfig -> TimelineDefaults(
+            defaultArrivalLabelLayoutId = timelineConfig.arrLabelLayout,
+            defaultDepartureLabelLayoutId = timelineConfig.depLabelLayout,
+        )
+
+        is MeteringPointTimelineConfig -> TimelineDefaults(
+            defaultArrivalLabelLayoutId = timelineConfig.arrLabelLayout,
+            defaultDepartureLabelLayoutId = null,
+        )
+    }
+
+    private fun RunwayTimeline.toViewConfig(): TimelineConfig = RunwayTimelineConfig(
+        title = title,
+        airportIcao = airportIcao,
+        leftRunways = left,
+        rightRunways = right,
+        depLabelLayout = departureLabelLayoutId,
+        arrLabelLayout = arrivalLabelLayoutId,
+        timelineId = timelineId,
+    )
+
+    private fun MeteringPointTimeline.toViewConfig(): TimelineConfig = MeteringPointTimelineConfig(
+        title = title,
+        airportIcao = airportIcao,
+        leftMeteringPoints = left,
+        rightMeteringPoints = right,
+        arrLabelLayout = arrivalLabelLayoutId,
+        timelineId = timelineId,
+    )
+
+    private fun CreateOrUpdateTimelineDto.toViewConfig(): TimelineConfig = when (this) {
+        is CreateOrUpdateTimelineDto.Runway -> RunwayTimelineConfig(
+            title = title,
+            airportIcao = airportIcao,
+            leftRunways = left,
+            rightRunways = right,
+            depLabelLayout = depLabelLayout,
+            arrLabelLayout = arrLabelLayout,
+            timelineId = timelineId,
+        )
+
+        is CreateOrUpdateTimelineDto.MeteringPoint -> MeteringPointTimelineConfig(
+            title = title,
+            airportIcao = airportIcao,
+            leftMeteringPoints = left,
+            rightMeteringPoints = right,
+            arrLabelLayout = arrLabelLayout,
+            timelineId = timelineId,
+        )
+    }
+
+    private fun RunwayTimelineConfig.toDomain(): RunwayTimeline = RunwayTimeline(
+        title = title,
+        left = leftRunways,
+        right = rightRunways,
+        arrivalLabelLayoutId = arrLabelLayout,
+        departureLabelLayoutId = depLabelLayout,
+        timelineId = timelineId ?: generateTimelineId(),
+    )
+
+    private fun MeteringPointTimelineConfig.toDomain(): MeteringPointTimeline = MeteringPointTimeline(
+        title = title,
+        left = leftMeteringPoints,
+        right = rightMeteringPoints,
+        arrivalLabelLayoutId = arrLabelLayout,
+        timelineId = timelineId ?: generateTimelineId(),
+    )
 
     private data class CachedTimelineEvent(
         val lastTimestamp: Instant,
@@ -432,4 +698,8 @@ class AirportPresenter(
             uiDispatcher.dispatch(action)
         }
     }
+
+    private fun generateTimelineId(): String = UUID.randomUUID().toString()
+
+    private fun <K, V> Map<K, V>.getValueOrNull(key: K): V? = if (containsKey(key)) getValue(key) else null
 }

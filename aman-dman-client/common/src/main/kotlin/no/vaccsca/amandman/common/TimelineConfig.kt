@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.common
 
 sealed interface TimelineConfig {
+    val timelineId: String?
     val title: String
     val airportIcao: String
     val arrLabelLayout: String
@@ -15,6 +16,7 @@ data class RunwayTimelineConfig(
     val rightRunways: List<String>,
     val depLabelLayout: String,
     override val arrLabelLayout: String,
+    override val timelineId: String? = null,
 ) : TimelineConfig {
     override val leftTargets: List<String> = leftRunways
     override val rightTargets: List<String> = rightRunways
@@ -26,6 +28,7 @@ data class MeteringPointTimelineConfig(
     val leftMeteringPoints: List<String>,
     val rightMeteringPoints: List<String>,
     override val arrLabelLayout: String,
+    override val timelineId: String? = null,
 ) : TimelineConfig {
     override val leftTargets: List<String> = leftMeteringPoints
     override val rightTargets: List<String> = rightMeteringPoints

@@ -67,13 +67,7 @@ class NewTimelineFormTest {
     fun `selected target is removed from opposite side list`() {
         onEdt {
             val presenter = CapturingPresenter()
-            val form = NewTimelineForm(
-                presenterInterface = presenter,
-                airportIcao = "TEST",
-                existingConfig = null,
-                availableRunwaysInitial = setOf("19L", "19R"),
-                availableMeteringPointsInitial = setOf("M1", "M2")
-            )
+            val form = createForm(presenter = presenter)
             form.update(
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
@@ -105,13 +99,7 @@ class NewTimelineFormTest {
                 arrLabelLayout = "ARR"
             )
 
-            val form = NewTimelineForm(
-                presenterInterface = presenter,
-                airportIcao = "TEST",
-                existingConfig = existingConfig,
-                availableRunwaysInitial = setOf("19L", "19R"),
-                availableMeteringPointsInitial = setOf("M1", "M2")
-            )
+            val form = createForm(presenter = presenter, existingConfig = existingConfig)
             form.update(
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
@@ -140,9 +128,8 @@ class NewTimelineFormTest {
                 arrLabelLayout = "ARR"
             )
 
-            val form = NewTimelineForm(
-                presenterInterface = presenter,
-                airportIcao = "TEST",
+            val form = createForm(
+                presenter = presenter,
                 existingConfig = existingConfig,
                 availableRunwaysInitial = setOf("19L"),
                 availableMeteringPointsInitial = emptySet()
@@ -166,10 +153,8 @@ class NewTimelineFormTest {
     fun `right side requires at least one selected target`() {
         onEdt {
             val presenter = CapturingPresenter()
-            val form = NewTimelineForm(
-                presenterInterface = presenter,
-                airportIcao = "TEST",
-                existingConfig = null,
+            val form = createForm(
+                presenter = presenter,
                 availableRunwaysInitial = setOf("19L"),
                 availableMeteringPointsInitial = setOf("M1")
             )
@@ -181,7 +166,7 @@ class NewTimelineFormTest {
             )
 
             findByName<JTextField>(form, "titleInput").text = "NEW"
-            findByName<JButton>(form, "submitButton").doClick()
+            findByName<JButton>(form, "saveButton").doClick()
 
             assertTrue(presenter.createdTimelines.isEmpty())
         }
@@ -191,12 +176,81 @@ class NewTimelineFormTest {
     fun `submit maps metering timeline to metering dto without departure layout`() {
         onEdt {
             val presenter = CapturingPresenter()
-            val form = NewTimelineForm(
-                presenterInterface = presenter,
-                airportIcao = "TEST",
-                existingConfig = null,
-                availableRunwaysInitial = setOf("19L", "19R"),
-                availableMeteringPointsInitial = setOf("M1", "M2")
+            val form = createForm(presenter = presenter)
+            form.update(
+                arrLayouts = setOf("ARR"),
+                depLayouts = setOf("DEP"),
+                availableRunways = setOf("19L", "19R"),
+                availableMeteringPoints = setOf("M1", "M2")
+            )
+
+            populateMeteringForm(form)
+            findByName<JButton>(form, "saveButton").doClick()
+
+            assertEquals(1, presenter.createdTimelines.size)
+            val created = presenter.createdTimelines.single()
+            assertTrue(created is CreateOrUpdateTimelineDto.MeteringPoint)
+            assertEquals(setOf("M2"), created.left.toSet())
+            assertEquals(setOf("M1"), created.right.toSet())
+        }
+    }
+
+    @Test
+    fun `delete button is hidden in create mode`() {
+        onEdt {
+            val presenter = CapturingPresenter()
+            val form = createForm(presenter = presenter)
+
+            val deleteButton = findByName<JButton>(form, "deleteButton")
+            assertFalse(deleteButton.isVisible)
+        }
+    }
+
+    @Test
+    fun `delete button is shown for saved edit mode and requires confirmation`() {
+        onEdt {
+            val presenter = CapturingPresenter()
+            var confirmCalls = 0
+            val form = createForm(
+                presenter = presenter,
+                existingConfig = RunwayTimelineConfig(
+                    title = "FLOW",
+                    airportIcao = "TEST",
+                    leftRunways = emptyList(),
+                    rightRunways = listOf("19L"),
+                    depLabelLayout = "DEP",
+                    arrLabelLayout = "ARR"
+                ),
+                canDeleteExistingConfig = true,
+                confirmDeleteAction = {
+                    confirmCalls += 1
+                    true
+                }
+            )
+
+            val deleteButton = findByName<JButton>(form, "deleteButton")
+            assertTrue(deleteButton.isVisible)
+
+            deleteButton.doClick()
+
+            assertEquals(1, confirmCalls)
+            assertEquals(1, presenter.deleteRequests)
+        }
+    }
+    @Test
+    fun existingConfigTitleCanBeChangedBeforeSave() {
+        onEdt {
+            val presenter = CapturingPresenter()
+            val form = createForm(
+                presenter = presenter,
+                existingConfig = MeteringPointTimelineConfig(
+                    title = "FLOW",
+                    airportIcao = "TEST",
+                    leftMeteringPoints = listOf("M2"),
+                    rightMeteringPoints = listOf("M1"),
+                    arrLabelLayout = "ARR",
+                    timelineId = "saved-mp",
+                )
             )
             form.update(
                 arrLayouts = setOf("ARR"),
@@ -205,22 +259,42 @@ class NewTimelineFormTest {
                 availableMeteringPoints = setOf("M1", "M2")
             )
 
-            findByName<JTextField>(form, "titleInput").text = "FLOW"
-            findByName<JComboBox<*>>(form, "timelineAnchorTypeCombo").selectedIndex = 1
+            val titleInput = findByName<JTextField>(form, "titleInput")
+            assertTrue(titleInput.isEnabled)
+            titleInput.text = "RENAMED"
+            findByName<JButton>(form, "saveButton").doClick()
 
-            val leftMeteringList = findByName<JList<String>>(form, "leftMeteringPointList")
-            val rightMeteringList = findByName<JList<String>>(form, "rightMeteringPointList")
-            selectValues(leftMeteringList, setOf("M2"))
-            selectValues(rightMeteringList, setOf("M1", "M2"))
-
-            findByName<JButton>(form, "submitButton").doClick()
-
-            assertEquals(1, presenter.createdTimelines.size)
-            val created = presenter.createdTimelines.single()
-            assertTrue(created is CreateOrUpdateTimelineDto.MeteringPoint)
-            assertEquals(setOf("M2"), created.left.toSet())
-            assertEquals(setOf("M1"), created.right.toSet())
+            val created = presenter.createdTimelines.single() as CreateOrUpdateTimelineDto.MeteringPoint
+            assertEquals("RENAMED", created.title)
+            assertEquals("saved-mp", created.timelineId)
         }
+    }
+
+    private fun createForm(
+        presenter: CapturingPresenter,
+        existingConfig: TimelineConfig? = null,
+        availableRunwaysInitial: Set<String> = setOf("19L", "19R"),
+        availableMeteringPointsInitial: Set<String> = setOf("M1", "M2"),
+        canDeleteExistingConfig: Boolean = false,
+        confirmDeleteAction: (() -> Boolean)? = null,
+    ): NewTimelineForm = NewTimelineForm(
+        presenterInterface = presenter,
+        airportIcao = "TEST",
+        existingConfig = existingConfig,
+        availableRunwaysInitial = availableRunwaysInitial,
+        availableMeteringPointsInitial = availableMeteringPointsInitial,
+        canDeleteExistingConfig = canDeleteExistingConfig,
+        confirmDeleteAction = confirmDeleteAction,
+    )
+
+    private fun populateMeteringForm(form: NewTimelineForm) {
+        findByName<JTextField>(form, "titleInput").text = "FLOW"
+        findByName<JComboBox<*>>(form, "timelineAnchorTypeCombo").selectedIndex = 1
+
+        val leftMeteringList = findByName<JList<String>>(form, "leftMeteringPointList")
+        val rightMeteringList = findByName<JList<String>>(form, "rightMeteringPointList")
+        selectValues(leftMeteringList, setOf("M2"))
+        selectValues(rightMeteringList, setOf("M1", "M2"))
     }
 
     private fun selectValues(list: JList<String>, values: Set<String>) {
@@ -279,6 +353,7 @@ class NewTimelineFormTest {
     private class CapturingPresenter : AirportPresenterInterface {
         override val airportIcao: String = "TEST"
         val createdTimelines = mutableListOf<CreateOrUpdateTimelineDto>()
+        var deleteRequests = 0
 
         override fun onLabelDrag(timelineEvent: TimelineEvent, newInstant: Instant) {}
         override fun onLabelDragEnd(timelineEvent: TimelineEvent, newScheduledTime: Instant, newRunway: String?) {}
@@ -304,6 +379,9 @@ class NewTimelineFormTest {
             createdTimelines += config
         }
 
+        override fun onDeleteEditedTimeline() {
+            deleteRequests += 1
+        }
         override fun onRemoveTab() {}
     }
 }

@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.model.timeline
 
 sealed interface CreateOrUpdateTimelineDto {
+    val timelineId: String?
     val airportIcao: String
     val title: String
     val left: List<String>
@@ -14,6 +15,7 @@ sealed interface CreateOrUpdateTimelineDto {
         override val right: List<String>,
         val depLabelLayout: String,
         override val arrLabelLayout: String,
+        override val timelineId: String? = null,
     ) : CreateOrUpdateTimelineDto
 
     data class MeteringPoint(
@@ -22,5 +24,6 @@ sealed interface CreateOrUpdateTimelineDto {
         override val left: List<String>,
         override val right: List<String>,
         override val arrLabelLayout: String,
+        override val timelineId: String? = null,
     ) : CreateOrUpdateTimelineDto
 }

@@ -2,12 +2,12 @@ package no.vaccsca.amandman.presenter
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import java.awt.Point
 
@@ -49,8 +49,10 @@ interface AirportViewInterface {
         availableTagLayoutsArr: Set<String>,
         availableRunways: Set<String>,
         availableMeteringPoints: Set<String>,
-        existingConfig: TimelineConfig? = null
+        existingConfig: TimelineConfig? = null,
+        canDeleteExistingConfig: Boolean = false
     )
+    fun confirmTimelineOverwrite(title: String): Boolean
     fun closeTimelineForm()
 
     fun addNewTimeline(timelineConfig: TimelineConfig)

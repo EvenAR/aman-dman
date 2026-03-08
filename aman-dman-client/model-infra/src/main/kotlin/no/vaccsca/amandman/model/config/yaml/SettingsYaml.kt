@@ -3,16 +3,15 @@ package no.vaccsca.amandman.model.config.yaml
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
 import jakarta.validation.Valid
-import jakarta.validation.constraints.*
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
 import no.vaccsca.amandman.model.config.Theme
 
 data class AmanDmanSettingsYaml(
-    @field:NotEmpty
-    val timelines: Map<
-            @Pattern(regexp = "^[A-Z]{4}$") String,
-            @Valid AirportTimelinesYaml
-            >,
-
     @field:NotEmpty
     val arrivalLabelLayouts: Map<
             @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String,
@@ -29,6 +28,15 @@ data class AmanDmanSettingsYaml(
             >? = null,
 
     val theme: ThemeYaml?,
+)
+
+data class TimelineSettingsYaml(
+    @field:Valid
+    @field:NotNull
+    val timelines: Map<
+            @Pattern(regexp = "^[A-Z]{4}$") String,
+            @Valid AirportTimelinesYaml
+            > = emptyMap(),
 )
 
 data class AirportTimelinesYaml(
@@ -56,6 +64,8 @@ data class RunwayTimelineYaml(
     @field:NotBlank
     val timelineTitle: String,
 
+    val timelineId: String? = null,
+
     val left: List<
             @Pattern(regexp = "^[0-9]{2}[A-Z]?$") String
             > = emptyList(),
@@ -73,6 +83,8 @@ data class RunwayTimelineYaml(
 data class MeteringPointTimelineYaml(
     @field:NotBlank
     val timelineTitle: String,
+
+    val timelineId: String? = null,
 
     val left: List<
             @Pattern(regexp = "^[A-Z0-9]{2,10}$") String

@@ -6,6 +6,7 @@ import no.vaccsca.amandman.model.atc.AtcClientFactory
 import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
 import no.vaccsca.amandman.model.cdm.CdmProvider
 import no.vaccsca.amandman.model.config.SettingsProvider
+import no.vaccsca.amandman.model.config.TimelineSettingsStore
 import no.vaccsca.amandman.model.planning.AirportDataSourceManager
 import no.vaccsca.amandman.model.timeline.TimelineGroup
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
@@ -27,6 +28,7 @@ class MainPresenter(
     private val view: MainViewInterface,
     private val windProfileProvider: WindProfileProvider,
     private val settingsProvider: SettingsProvider,
+    private val timelineSettingsStore: TimelineSettingsStore,
     private val atcClientFactory: AtcClientFactory,
     private val sharedState: MasterSlaveSharedState,
     private val cdmProvider: CdmProvider,
@@ -222,6 +224,7 @@ class MainPresenter(
             userRole = userRole,
             view = airportView,
             settingsProvider = settingsProvider,
+            timelineSettingsStore = timelineSettingsStore,
             controllerInfoProvider = { controllerInfo },
             showErrorMessage = { view.showErrorMessage(it) },
             onAircraftSelectedCallback = { onAircraftSelected(it) },

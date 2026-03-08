@@ -1,0 +1,82 @@
+---
+timelines:
+  ENGM:
+    defaults:
+      defaultArrivalLabelLayoutId: "osloArr"
+      defaultDepartureLabelLayoutId: "osloDep"
+    runwayBased:
+    - timelineTitle: "01ALL"
+      timelineId: "45b3b5fb-1f00-465c-93ae-fc59329e2a67"
+      left: []
+      right:
+      - "01L"
+      - "01R"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    - timelineTitle: "19ALL"
+      timelineId: "9d7f72bf-7c41-4c63-b421-86be81f839eb"
+      left: []
+      right:
+      - "19L"
+      - "19R"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    - timelineTitle: "19R/19L"
+      timelineId: "08d0830c-1819-4ce4-8c37-7e111759617a"
+      left:
+      - "19R"
+      right:
+      - "19L"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    - timelineTitle: "01L/01R"
+      timelineId: "8a9219bd-d395-4270-9b4c-3a725ec8f597"
+      left:
+      - "01L"
+      right:
+      - "01R"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    meteringPointBased:
+    - timelineTitle: "BAVAD / TITLA"
+      timelineId: "b2706193-c900-4863-936d-34c463c78511"
+      left:
+      - "BAVAD"
+      right:
+      - "TITLA"
+      arrivalLabelLayoutId: "osloArr"
+    - timelineTitle: "VALPU / INSUV"
+      timelineId: "cfb6a8ea-71a3-45ec-804e-ddcdb6fa84a9"
+      left:
+      - "VALPU"
+      right:
+      - "INSUV"
+      arrivalLabelLayoutId: "osloArr"
+  ENBR:
+    defaults:
+      defaultArrivalLabelLayoutId: "osloArr"
+      defaultDepartureLabelLayoutId: "osloDep"
+    runwayBased:
+    - timelineTitle: "BR17"
+      timelineId: "7e95ef21-a29d-4ecf-ada4-bdc8f1f483a6"
+      left: []
+      right:
+      - "17"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    - timelineTitle: "BR35"
+      timelineId: "6d118d6e-bece-43b7-8578-de76c814d745"
+      left: []
+      right:
+      - "35"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    - timelineTitle: "ENBR ALL"
+      timelineId: "dbc92cf6-7f0d-4a77-bf3a-3943e58da463"
+      left: []
+      right:
+      - "17"
+      - "35"
+      arrivalLabelLayoutId: "osloArr"
+      departureLabelLayoutId: "osloDep"
+    meteringPointBased: []

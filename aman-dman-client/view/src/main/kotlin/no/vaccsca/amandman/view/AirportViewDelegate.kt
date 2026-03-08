@@ -21,7 +21,9 @@ import java.awt.Dimension
 import java.awt.Point
 import javax.swing.JDialog
 import javax.swing.JFrame
+import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
+
 
 /**
  * Delegate that implements AirportViewInterface by wrapping an AirportView and its state.
@@ -120,14 +122,15 @@ class AirportViewDelegate(
         availableTagLayoutsArr: Set<String>,
         availableRunways: Set<String>,
         availableMeteringPoints: Set<String>,
-        existingConfig: TimelineConfig?
+        existingConfig: TimelineConfig?,
+        canDeleteExistingConfig: Boolean,
     ) = runOnUiThread {
         val groupId = airportViewState.airportIcao
         // Always recreate the form when opening so edit/create requests never reuse stale prefilled values.
         newTimelineForm?.dispose()
         newTimelineForm = JDialog(parentFrame, "New timeline for $groupId").apply {
             defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
-            contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableMeteringPoints)
+            contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableMeteringPoints, canDeleteExistingConfig)
             pack()
             minimumSize = Dimension(520, 460)
             isResizable = true
@@ -144,6 +147,16 @@ class AirportViewDelegate(
         )
     }
 
+
+    override fun confirmTimelineOverwrite(title: String): Boolean = runOnUiThreadAndWait {
+        JOptionPane.showConfirmDialog(
+            parentFrame,
+            "A saved timeline named $title already exists. Overwrite it?",
+            "Overwrite Timeline",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE,
+        ) == JOptionPane.YES_OPTION
+    }
     override fun closeTimelineForm() = runOnUiThread {
         newTimelineForm?.isVisible = false
         newTimelineForm?.dispose()
@@ -203,6 +216,19 @@ class AirportViewDelegate(
         }
     }
 
+
+    private fun <T> runOnUiThreadAndWait(block: () -> T): T {
+        if (SwingUtilities.isEventDispatchThread()) {
+            return block()
+        }
+
+        var result: T? = null
+        SwingUtilities.invokeAndWait {
+            result = block()
+        }
+        @Suppress("UNCHECKED_CAST")
+        return result as T
+    }
     private fun runOnUiThread(block: () -> Unit) {
         if (SwingUtilities.isEventDispatchThread()) {
             block()

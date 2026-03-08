@@ -8,9 +8,9 @@ import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import java.awt.CardLayout
 import java.awt.Dialog
 import java.awt.Dimension
+import java.awt.GraphicsEnvironment
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.GraphicsEnvironment
 import java.awt.Insets
 import java.awt.Window
 import javax.swing.BorderFactory
@@ -28,10 +28,14 @@ import javax.swing.JTextField
 class NewTimelineForm(
     private val presenterInterface: AirportPresenterInterface,
     private val airportIcao: String,
-    existingConfig: TimelineConfig?,
+    private val existingConfig: TimelineConfig?,
     availableRunwaysInitial: Set<String>,
     availableMeteringPointsInitial: Set<String>,
+    private val canDeleteExistingConfig: Boolean = false,
+    confirmDeleteAction: (() -> Boolean)? = null,
 ) : JPanel() {
+
+    private val confirmDeleteAction = confirmDeleteAction ?: { confirmDelete() }
 
     private enum class AnchorType(val label: String) {
         RUNWAYS("Runways"),
@@ -57,9 +61,19 @@ class NewTimelineForm(
     private val depLayoutCombo = JComboBox<String>()
     private val arrLayoutCombo = JComboBox<String>()
 
+    private val saveButton = JButton("Save").apply {
+        name = "saveButton"
+        addActionListener { handleSubmit() }
+    }
+
+    private val deleteButton = JButton("Delete").apply {
+        name = "deleteButton"
+        isVisible = canDeleteExistingConfig
+        addActionListener { handleDelete() }
+    }
+
     private var availableRunways: Set<String> = availableRunwaysInitial.map { it.uppercase() }.toSet()
     private var availableMeteringPoints: Set<String> = availableMeteringPointsInitial.map { it.uppercase() }.toSet()
-    private var parentDialog: JDialog? = null
     private var syncingListState = false
 
     init {
@@ -91,9 +105,9 @@ class NewTimelineForm(
         addLabeledField("Arrival Layout*", arrLayoutCombo, gbc, row = 4)
         addLabeledField("Departure Layout*", depLayoutCombo, gbc, row = 5)
 
-        val submitButton = JButton("Submit").apply {
-            name = "submitButton"
-            addActionListener { handleSubmit() }
+        val buttonPanel = JPanel().apply {
+            add(saveButton)
+            add(deleteButton)
         }
 
         gbc.gridx = 0
@@ -103,7 +117,7 @@ class NewTimelineForm(
         gbc.weighty = 0.0
         gbc.fill = GridBagConstraints.NONE
         gbc.anchor = GridBagConstraints.CENTER
-        add(submitButton, gbc)
+        add(buttonPanel, gbc)
 
         attachListSyncListeners()
         refreshSideOptionLists(existingConfig)
@@ -198,7 +212,7 @@ class NewTimelineForm(
     }
 
     fun open(owner: Window) {
-        parentDialog = JDialog(owner, "Timeline Configuration", Dialog.ModalityType.APPLICATION_MODAL).apply {
+        JDialog(owner, "Timeline Configuration", Dialog.ModalityType.APPLICATION_MODAL).apply {
             contentPane = this@NewTimelineForm
             pack()
             setLocationRelativeTo(owner)
@@ -209,41 +223,48 @@ class NewTimelineForm(
     }
 
     private fun handleSubmit() {
+        buildDtoOrShowError()?.let { presenterInterface.onCreateNewTimeline(it) }
+    }
+
+
+    private fun buildDtoOrShowError(): CreateOrUpdateTimelineDto? {
         val titleText = titleInput.text.trim()
         if (titleText.isEmpty()) {
             error("Title is required.")
-            return
+            return null
         }
 
         val anchorType = anchorTypeCombo.selectedItem as AnchorType
         val rightTargets = getSelectedTargets(rightSelector, anchorType)
         if (rightTargets.isEmpty()) {
             error("Right side targets are required.")
-            return
+            return null
         }
 
         val leftTargets = getSelectedTargets(leftSelector, anchorType)
         val arrLayout = arrLayoutCombo.selectedItem as? String
         if (arrLayout.isNullOrBlank()) {
             error("Arrival layout is required.")
-            return
+            return null
         }
 
-        val dto: CreateOrUpdateTimelineDto = when (anchorType) {
+        return when (anchorType) {
             AnchorType.RUNWAYS -> {
                 val depLayout = depLayoutCombo.selectedItem as? String
                 if (depLayout.isNullOrBlank()) {
                     error("Departure layout is required for runway timelines.")
-                    return
+                    null
+                } else {
+                    CreateOrUpdateTimelineDto.Runway(
+                        airportIcao = airportIcao,
+                        title = titleText,
+                        left = leftTargets,
+                        right = rightTargets,
+                        depLabelLayout = depLayout,
+                        arrLabelLayout = arrLayout,
+                        timelineId = existingConfig?.timelineId,
+                    )
                 }
-                CreateOrUpdateTimelineDto.Runway(
-                    airportIcao = airportIcao,
-                    title = titleText,
-                    left = leftTargets,
-                    right = rightTargets,
-                    depLabelLayout = depLayout,
-                    arrLabelLayout = arrLayout,
-                )
             }
 
             AnchorType.METERING_POINTS -> CreateOrUpdateTimelineDto.MeteringPoint(
@@ -252,11 +273,19 @@ class NewTimelineForm(
                 left = leftTargets,
                 right = rightTargets,
                 arrLabelLayout = arrLayout,
+                timelineId = existingConfig?.timelineId,
             )
         }
+    }
 
-        presenterInterface.onCreateNewTimeline(dto)
-        parentDialog?.dispose()
+    private fun handleDelete() {
+        if (!canDeleteExistingConfig) {
+            return
+        }
+        if (!confirmDeleteAction()) {
+            return
+        }
+        presenterInterface.onDeleteEditedTimeline()
     }
 
     private fun getSelectedTargets(selector: SideTargetSelector, type: AnchorType): List<String> = when (type) {
@@ -445,6 +474,17 @@ class NewTimelineForm(
         } else {
             list.clearSelection()
         }
+    }
+
+    private fun confirmDelete(): Boolean {
+        if (GraphicsEnvironment.isHeadless()) return true
+        return JOptionPane.showConfirmDialog(
+            this,
+            "Delete this saved timeline from config?",
+            "Delete Timeline",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE,
+        ) == JOptionPane.YES_OPTION
     }
 
     private fun error(msg: String) {

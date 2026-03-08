@@ -1,15 +1,21 @@
 package tools
 
+import com.fasterxml.jackson.core.util.DefaultIndenter
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.victools.jsonschema.generator.*
+import com.github.victools.jsonschema.generator.Option
+import com.github.victools.jsonschema.generator.OptionPreset
+import com.github.victools.jsonschema.generator.SchemaGenerator
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.module.jackson.JacksonModule
-import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceConfigYaml
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
 import no.vaccsca.amandman.model.config.yaml.StarYamlFile
+import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -17,6 +23,12 @@ private val jakartaValidationModule = JakartaValidationModule(
     JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS,
     JakartaValidationOption.NOT_NULLABLE_FIELD_IS_REQUIRED,
 )
+
+private val fourSpaceIndenter = DefaultIndenter("    ", DefaultIndenter.SYS_LF)
+private val fourSpacePrettyPrinter = DefaultPrettyPrinter().apply {
+    indentObjectsWith(fourSpaceIndenter)
+    indentArraysWith(fourSpaceIndenter)
+}
 
 var jacksonModule = JacksonModule()
 
@@ -37,6 +49,7 @@ private val generator = SchemaGenerator(config)
 
 private fun generateSchemas(outputPath: String) {
     generateForClass(AmanDmanSettingsYaml::class.java, outputPath, "settings")
+    generateForClass(TimelineSettingsYaml::class.java, outputPath, "timelines")
     generateForClass(AircraftPerformanceConfigYaml::class.java, outputPath, "aircraft-performance")
     generateForClass(AirportDataJson::class.java, outputPath, "airports")
     generateForClass(StarYamlFile::class.java, "$outputPath/stars", "stars")
@@ -54,7 +67,7 @@ private fun generateForClass(clazz: Class<*>, outputPath: String, name: String) 
 
     val yamlFile = outputDir.resolve("$name.schema.yaml").toFile()
     yamlMapper
-        .writerWithDefaultPrettyPrinter()
+        .writer(fourSpacePrettyPrinter)
         .writeValue(yamlFile, schema)
 
     println("✅ YAML Schema generated: ${yamlFile.absolutePath}")

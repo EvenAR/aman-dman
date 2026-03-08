@@ -177,8 +177,11 @@ class ArrivalLabelScheduledArrivalTimeTest {
         override fun onCreateNewTimelineClicked() {}
         override fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig) {}
         override fun onRemoveTimelineClicked(timelineConfig: TimelineConfig) {}
-        override fun onEditTimelineRequested(timelineTitle: String) {}
+        override fun onEditTimelineRequested(timelineConfig: TimelineConfig) {}
+        override fun onMoveTimelineLeftRequested(timelineConfig: TimelineConfig) {}
+        override fun onMoveTimelineRightRequested(timelineConfig: TimelineConfig) {}
         override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {}
+        override fun onDeleteEditedTimeline() {}
         override fun onRemoveTab() {}
     }
 }

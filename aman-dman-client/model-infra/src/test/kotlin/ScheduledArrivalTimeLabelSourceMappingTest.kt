@@ -15,24 +15,14 @@ class ScheduledArrivalTimeLabelSourceMappingTest {
 
     @Test
     fun `scheduledArrivalTime should map to domain label source`() {
-        val yaml = """
-            timelines:
-              ENGM:
-                - timelineTitle: "01ALL"
-                  arrivalLabelLayoutId: "arr"
-                  right:
-                    runways: ["01L"]
+        val yaml = baseSettingsYaml(
+            """
             arrivalLabelLayouts:
               arr:
                 - src: scheduledArrivalTime
                   w: 8
-            connectionConfig:
-              atcClient:
-                host: "localhost"
-                port: 12345
-              masterSlaveApi:
-                host: "https://example.com"
-        """.trimIndent()
+            """.trimIndent()
+        )
 
         val parsed = yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
         val domain = parsed.toDomain()
@@ -46,24 +36,14 @@ class ScheduledArrivalTimeLabelSourceMappingTest {
 
     @Test
     fun `estimatedLandingTime should map to deprecated domain label source`() {
-        val yaml = """
-            timelines:
-              ENGM:
-                - timelineTitle: "01ALL"
-                  arrivalLabelLayoutId: "arr"
-                  right:
-                    runways: ["01L"]
+        val yaml = baseSettingsYaml(
+            """
             arrivalLabelLayouts:
               arr:
                 - src: estimatedLandingTime
                   w: 8
-            connectionConfig:
-              atcClient:
-                host: "localhost"
-                port: 12345
-              masterSlaveApi:
-                host: "https://example.com"
-        """.trimIndent()
+            """.trimIndent()
+        )
 
         val parsed = yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
         val domain = parsed.toDomain()
@@ -76,26 +56,16 @@ class ScheduledArrivalTimeLabelSourceMappingTest {
 
     @Test
     fun `timeFormat should map to domain label item`() {
-        val yaml = """
-            timelines:
-              ENGM:
-                - timelineTitle: "01ALL"
-                  arrivalLabelLayoutId: "arr"
-                  right:
-                    runways: ["01L"]
+        val yaml = baseSettingsYaml(
+            """
             arrivalLabelLayouts:
               arr:
                 - src: scheduledArrivalTime
                   w: 5
                   timeFormat: "HH:mm"
                   maxLen: 5
-            connectionConfig:
-              atcClient:
-                host: "localhost"
-                port: 12345
-              masterSlaveApi:
-                host: "https://example.com"
-        """.trimIndent()
+            """.trimIndent()
+        )
 
         val parsed = yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
         val domain = parsed.toDomain()
@@ -108,25 +78,15 @@ class ScheduledArrivalTimeLabelSourceMappingTest {
 
     @Test
     fun `timeFormat should fail on non-time label item`() {
-        val yaml = """
-            timelines:
-              ENGM:
-                - timelineTitle: "01ALL"
-                  arrivalLabelLayoutId: "arr"
-                  right:
-                    runways: ["01L"]
+        val yaml = baseSettingsYaml(
+            """
             arrivalLabelLayouts:
               arr:
                 - src: callSign
                   w: 8
                   timeFormat: "HH:mm"
-            connectionConfig:
-              atcClient:
-                host: "localhost"
-                port: 12345
-              masterSlaveApi:
-                host: "https://example.com"
-        """.trimIndent()
+            """.trimIndent()
+        )
 
         assertFailsWith<ValueInstantiationException> {
             yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
@@ -135,25 +95,15 @@ class ScheduledArrivalTimeLabelSourceMappingTest {
 
     @Test
     fun `blank timeFormat should fail parsing`() {
-        val yaml = """
-            timelines:
-              ENGM:
-                - timelineTitle: "01ALL"
-                  arrivalLabelLayoutId: "arr"
-                  right:
-                    runways: ["01L"]
+        val yaml = baseSettingsYaml(
+            """
             arrivalLabelLayouts:
               arr:
                 - src: scheduledArrivalTime
                   w: 8
                   timeFormat: ""
-            connectionConfig:
-              atcClient:
-                host: "localhost"
-                port: 12345
-              masterSlaveApi:
-                host: "https://example.com"
-        """.trimIndent()
+            """.trimIndent()
+        )
 
         assertFailsWith<ValueInstantiationException> {
             yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
@@ -162,27 +112,29 @@ class ScheduledArrivalTimeLabelSourceMappingTest {
 
     @Test
     fun `invalid label source should still fail parsing`() {
-        val yaml = """
-            timelines:
-              ENGM:
-                - timelineTitle: "01ALL"
-                  arrivalLabelLayoutId: "arr"
-                  right:
-                    runways: ["01L"]
+        val yaml = baseSettingsYaml(
+            """
             arrivalLabelLayouts:
               arr:
                 - src: definitelyInvalidSource
                   w: 8
+            """.trimIndent()
+        )
+
+        assertFailsWith<Exception> {
+            yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
+        }
+    }
+
+    private fun baseSettingsYaml(arrivalLayoutsBlock: String): String =
+        arrivalLayoutsBlock + "\n" +
+            """
             connectionConfig:
               atcClient:
                 host: "localhost"
                 port: 12345
               masterSlaveApi:
                 host: "https://example.com"
-        """.trimIndent()
-
-        assertFailsWith<Exception> {
-            yamlMapper.readValue<AmanDmanSettingsYaml>(yaml)
-        }
-    }
+            """.trimIndent()
 }
+

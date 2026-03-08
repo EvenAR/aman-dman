@@ -1,7 +1,6 @@
 package no.vaccsca.amandman.model.config
 
 data class AmanDmanSettings(
-    val timelines: Map<String, AirportTimelines>,
     val connectionConfig: ConnectionConfig,
     val arrivalLabelLayouts: Map<String, List<LabelItem>>,
     val departureLabelLayouts: Map<String, List<LabelItem>>,
@@ -25,6 +24,7 @@ data class RunwayTimeline(
     val right: List<String>,
     val arrivalLabelLayoutId: String,
     val departureLabelLayoutId: String,
+    val timelineId: String? = null,
 )
 
 data class MeteringPointTimeline(
@@ -32,6 +32,7 @@ data class MeteringPointTimeline(
     val left: List<String> = emptyList(),
     val right: List<String>,
     val arrivalLabelLayoutId: String,
+    val timelineId: String? = null,
 )
 
 data class ConnectionConfig(

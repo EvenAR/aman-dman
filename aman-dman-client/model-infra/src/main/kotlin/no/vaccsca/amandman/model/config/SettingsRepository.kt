@@ -4,11 +4,11 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
 import no.vaccsca.amandman.model.config.yaml.StarYamlFile
-import no.vaccsca.amandman.model.airport.Airport
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException

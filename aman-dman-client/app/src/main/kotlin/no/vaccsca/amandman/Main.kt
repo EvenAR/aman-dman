@@ -2,6 +2,7 @@ package no.vaccsca.amandman
 
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel
 import no.vaccsca.amandman.model.config.SettingsRepository
+import no.vaccsca.amandman.model.config.TimelineSettingsRepository
 import no.vaccsca.amandman.presenter.MainPresenter
 import no.vaccsca.amandman.model.planning.AirportDataSourceManager
 import no.vaccsca.amandman.model.config.Theme
@@ -79,6 +80,7 @@ fun main() {
         val dataSourceManager = AirportDataSourceManager()
         val windProfileProvider = NoaaApiClient()
         val settingsProvider = SettingsRepository
+        val timelineSettingsStore = TimelineSettingsRepository
         val atcClientFactory = AppAtcClientFactory(settingsProvider)
         val sharedState = MasterSlaveSharedStateHttpClient(settingsProvider)
         val cdmProvider = RpuigCdmClient()
@@ -90,6 +92,7 @@ fun main() {
             view,
             windProfileProvider,
             settingsProvider,
+            timelineSettingsStore,
             atcClientFactory,
             sharedState,
             cdmProvider,
