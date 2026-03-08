@@ -1,12 +1,12 @@
 package no.vaccsca.amandman.presenter
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.config.SettingsProvider
-import no.vaccsca.amandman.model.config.Side
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.planning.AirportDataSource
@@ -61,13 +61,24 @@ class AirportPresenter(
     }
 
     private fun loadTimelineConfigsForAirport() {
-        settingsProvider.getSettings().timelines[airportIcao]?.forEach { timeline ->
-            val config = TimelineConfig(
+        val airportTimelines = settingsProvider.getSettings().timelines[airportIcao] ?: return
+        airportTimelines.runwayBased.forEach { timeline ->
+            val config = RunwayTimelineConfig(
                 title = timeline.title,
-                left = timeline.left?.toTimelineSideConfig() ?: TimelineSideConfig.Runways(emptyList()),
-                right = timeline.right.toTimelineSideConfig(),
                 airportIcao = airportIcao,
+                leftRunways = timeline.left,
+                rightRunways = timeline.right,
                 depLabelLayout = timeline.departureLabelLayoutId,
+                arrLabelLayout = timeline.arrivalLabelLayoutId,
+            )
+            timelineConfigs[timeline.title] = config
+        }
+        airportTimelines.meteringPointBased.forEach { timeline ->
+            val config = MeteringPointTimelineConfig(
+                title = timeline.title,
+                airportIcao = airportIcao,
+                leftMeteringPoints = timeline.left,
+                rightMeteringPoints = timeline.right,
                 arrLabelLayout = timeline.arrivalLabelLayoutId,
             )
             timelineConfigs[timeline.title] = config
@@ -279,14 +290,23 @@ class AirportPresenter(
     }
 
     override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
-        val timelineConfig = TimelineConfig(
-            title = config.title,
-            left = config.left.toTimelineSideConfig(),
-            right = config.right.toTimelineSideConfig(),
-            airportIcao = airportIcao,
-            depLabelLayout = config.depLabelLayout,
-            arrLabelLayout = config.arrLabelLayout
-        )
+        val timelineConfig: TimelineConfig = when (config) {
+            is CreateOrUpdateTimelineDto.Runway -> RunwayTimelineConfig(
+                title = config.title,
+                airportIcao = airportIcao,
+                leftRunways = config.left,
+                rightRunways = config.right,
+                depLabelLayout = config.depLabelLayout,
+                arrLabelLayout = config.arrLabelLayout,
+            )
+            is CreateOrUpdateTimelineDto.MeteringPoint -> MeteringPointTimelineConfig(
+                title = config.title,
+                airportIcao = airportIcao,
+                leftMeteringPoints = config.left,
+                rightMeteringPoints = config.right,
+                arrLabelLayout = config.arrLabelLayout,
+            )
+        }
         editingTimelineConfig?.let { view.removeTimeline(it) }
         editingTimelineConfig = null
         view.addNewTimeline(timelineConfig)
@@ -381,12 +401,11 @@ class AirportPresenter(
         }
 
         return knownMeteringPoints.map { meteringPoint ->
-            TimelineConfig(
+            MeteringPointTimelineConfig(
                 title = meteringPoint,
-                left = TimelineSideConfig.Runways(emptyList()),
-                right = TimelineSideConfig.MeteringPoints(listOf(meteringPoint)),
                 airportIcao = airportIcao,
-                depLabelLayout = null,
+                leftMeteringPoints = emptyList(),
+                rightMeteringPoints = listOf(meteringPoint),
                 arrLabelLayout = arrivalLayout
             )
         }
@@ -396,16 +415,6 @@ class AirportPresenter(
         val lastTimestamp: Instant,
         val timelineEvent: TimelineEvent
     )
-
-    private fun Side.toTimelineSideConfig(): TimelineSideConfig = when (this) {
-        is Side.Runways -> TimelineSideConfig.Runways(runways)
-        is Side.MeteringPoints -> TimelineSideConfig.MeteringPoints(meteringPoints)
-    }
-
-    private fun CreateOrUpdateTimelineDto.TimeLineSide.toTimelineSideConfig(): TimelineSideConfig = when (this) {
-        is CreateOrUpdateTimelineDto.TimeLineSide.Runways -> TimelineSideConfig.Runways(targetRunways)
-        is CreateOrUpdateTimelineDto.TimeLineSide.MeteringPoints -> TimelineSideConfig.MeteringPoints(targetMeteringPoints)
-    }
 
     private fun runOnEdt(action: () -> Unit) {
         if (uiDispatcher.isUiThread()) {

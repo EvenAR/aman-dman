@@ -1,7 +1,8 @@
 package no.vaccsca.amandman.view.airport
 
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.TimelineSideConfig
+import no.vaccsca.amandman.common.RunwayTimelineConfig
+import no.vaccsca.amandman.common.MeteringPointTimelineConfig
 import no.vaccsca.amandman.model.timeline.MeteringPointState
 import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
@@ -110,9 +111,9 @@ class TimelineScrollPane(
     private fun updateTimelineEvents() {
         val timelineData = airportViewState.openTimelines.value
             .map { timelineConfig ->
-                val leftEvents = buildSideEvents(latestRunwayEvents, timelineConfig.left, latestMeteringPointState)
+                val leftEvents = buildSideEvents(latestRunwayEvents, timelineConfig, isLeft = true, latestMeteringPointState)
                 val leftCallsigns = leftEvents.mapNotNull { (it.event as? RunwayFlightEvent)?.callsign }.toSet()
-                val rightEvents = buildSideEvents(latestRunwayEvents, timelineConfig.right, latestMeteringPointState)
+                val rightEvents = buildSideEvents(latestRunwayEvents, timelineConfig, isLeft = false, latestMeteringPointState)
                     .filterNot { sideEvent ->
                         val callsign = (sideEvent.event as? RunwayFlightEvent)?.callsign
                         callsign != null && callsign in leftCallsigns
@@ -137,35 +138,54 @@ class TimelineScrollPane(
 
     private fun buildSideEvents(
         runwayEvents: List<RunwayEvent>,
-        side: TimelineSideConfig,
+        timelineConfig: TimelineConfig,
+        isLeft: Boolean,
         meteringPointState: MeteringPointState,
-    ): List<TimelineDisplayEvent> = when (side) {
-        is TimelineSideConfig.Runways -> {
-            val runwaySet = side.runways.map { it.uppercase() }.toSet()
-            runwayEvents
-                .filter { it.runway.uppercase() in runwaySet }
-                .map { TimelineDisplayEvent(event = it) }
+    ): List<TimelineDisplayEvent> = when (timelineConfig) {
+        is RunwayTimelineConfig -> {
+            val runwaySet = (if (isLeft) timelineConfig.leftRunways else timelineConfig.rightRunways)
+                .map { it.uppercase() }
+                .toSet()
+            buildRunwaySideEvents(runwayEvents, runwaySet)
         }
 
-        is TimelineSideConfig.MeteringPoints -> {
-            val selectedFixes = side.meteringPoints.map { it.uppercase() }
-            runwayEvents
-                .filterIsInstance<RunwayArrivalEvent>()
-                .mapNotNull { arrival ->
-                    val perFix = meteringPointState.timingsByCallsign[arrival.callsign] ?: return@mapNotNull null
-                    val selectedTimings = selectedFixes.mapNotNull { fix ->
-                        perFix[fix]?.let { timing -> fix to timing }
-                    }
-                    val (anchorFix, timing) = selectedTimings.minByOrNull { (_, timing) -> timing.eta } ?: return@mapNotNull null
+        is MeteringPointTimelineConfig -> {
+            val selectedFixes = (if (isLeft) timelineConfig.leftMeteringPoints else timelineConfig.rightMeteringPoints)
+                .map { it.uppercase() }
+            buildMeteringPointSideEvents(runwayEvents, selectedFixes, meteringPointState)
+        }
+    }
 
-                    TimelineDisplayEvent(
-                        event = arrival,
-                        displayScheduledTime = timing.sta,
-                        displayEstimatedTime = timing.eta,
-                        anchorId = anchorFix,
-                    )
+    private fun buildRunwaySideEvents(
+        runwayEvents: List<RunwayEvent>,
+        runwaySet: Set<String>,
+    ): List<TimelineDisplayEvent> {
+        return runwayEvents
+            .filter { it.runway.uppercase() in runwaySet }
+            .map { TimelineDisplayEvent(event = it) }
+    }
+
+    private fun buildMeteringPointSideEvents(
+        runwayEvents: List<RunwayEvent>,
+        selectedFixes: List<String>,
+        meteringPointState: MeteringPointState,
+    ): List<TimelineDisplayEvent> {
+        return runwayEvents
+            .filterIsInstance<RunwayArrivalEvent>()
+            .mapNotNull { arrival ->
+                val perFix = meteringPointState.timingsByCallsign[arrival.callsign] ?: return@mapNotNull null
+                val selectedTimings = selectedFixes.mapNotNull { fix ->
+                    perFix[fix]?.let { timing -> fix to timing }
                 }
-        }
+                val (anchorFix, timing) = selectedTimings.minByOrNull { (_, timing) -> timing.eta } ?: return@mapNotNull null
+
+                TimelineDisplayEvent(
+                    event = arrival,
+                    displayScheduledTime = timing.sta,
+                    displayEstimatedTime = timing.eta,
+                    anchorId = anchorFix,
+                )
+            }
     }
 
     // Zoom when using scrollwheel

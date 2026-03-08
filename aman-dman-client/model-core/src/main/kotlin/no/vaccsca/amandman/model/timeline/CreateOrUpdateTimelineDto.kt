@@ -1,26 +1,26 @@
 package no.vaccsca.amandman.model.timeline
 
-data class CreateOrUpdateTimelineDto(
-    val airportIcao: String,
-    val title: String,
-    val left: TimeLineSide,
-    val right: TimeLineSide,
-    val depLabelLayout: String,
-    val arrLabelLayout: String,
-) {
-    sealed interface TimeLineSide {
-        val targets: List<String>
+sealed interface CreateOrUpdateTimelineDto {
+    val airportIcao: String
+    val title: String
+    val left: List<String>
+    val right: List<String>
+    val arrLabelLayout: String
 
-        data class Runways(
-            val targetRunways: List<String>,
-        ) : TimeLineSide {
-            override val targets: List<String> = targetRunways
-        }
+    data class Runway(
+        override val airportIcao: String,
+        override val title: String,
+        override val left: List<String>,
+        override val right: List<String>,
+        val depLabelLayout: String,
+        override val arrLabelLayout: String,
+    ) : CreateOrUpdateTimelineDto
 
-        data class MeteringPoints(
-            val targetMeteringPoints: List<String>,
-        ) : TimeLineSide {
-            override val targets: List<String> = targetMeteringPoints
-        }
-    }
+    data class MeteringPoint(
+        override val airportIcao: String,
+        override val title: String,
+        override val left: List<String>,
+        override val right: List<String>,
+        override val arrLabelLayout: String,
+    ) : CreateOrUpdateTimelineDto
 }

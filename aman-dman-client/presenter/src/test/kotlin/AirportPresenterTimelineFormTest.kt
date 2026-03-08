@@ -1,18 +1,21 @@
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.airport.RunwayThreshold
+import no.vaccsca.amandman.model.config.AirportTimelines
 import no.vaccsca.amandman.model.config.AmanDmanSettings
 import no.vaccsca.amandman.model.config.AtcClientConnectionParameters
 import no.vaccsca.amandman.model.config.ConnectionConfig
 import no.vaccsca.amandman.model.config.LabelItem
+import no.vaccsca.amandman.model.config.MeteringPointTimeline
+import no.vaccsca.amandman.model.config.RunwayTimeline
 import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
-import no.vaccsca.amandman.model.config.Side
 import no.vaccsca.amandman.model.config.Theme
-import no.vaccsca.amandman.model.config.Timeline
+import no.vaccsca.amandman.model.config.TimelineDefaults
 import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
@@ -86,27 +89,32 @@ class AirportPresenterTimelineFormTest {
 
     @Test
     fun `onEditTimelineRequested passes exact config and available runway list`() {
-        val timelineInSettings = Timeline(
-            title = "FLOW",
-            left = Side.MeteringPoints(listOf("MPX")),
-            right = Side.Runways(listOf("19L")),
-            arrivalLabelLayoutId = "ARR",
-            departureLabelLayoutId = "DEP"
-        )
-
         val settingsProvider = FakeSettingsProvider(
-            settings = baseSettings(timelines = mapOf("TEST" to listOf(timelineInSettings))),
+            settings = baseSettings(
+                timelines = mapOf(
+                    "TEST" to AirportTimelines(
+                        defaults = TimelineDefaults(defaultArrivalLabelLayoutId = "ARR", defaultDepartureLabelLayoutId = "DEP"),
+                        meteringPointBased = listOf(
+                            MeteringPointTimeline(
+                                title = "FLOW",
+                                left = listOf("MPX"),
+                                right = listOf("MPY"),
+                                arrivalLabelLayoutId = "ARR",
+                            )
+                        )
+                    )
+                )
+            ),
             airports = listOf(airport("TEST", runways = setOf("19L", "19R"), meteringPoints = setOf("MPX")))
         )
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, view)
 
-        val generatedTimeline = TimelineConfig(
+        val generatedTimeline: TimelineConfig = MeteringPointTimelineConfig(
             title = "FLOW-GEN",
-            left = TimelineSideConfig.Runways(emptyList()),
-            right = TimelineSideConfig.MeteringPoints(listOf("MPX")),
             airportIcao = "TEST",
-            depLabelLayout = null,
+            leftMeteringPoints = emptyList(),
+            rightMeteringPoints = listOf("MPX"),
             arrLabelLayout = "ARR"
         )
 
@@ -128,22 +136,22 @@ class AirportPresenterTimelineFormTest {
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, view)
 
-        val existing = TimelineConfig(
+        val existing: TimelineConfig = RunwayTimelineConfig(
             title = "OLD",
-            left = TimelineSideConfig.Runways(emptyList()),
-            right = TimelineSideConfig.Runways(listOf("19L")),
             airportIcao = "TEST",
+            leftRunways = emptyList(),
+            rightRunways = listOf("19L"),
             depLabelLayout = "DEP",
             arrLabelLayout = "ARR"
         )
         presenter.onEditTimelineRequested(existing)
 
         presenter.onCreateNewTimeline(
-            CreateOrUpdateTimelineDto(
+            CreateOrUpdateTimelineDto.Runway(
                 airportIcao = "TEST",
                 title = "NEW",
-                left = CreateOrUpdateTimelineDto.TimeLineSide.Runways(emptyList()),
-                right = CreateOrUpdateTimelineDto.TimeLineSide.Runways(listOf("19L")),
+                left = emptyList(),
+                right = listOf("19L"),
                 depLabelLayout = "DEP",
                 arrLabelLayout = "ARR"
             )
@@ -164,12 +172,11 @@ class AirportPresenterTimelineFormTest {
         val presenter = createPresenter(settingsProvider, view)
 
         presenter.onCreateNewTimeline(
-            CreateOrUpdateTimelineDto(
+            CreateOrUpdateTimelineDto.MeteringPoint(
                 airportIcao = "TEST",
                 title = "NEW",
-                left = CreateOrUpdateTimelineDto.TimeLineSide.Runways(emptyList()),
-                right = CreateOrUpdateTimelineDto.TimeLineSide.Runways(listOf("19L")),
-                depLabelLayout = "DEP",
+                left = emptyList(),
+                right = listOf("M1"),
                 arrLabelLayout = "ARR"
             )
         )
@@ -177,19 +184,26 @@ class AirportPresenterTimelineFormTest {
         assertTrue(view.removedTimelines.isEmpty())
         assertEquals(1, view.addedTimelines.size)
         assertEquals("NEW", view.addedTimelines.single().title)
+        assertTrue(view.addedTimelines.single() is MeteringPointTimelineConfig)
     }
 
     @Test
     fun `onTabMenu generates metering point timelines using airport default layout and live fixes`() {
         val settingsProvider = FakeSettingsProvider(
-            settings = baseSettings(timelines = mapOf("TEST" to listOf(
-                Timeline(
-                    title = "M2",
-                    right = Side.MeteringPoints(listOf("M2")),
-                    arrivalLabelLayoutId = "ARR",
-                    departureLabelLayoutId = null
+            settings = baseSettings(
+                timelines = mapOf(
+                    "TEST" to AirportTimelines(
+                        defaults = TimelineDefaults(defaultArrivalLabelLayoutId = "ARR", defaultDepartureLabelLayoutId = "DEP"),
+                        meteringPointBased = listOf(
+                            MeteringPointTimeline(
+                                title = "M2",
+                                right = listOf("M2"),
+                                arrivalLabelLayoutId = "ARR",
+                            )
+                        )
+                    )
                 )
-            ))),
+            ),
             airports = listOf(
                 airport(
                     "TEST",
@@ -208,9 +222,8 @@ class AirportPresenterTimelineFormTest {
         assertEquals(1, view.lastContextMenuConfiguredTimelines.size)
         assertEquals("M2", view.lastContextMenuConfiguredTimelines.single().title)
         assertEquals(listOf("M2", "M3"), view.lastContextMenuGeneratedTimelines.map { it.title })
-        assertTrue(view.lastContextMenuGeneratedTimelines.all { it.depLabelLayout == null })
-        assertTrue(view.lastContextMenuGeneratedTimelines.all { it.arrLabelLayout == "ARR" })
-        assertTrue(view.lastContextMenuGeneratedTimelines.all { it.right is TimelineSideConfig.MeteringPoints })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { it is MeteringPointTimelineConfig })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { (it as MeteringPointTimelineConfig).arrLabelLayout == "ARR" })
     }
 
     @Test
@@ -274,7 +287,7 @@ class AirportPresenterTimelineFormTest {
         )
     }
 
-    private fun baseSettings(timelines: Map<String, List<Timeline>> = emptyMap()): AmanDmanSettings {
+    private fun baseSettings(timelines: Map<String, AirportTimelines> = emptyMap()): AmanDmanSettings {
         return AmanDmanSettings(
             timelines = timelines,
             connectionConfig = ConnectionConfig(
@@ -370,6 +383,7 @@ class AirportPresenterTimelineFormTest {
             lastContextMenuConfiguredTimelines = cusomizedTimelines
             lastContextMenuGeneratedTimelines = generatedMeteringPointTimelines
         }
+
         override fun openMetWindow() {}
         override fun openLandingRatesWindow() {}
         override fun openNonSequencedWindow() {}

@@ -1,7 +1,8 @@
 package no.vaccsca.amandman.view.forms
 
+import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import java.awt.CardLayout
@@ -45,7 +46,7 @@ class NewTimelineForm(
         val meteringPointList: JList<String>,
     )
 
-    private val initialDepLayoutSelection = existingConfig?.depLabelLayout
+    private val initialDepLayoutSelection = (existingConfig as? RunwayTimelineConfig)?.depLabelLayout
     private val initialArrLayoutSelection = existingConfig?.arrLabelLayout
 
     private val titleInput = JTextField(20)
@@ -76,6 +77,8 @@ class NewTimelineForm(
         FormUtils.enforceUppercase(titleInput)
 
         anchorTypeCombo.name = "timelineAnchorTypeCombo"
+        arrLayoutCombo.name = "arrivalLayoutCombo"
+        depLayoutCombo.name = "departureLayoutCombo"
         anchorTypeCombo.addActionListener {
             applyAnchorType(anchorTypeCombo.selectedItem as AnchorType)
         }
@@ -220,18 +223,39 @@ class NewTimelineForm(
         }
 
         val leftTargets = getSelectedTargets(leftSelector, anchorType)
+        val arrLayout = arrLayoutCombo.selectedItem as? String
+        if (arrLayout.isNullOrBlank()) {
+            error("Arrival layout is required.")
+            return
+        }
 
-        presenterInterface.onCreateNewTimeline(
-            CreateOrUpdateTimelineDto(
+        val dto: CreateOrUpdateTimelineDto = when (anchorType) {
+            AnchorType.RUNWAYS -> {
+                val depLayout = depLayoutCombo.selectedItem as? String
+                if (depLayout.isNullOrBlank()) {
+                    error("Departure layout is required for runway timelines.")
+                    return
+                }
+                CreateOrUpdateTimelineDto.Runway(
+                    airportIcao = airportIcao,
+                    title = titleText,
+                    left = leftTargets,
+                    right = rightTargets,
+                    depLabelLayout = depLayout,
+                    arrLabelLayout = arrLayout,
+                )
+            }
+
+            AnchorType.METERING_POINTS -> CreateOrUpdateTimelineDto.MeteringPoint(
                 airportIcao = airportIcao,
                 title = titleText,
-                left = buildSide(anchorType, leftTargets),
-                right = buildSide(anchorType, rightTargets),
-                depLabelLayout = depLayoutCombo.selectedItem as? String ?: "",
-                arrLabelLayout = arrLayoutCombo.selectedItem as? String ?: ""
+                left = leftTargets,
+                right = rightTargets,
+                arrLabelLayout = arrLayout,
             )
-        )
+        }
 
+        presenterInterface.onCreateNewTimeline(dto)
         parentDialog?.dispose()
     }
 
@@ -240,47 +264,43 @@ class NewTimelineForm(
         AnchorType.METERING_POINTS -> selector.meteringPointList.selectedValuesList.map { it.uppercase() }
     }
 
-    private fun buildSide(type: AnchorType, targets: List<String>): CreateOrUpdateTimelineDto.TimeLineSide = when (type) {
-        AnchorType.RUNWAYS -> CreateOrUpdateTimelineDto.TimeLineSide.Runways(targetRunways = targets)
-        AnchorType.METERING_POINTS -> CreateOrUpdateTimelineDto.TimeLineSide.MeteringPoints(targetMeteringPoints = targets)
-    }
-
     private fun applyExistingConfig(config: TimelineConfig) {
         titleInput.text = config.title
 
-        applyExistingSideSelections(leftSelector, config.left)
-        applyExistingSideSelections(rightSelector, config.right)
+        when (config) {
+            is RunwayTimelineConfig -> {
+                applyExistingRunwaySelections(leftSelector, config.leftRunways)
+                applyExistingRunwaySelections(rightSelector, config.rightRunways)
+                anchorTypeCombo.selectedItem = AnchorType.RUNWAYS
+                depLayoutCombo.selectedItem = config.depLabelLayout
+            }
 
-        val anchorType = anchorTypeFor(config.right)
-        anchorTypeCombo.selectedItem = anchorType
-        applyAnchorType(anchorType)
+            is MeteringPointTimelineConfig -> {
+                applyExistingMeteringSelections(leftSelector, config.leftMeteringPoints)
+                applyExistingMeteringSelections(rightSelector, config.rightMeteringPoints)
+                anchorTypeCombo.selectedItem = AnchorType.METERING_POINTS
+                depLayoutCombo.selectedItem = null
+            }
+        }
 
-        depLayoutCombo.selectedItem = config.depLabelLayout
+        applyAnchorType(anchorTypeCombo.selectedItem as AnchorType)
         arrLayoutCombo.selectedItem = config.arrLabelLayout
     }
 
-    private fun applyExistingSideSelections(selector: SideTargetSelector, side: TimelineSideConfig) {
-        when (side) {
-            is TimelineSideConfig.Runways -> {
-                selectListValues(selector.runwayList, side.runways.map { it.uppercase() }.toSet())
-                selector.meteringPointList.clearSelection()
-            }
-
-            is TimelineSideConfig.MeteringPoints -> {
-                selectListValues(selector.meteringPointList, side.meteringPoints.map { it.uppercase() }.toSet())
-                selector.runwayList.clearSelection()
-            }
-        }
+    private fun applyExistingRunwaySelections(selector: SideTargetSelector, runways: List<String>) {
+        selectListValues(selector.runwayList, runways.map { it.uppercase() }.toSet())
+        selector.meteringPointList.clearSelection()
     }
 
-    private fun anchorTypeFor(side: TimelineSideConfig): AnchorType = when (side) {
-        is TimelineSideConfig.Runways -> AnchorType.RUNWAYS
-        is TimelineSideConfig.MeteringPoints -> AnchorType.METERING_POINTS
+    private fun applyExistingMeteringSelections(selector: SideTargetSelector, meteringPoints: List<String>) {
+        selectListValues(selector.meteringPointList, meteringPoints.map { it.uppercase() }.toSet())
+        selector.runwayList.clearSelection()
     }
 
     private fun applyAnchorType(anchorType: AnchorType) {
         showCardForSide(leftSelector, anchorType)
         showCardForSide(rightSelector, anchorType)
+        depLayoutCombo.isEnabled = anchorType == AnchorType.RUNWAYS
     }
 
     private fun showCardForSide(selector: SideTargetSelector, anchorType: AnchorType) {
@@ -288,32 +308,37 @@ class NewTimelineForm(
     }
 
     private fun refreshSideOptionLists(preservedConfig: TimelineConfig? = null) {
-        refreshSideOptions(
-            selector = leftSelector,
-            preservedRunways = (preservedConfig?.left as? TimelineSideConfig.Runways)
-                ?.runways
-                ?.map { it.uppercase() }
-                ?.toSet()
-                ?: emptySet(),
-            preservedMeteringPoints = (preservedConfig?.left as? TimelineSideConfig.MeteringPoints)
-                ?.meteringPoints
-                ?.map { it.uppercase() }
-                ?.toSet()
-                ?: emptySet()
-        )
+        val preservedLeftRunways = (preservedConfig as? RunwayTimelineConfig)
+            ?.leftRunways
+            ?.map { it.uppercase() }
+            ?.toSet()
+            ?: emptySet()
+        val preservedRightRunways = (preservedConfig as? RunwayTimelineConfig)
+            ?.rightRunways
+            ?.map { it.uppercase() }
+            ?.toSet()
+            ?: emptySet()
+
+        val preservedLeftMeteringPoints = (preservedConfig as? MeteringPointTimelineConfig)
+            ?.leftMeteringPoints
+            ?.map { it.uppercase() }
+            ?.toSet()
+            ?: emptySet()
+        val preservedRightMeteringPoints = (preservedConfig as? MeteringPointTimelineConfig)
+            ?.rightMeteringPoints
+            ?.map { it.uppercase() }
+            ?.toSet()
+            ?: emptySet()
 
         refreshSideOptions(
+            selector = leftSelector,
+            preservedRunways = preservedLeftRunways,
+            preservedMeteringPoints = preservedLeftMeteringPoints,
+        )
+        refreshSideOptions(
             selector = rightSelector,
-            preservedRunways = (preservedConfig?.right as? TimelineSideConfig.Runways)
-                ?.runways
-                ?.map { it.uppercase() }
-                ?.toSet()
-                ?: emptySet(),
-            preservedMeteringPoints = (preservedConfig?.right as? TimelineSideConfig.MeteringPoints)
-                ?.meteringPoints
-                ?.map { it.uppercase() }
-                ?.toSet()
-                ?: emptySet()
+            preservedRunways = preservedRightRunways,
+            preservedMeteringPoints = preservedRightMeteringPoints,
         )
     }
 

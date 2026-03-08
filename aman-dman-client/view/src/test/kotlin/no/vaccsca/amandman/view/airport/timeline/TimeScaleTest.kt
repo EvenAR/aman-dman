@@ -1,8 +1,8 @@
 package no.vaccsca.amandman.view.airport.timeline
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -17,12 +17,12 @@ class TimeScaleTest {
 
     @Test
     fun `timeline popup contains edit and remove and triggers presenter actions`() {
-        val timelineConfig = TimelineConfig(
+        val timelineConfig: TimelineConfig = RunwayTimelineConfig(
             title = "T1",
-            left = TimelineSideConfig.Runways(emptyList()),
-            right = TimelineSideConfig.Runways(listOf("19L")),
             airportIcao = "TEST",
-            depLabelLayout = null,
+            leftRunways = emptyList(),
+            rightRunways = listOf("19L"),
+            depLabelLayout = "DEP",
             arrLabelLayout = "osloArr",
         )
         val presenter = CapturingPresenter()

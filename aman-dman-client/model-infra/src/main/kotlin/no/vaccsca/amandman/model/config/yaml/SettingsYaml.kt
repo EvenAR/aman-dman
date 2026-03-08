@@ -10,7 +10,7 @@ data class AmanDmanSettingsYaml(
     @field:NotEmpty
     val timelines: Map<
             @Pattern(regexp = "^[A-Z]{4}$") String,
-            @Valid List<@Valid TimelineYaml>
+            @Valid AirportTimelinesYaml
             >,
 
     @field:NotEmpty
@@ -31,36 +31,60 @@ data class AmanDmanSettingsYaml(
     val theme: ThemeYaml?,
 )
 
-data class TimelineYaml(
+data class AirportTimelinesYaml(
+    @field:Valid
+    @field:NotNull
+    val defaults: TimelineDefaultsYaml,
+
+    @field:NotNull
+    @field:Valid
+    val runwayBased: List<@Valid RunwayTimelineYaml> = emptyList(),
+
+    @field:NotNull
+    @field:Valid
+    val meteringPointBased: List<@Valid MeteringPointTimelineYaml> = emptyList(),
+)
+
+data class TimelineDefaultsYaml(
+    @field:NotBlank
+    val defaultArrivalLabelLayoutId: String,
+
+    val defaultDepartureLabelLayoutId: String? = null,
+)
+
+data class RunwayTimelineYaml(
     @field:NotBlank
     val timelineTitle: String,
 
-    @field:Valid
-    val left: SideYaml? = null,
+    val left: List<
+            @Pattern(regexp = "^[0-9]{2}[A-Z]?$") String
+            > = emptyList(),
 
-    @field:Valid
-    @field:NotNull
-    val right: SideYaml,
+    @field:NotEmpty
+    val right: List<
+            @Pattern(regexp = "^[0-9]{2}[A-Z]?$") String
+            >,
 
-    @field:NotBlank
-    val arrivalLabelLayoutId: String
+    val arrivalLabelLayoutId: String? = null,
+
+    val departureLabelLayoutId: String? = null,
 )
 
-data class SideYaml(
-    val runways: List<
-            @Pattern(regexp = "^[0-9]{2}[A-Z]?$") String
-            >? = null,
+data class MeteringPointTimelineYaml(
+    @field:NotBlank
+    val timelineTitle: String,
 
-    val meteringPoints: List<
+    val left: List<
             @Pattern(regexp = "^[A-Z0-9]{2,10}$") String
-            >? = null,
-) {
-    init {
-        val hasRunways = !runways.isNullOrEmpty()
-        val hasMeteringPoints = !meteringPoints.isNullOrEmpty()
-        require(hasRunways.xor(hasMeteringPoints)) { "SideYaml must define exactly one of runways or meteringPoints" }
-    }
-}
+            > = emptyList(),
+
+    @field:NotEmpty
+    val right: List<
+            @Pattern(regexp = "^[A-Z0-9]{2,10}$") String
+            >,
+
+    val arrivalLabelLayoutId: String? = null,
+)
 
 data class ConnectionConfigYaml(
     @field:Valid

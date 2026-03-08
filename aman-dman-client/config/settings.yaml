@@ -2,59 +2,50 @@
 
 timelines:
   ENGM:
-    - timelineTitle: "01ALL"
-      arrivalLabelLayoutId: osloArr
-      right:
-        runways: ["01L", "01R"]
+    defaults:
+      defaultArrivalLabelLayoutId: osloArr
+      defaultDepartureLabelLayoutId: osloDep
 
-    - timelineTitle: "19ALL"
-      arrivalLabelLayoutId: osloArr
-      right:
-        runways: ["19L", "19R"]
+    runwayBased:
+      - timelineTitle: "01ALL"
+        right: ["01L", "01R"]
 
-    - timelineTitle: "19R/19L"
-      arrivalLabelLayoutId: osloArr
-      left:
-        runways: ["19R"]
-      right:
-        runways: ["19L"]
+      - timelineTitle: "19ALL"
+        right: ["19L", "19R"]
 
-    - timelineTitle: "01L/01R"
-      arrivalLabelLayoutId: osloArr
-      left:
-        runways: ["01L"]
-      right:
-        runways: ["01R"]
+      - timelineTitle: "19R/19L"
+        left: ["19R"]
+        right: ["19L"]
 
-    - timelineTitle: "BAVAD / TITLA"
-      arrivalLabelLayoutId: osloArr
-      left:
-        meteringPoints: ["BAVAD"]
-      right:
-        meteringPoints: ["TITLA"]
+      - timelineTitle: "01L/01R"
+        left: ["01L"]
+        right: ["01R"]
 
-    - timelineTitle: "VALPU / INSUV"
-      arrivalLabelLayoutId: osloArr
-      left:
-        meteringPoints: ["VALPU"]
-      right:
-        meteringPoints: ["INSUV"]
+    meteringPointBased:
+      - timelineTitle: "BAVAD / TITLA"
+        left: ["BAVAD"]
+        right: ["TITLA"]
+
+      - timelineTitle: "VALPU / INSUV"
+        left: ["VALPU"]
+        right: ["INSUV"]
 
   ENBR:
-    - timelineTitle: "BR17"
-      arrivalLabelLayoutId: osloArr
-      right:
-        runways: ["17"]
+    defaults:
+      defaultArrivalLabelLayoutId: osloArr
+      defaultDepartureLabelLayoutId: osloDep
 
-    - timelineTitle: "BR35"
-      arrivalLabelLayoutId: osloArr
-      right:
-        runways: ["35"]
+    runwayBased:
+      - timelineTitle: "BR17"
+        right: ["17"]
 
-    - timelineTitle: "ENBR ALL"
-      arrivalLabelLayoutId: osloArr
-      right:
-        runways: ["17", "35"]
+      - timelineTitle: "BR35"
+        right: ["35"]
+
+      - timelineTitle: "ENBR ALL"
+        right: ["17", "35"]
+
+    meteringPointBased: []
 
 arrivalLabelLayouts:
   osloArr:
@@ -69,6 +60,12 @@ arrivalLabelLayouts:
   simpleLayout:
     - {src: assignedRunway, w: 4}
     - {src: callSign, w: 8}
+
+departureLabelLayouts:
+  osloDep:
+    - {src: assignedRunway, w: 4}
+    - {src: callSign, w: 8}
+    - {src: aircraftType, w: 5}
 
 connectionConfig:
   atcClient:

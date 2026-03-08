@@ -1,44 +1,38 @@
 package no.vaccsca.amandman.model.config
 
 data class AmanDmanSettings(
-    val timelines: Map<String, List<Timeline>>,
+    val timelines: Map<String, AirportTimelines>,
     val connectionConfig: ConnectionConfig,
     val arrivalLabelLayouts: Map<String, List<LabelItem>>,
     val departureLabelLayouts: Map<String, List<LabelItem>>,
     val theme: Theme,
 )
 
-data class Timeline(
-    val title: String,
-    val left: Side? = null,
-    val right: Side,
-    val arrivalLabelLayoutId: String,
-    val departureLabelLayoutId: String?,
+data class AirportTimelines(
+    val defaults: TimelineDefaults,
+    val runwayBased: List<RunwayTimeline> = emptyList(),
+    val meteringPointBased: List<MeteringPointTimeline> = emptyList(),
 )
 
-sealed interface Side {
-    val targets: List<String>
+data class TimelineDefaults(
+    val defaultArrivalLabelLayoutId: String,
+    val defaultDepartureLabelLayoutId: String?,
+)
 
-    data class Runways(
-        val runways: List<String>,
-    ) : Side {
-        init {
-            require(runways.isNotEmpty()) { "Runway side cannot be empty" }
-        }
+data class RunwayTimeline(
+    val title: String,
+    val left: List<String> = emptyList(),
+    val right: List<String>,
+    val arrivalLabelLayoutId: String,
+    val departureLabelLayoutId: String,
+)
 
-        override val targets: List<String> = runways
-    }
-
-    data class MeteringPoints(
-        val meteringPoints: List<String>,
-    ) : Side {
-        init {
-            require(meteringPoints.isNotEmpty()) { "Metering points side cannot be empty" }
-        }
-
-        override val targets: List<String> = meteringPoints
-    }
-}
+data class MeteringPointTimeline(
+    val title: String,
+    val left: List<String> = emptyList(),
+    val right: List<String>,
+    val arrivalLabelLayoutId: String,
+)
 
 data class ConnectionConfig(
     val atcClient: AtcClientConnectionParameters,

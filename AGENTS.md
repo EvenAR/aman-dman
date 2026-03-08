@@ -72,6 +72,8 @@ Organize code around business capabilities (features) first, then internal techn
 Make illegal states unrepresentable.
 
 - Prefer type-safe models where invalid domain combinations cannot be constructed.
+- Encode domain shape invariants in types so the compiler enforces them; do not rely on assertions (`require`, `check`, `assert`) for core model validity.
+- Assertions are acceptable at external boundaries (config/input parsing, adapter validation), but core/domain objects should not need runtime assertion guards for valid combinations.
 - Use sealed hierarchies/discriminated variants for mutually exclusive cases.
 - Avoid nullable fields that represent a different domain type.
 - Prefer composition for shared parts, and use inheritance/sealed parents to model valid alternatives.
@@ -176,4 +178,3 @@ Before finishing:
 - Call out any contract changes (API/schema/protocol) and migration impact.
 - Avoid incidental refactors unrelated to the requested change.
 - Do not remove or rewrite existing comments in untouched code; preserve them unless the requested change requires updating that exact comment.
-

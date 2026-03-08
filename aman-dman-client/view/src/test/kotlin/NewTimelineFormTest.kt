@@ -1,6 +1,7 @@
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.TimelineSideConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -28,7 +29,7 @@ class NewTimelineFormTest {
     }
 
     @Test
-    fun `anchor type switch toggles both side cards`() {
+    fun `anchor type switch toggles both side cards and departure layout enabled state`() {
         onEdt {
             val presenter = CapturingPresenter()
             val form = NewTimelineForm(
@@ -44,11 +45,13 @@ class NewTimelineFormTest {
             val rightMeteringCard = findByName<Component>(form, "rightMeteringPointCard")
             val leftRunwayCard = findByName<Component>(form, "leftRunwayCard")
             val leftMeteringCard = findByName<Component>(form, "leftMeteringPointCard")
+            val depLayoutCombo = findByName<JComboBox<*>>(form, "departureLayoutCombo")
 
             assertTrue(rightRunwayCard.isVisible)
             assertFalse(rightMeteringCard.isVisible)
             assertTrue(leftRunwayCard.isVisible)
             assertFalse(leftMeteringCard.isVisible)
+            assertTrue(depLayoutCombo.isEnabled)
 
             anchorTypeCombo.selectedIndex = 1
 
@@ -56,6 +59,7 @@ class NewTimelineFormTest {
             assertTrue(rightMeteringCard.isVisible)
             assertFalse(leftRunwayCard.isVisible)
             assertTrue(leftMeteringCard.isVisible)
+            assertFalse(depLayoutCombo.isEnabled)
         }
     }
 
@@ -89,14 +93,14 @@ class NewTimelineFormTest {
     }
 
     @Test
-    fun `existing config preselects side targets for current anchor type`() {
+    fun `existing runway config preselects runway side targets`() {
         onEdt {
             val presenter = CapturingPresenter()
-            val existingConfig = TimelineConfig(
+            val existingConfig: TimelineConfig = RunwayTimelineConfig(
                 title = "FLOW",
-                left = TimelineSideConfig.Runways(listOf("19R")),
-                right = TimelineSideConfig.Runways(listOf("19L", "19R")),
                 airportIcao = "TEST",
+                leftRunways = listOf("19R"),
+                rightRunways = listOf("19L", "19R"),
                 depLabelLayout = "DEP",
                 arrLabelLayout = "ARR"
             )
@@ -127,11 +131,11 @@ class NewTimelineFormTest {
     fun `unknown legacy targets are preserved in selectable options`() {
         onEdt {
             val presenter = CapturingPresenter()
-            val existingConfig = TimelineConfig(
+            val existingConfig: TimelineConfig = RunwayTimelineConfig(
                 title = "LEGACY",
-                left = TimelineSideConfig.Runways(emptyList()),
-                right = TimelineSideConfig.Runways(listOf("XX1")),
                 airportIcao = "TEST",
+                leftRunways = emptyList(),
+                rightRunways = listOf("XX1"),
                 depLabelLayout = "DEP",
                 arrLabelLayout = "ARR"
             )
@@ -184,7 +188,7 @@ class NewTimelineFormTest {
     }
 
     @Test
-    fun `submit maps both sides to selected global anchor type`() {
+    fun `submit maps metering timeline to metering dto without departure layout`() {
         onEdt {
             val presenter = CapturingPresenter()
             val form = NewTimelineForm(
@@ -213,48 +217,9 @@ class NewTimelineFormTest {
 
             assertEquals(1, presenter.createdTimelines.size)
             val created = presenter.createdTimelines.single()
-
-            val leftSide = created.left as CreateOrUpdateTimelineDto.TimeLineSide.MeteringPoints
-            val rightSide = created.right as CreateOrUpdateTimelineDto.TimeLineSide.MeteringPoints
-
-            assertEquals(setOf("M2"), leftSide.targetMeteringPoints.toSet())
-            assertEquals(setOf("M1"), rightSide.targetMeteringPoints.toSet())
-        }
-    }
-
-    @Test
-    fun `legacy mixed timeline is normalized to one anchor type on submit`() {
-        onEdt {
-            val presenter = CapturingPresenter()
-            val existingConfig = TimelineConfig(
-                title = "MIXED",
-                left = TimelineSideConfig.MeteringPoints(listOf("M2")),
-                right = TimelineSideConfig.Runways(listOf("19L")),
-                airportIcao = "TEST",
-                depLabelLayout = "DEP",
-                arrLabelLayout = "ARR"
-            )
-
-            val form = NewTimelineForm(
-                presenterInterface = presenter,
-                airportIcao = "TEST",
-                existingConfig = existingConfig,
-                availableRunwaysInitial = setOf("19L"),
-                availableMeteringPointsInitial = setOf("M2")
-            )
-            form.update(
-                arrLayouts = setOf("ARR"),
-                depLayouts = setOf("DEP"),
-                availableRunways = setOf("19L"),
-                availableMeteringPoints = setOf("M2")
-            )
-
-            findByName<JButton>(form, "submitButton").doClick()
-
-            assertEquals(1, presenter.createdTimelines.size)
-            val created = presenter.createdTimelines.single()
-            assertTrue(created.left is CreateOrUpdateTimelineDto.TimeLineSide.Runways)
-            assertTrue(created.right is CreateOrUpdateTimelineDto.TimeLineSide.Runways)
+            assertTrue(created is CreateOrUpdateTimelineDto.MeteringPoint)
+            assertEquals(setOf("M2"), created.left.toSet())
+            assertEquals(setOf("M1"), created.right.toSet())
         }
     }
 

@@ -9,13 +9,18 @@ import no.vaccsca.amandman.model.config.yaml.ConnectionConfigYaml
 import no.vaccsca.amandman.model.config.yaml.LabelItemAlignmentEnumYaml
 import no.vaccsca.amandman.model.config.yaml.LabelItemSourceEnumYaml
 import no.vaccsca.amandman.model.config.yaml.LabelItemYaml
-import no.vaccsca.amandman.model.config.yaml.SideYaml
+import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
+import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
+import no.vaccsca.amandman.model.config.yaml.MeteringPointTimelineYaml
 import no.vaccsca.amandman.model.config.yaml.StarYamlEntry
 import no.vaccsca.amandman.model.config.yaml.StarYamlFile
-import no.vaccsca.amandman.model.config.yaml.TimelineYaml
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.config.AmanDmanSettings
+import no.vaccsca.amandman.model.config.AirportTimelines
+import no.vaccsca.amandman.model.config.TimelineDefaults
+import no.vaccsca.amandman.model.config.RunwayTimeline
+import no.vaccsca.amandman.model.config.MeteringPointTimeline
 import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
 import no.vaccsca.amandman.model.config.AtcClientConnectionParameters
 import no.vaccsca.amandman.model.config.ConnectionConfig
@@ -23,8 +28,6 @@ import no.vaccsca.amandman.model.config.LabelItem
 import no.vaccsca.amandman.model.config.LabelItemAlignment
 import no.vaccsca.amandman.model.config.LabelItemSource
 import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.config.Side
-import no.vaccsca.amandman.model.config.Timeline
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.navigation.Star
 import no.vaccsca.amandman.model.navigation.StarFix
@@ -33,25 +36,53 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toKotlinDuration
 
 fun AmanDmanSettingsYaml.toDomain(): AmanDmanSettings = AmanDmanSettings(
-    timelines = timelines.mapValues { entry -> entry.value.map { it.toDomain() } },
+    timelines = timelines.mapValues { entry -> entry.value.toDomain() },
     connectionConfig = connectionConfig.toDomain(),
     arrivalLabelLayouts = arrivalLabelLayouts.mapValues { entry -> entry.value.map { it.toDomain() } },
     departureLabelLayouts = departureLabelLayouts?.mapValues { entry -> entry.value.map { it.toDomain() } } ?: emptyMap(),
     theme = theme?.toDomain() ?: Theme.FLATLAF_DARK,
 )
 
-fun TimelineYaml.toDomain() = Timeline(
-    title = timelineTitle,
-    left = left?.toDomain(),
-    right = right.toDomain(),
-    arrivalLabelLayoutId = arrivalLabelLayoutId,
-    departureLabelLayoutId = null // TODO
-)
+fun AirportTimelinesYaml.toDomain(): AirportTimelines {
+    val configuredDefaults = TimelineDefaults(
+        defaultArrivalLabelLayoutId = defaults.defaultArrivalLabelLayoutId,
+        defaultDepartureLabelLayoutId = defaults.defaultDepartureLabelLayoutId,
+    )
 
-fun SideYaml.toDomain(): Side = when {
-    !runways.isNullOrEmpty() -> Side.Runways(runways.map { it.uppercase() })
-    !meteringPoints.isNullOrEmpty() -> Side.MeteringPoints(meteringPoints.map { it.uppercase() })
-    else -> error("Timeline side must contain runways or meteringPoints")
+    val runway = runwayBased.map { it.toDomain(configuredDefaults) }
+    val metering = meteringPointBased.map { it.toDomain(configuredDefaults) }
+
+    return AirportTimelines(
+        defaults = configuredDefaults,
+        runwayBased = runway,
+        meteringPointBased = metering
+    )
+}
+
+fun RunwayTimelineYaml.toDomain(defaults: TimelineDefaults): RunwayTimeline {
+    val effectiveArrivalLayout = arrivalLabelLayoutId ?: defaults.defaultArrivalLabelLayoutId
+    val effectiveDepartureLayout = departureLabelLayoutId ?: defaults.defaultDepartureLabelLayoutId
+        ?: throw IllegalArgumentException(
+            "Runway timeline '$timelineTitle' is missing departureLabelLayoutId and no defaultDepartureLabelLayoutId is configured."
+        )
+
+    return RunwayTimeline(
+        title = timelineTitle,
+        left = left.map { it.uppercase() },
+        right = right.map { it.uppercase() },
+        arrivalLabelLayoutId = effectiveArrivalLayout,
+        departureLabelLayoutId = effectiveDepartureLayout
+    )
+}
+
+fun MeteringPointTimelineYaml.toDomain(defaults: TimelineDefaults): MeteringPointTimeline {
+    val effectiveArrivalLayout = arrivalLabelLayoutId ?: defaults.defaultArrivalLabelLayoutId
+    return MeteringPointTimeline(
+        title = timelineTitle,
+        left = left.map { it.uppercase() },
+        right = right.map { it.uppercase() },
+        arrivalLabelLayoutId = effectiveArrivalLayout,
+    )
 }
 
 fun ConnectionConfigYaml.toDomain() = ConnectionConfig(

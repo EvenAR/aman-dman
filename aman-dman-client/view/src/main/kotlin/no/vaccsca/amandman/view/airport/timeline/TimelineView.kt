@@ -22,7 +22,7 @@ class TimelineView(
     private val presenterProvider: () -> AirportPresenterInterface,
 ) : JLayeredPane() {
     private val scaleWidth = 60
-    private val isDual = timelineConfig.left.targets.isNotEmpty() && timelineConfig.right.targets.isNotEmpty()
+    private val isDual = timelineConfig.leftTargets.isNotEmpty() && timelineConfig.rightTargets.isNotEmpty()
 
     private val basePanel = JPanel(null)
     private val labelLayout = SettingsRepository.getSettings().arrivalLabelLayouts[timelineConfig.arrLabelLayout]!!

@@ -146,7 +146,7 @@ class TimelineOverlay(
     private fun containsEventLabel(timelineEvent: TimelineEvent) =
         labels.containsKey(labelKeyFor(timelineEvent))
 
-    private fun isDualTimeline() = timelineConfig.left.targets.isNotEmpty() && timelineConfig.right.targets.isNotEmpty()
+    private fun isDualTimeline() = timelineConfig.leftTargets.isNotEmpty() && timelineConfig.rightTargets.isNotEmpty()
 
     private fun computedLabelWidth(): Int {
         val maxLabelLength = maxOf(
@@ -266,8 +266,8 @@ class TimelineOverlay(
         val scaleBounds = timelineView.getScaleBounds()
         val now = NtpClock.now()
         g.color = Color.decode("#ff4800")
-        if (timelineConfig.left.targets.isNotEmpty()) paintHourglass(g, scaleBounds.x, now)
-        if (timelineConfig.right.targets.isNotEmpty()) paintHourglass(g, scaleBounds.x + scaleBounds.width, now)
+        if (timelineConfig.leftTargets.isNotEmpty()) paintHourglass(g, scaleBounds.x, now)
+        if (timelineConfig.rightTargets.isNotEmpty()) paintHourglass(g, scaleBounds.x + scaleBounds.width, now)
     }
 
     private fun drawProposedTime(g: Graphics) {
