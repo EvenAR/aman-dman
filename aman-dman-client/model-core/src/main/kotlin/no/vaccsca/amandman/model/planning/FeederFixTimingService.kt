@@ -1,34 +1,34 @@
 package no.vaccsca.amandman.model.planning
 
 import no.vaccsca.amandman.model.airport.Airport
-import no.vaccsca.amandman.model.timeline.MeteringPointState
-import no.vaccsca.amandman.model.timeline.MeteringPointTiming
+import no.vaccsca.amandman.model.timeline.FeederFixState
+import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 
-interface MeteringPointTimingStrategy {
+interface FeederFixTimingStrategy {
     fun computeTimingsForArrival(
         arrival: RunwayArrivalEvent,
         trajectory: List<TrajectoryPoint>,
-        targetMeteringPoints: Set<String>,
-    ): Map<String, MeteringPointTiming>
+        targetFixes: Set<String>,
+    ): Map<String, FeederFixTiming>
 }
 
-class DynamicFromTrajectoryMeteringPointTimingStrategy : MeteringPointTimingStrategy {
+class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
     override fun computeTimingsForArrival(
         arrival: RunwayArrivalEvent,
         trajectory: List<TrajectoryPoint>,
-        targetMeteringPoints: Set<String>,
-    ): Map<String, MeteringPointTiming> {
-        if (trajectory.isEmpty() || targetMeteringPoints.isEmpty()) return emptyMap()
+        targetFixes: Set<String>,
+    ): Map<String, FeederFixTiming> {
+        if (trajectory.isEmpty() || targetFixes.isEmpty()) return emptyMap()
 
-        val timings = linkedMapOf<String, MeteringPointTiming>()
+        val timings = linkedMapOf<String, FeederFixTiming>()
 
-        targetMeteringPoints.forEach { meteringPoint ->
+        targetFixes.forEach { feederFix ->
             val fixPoint = trajectory.firstOrNull { point ->
-                point.fixId?.uppercase() == meteringPoint
+                point.fixId?.uppercase() == feederFix
             } ?: return@forEach
 
-            timings[meteringPoint] = MeteringPointTiming(
+            timings[feederFix] = FeederFixTiming(
                 eta = arrival.estimatedTime - fixPoint.remainingTime,
                 sta = arrival.scheduledTime - fixPoint.remainingTime,
             )
@@ -38,15 +38,15 @@ class DynamicFromTrajectoryMeteringPointTimingStrategy : MeteringPointTimingStra
     }
 }
 
-class MeteringPointTimingService(
-    private val timingStrategy: MeteringPointTimingStrategy = DynamicFromTrajectoryMeteringPointTimingStrategy(),
+class FeederFixTimingService(
+    private val timingStrategy: FeederFixTimingStrategy = DynamicFromTrajectoryFeederFixTimingStrategy(),
 ) {
     fun buildState(
         airport: Airport,
         arrivals: List<RunwayArrivalEvent>,
         trajectoryProvider: (callsign: String) -> List<TrajectoryPoint>?,
-    ): MeteringPointState {
-        val configuredFixes = airport.meteringPoints.map { it.uppercase() }.distinct()
+    ): FeederFixState {
+        val configuredFixes = airport.feederFixes.map { it.uppercase() }.distinct()
         val targetFixes = configuredFixes.toSet()
 
         val timingsByCallsign = arrivals.mapNotNull { arrival ->
@@ -55,8 +55,8 @@ class MeteringPointTimingService(
             if (timings.isEmpty()) null else arrival.callsign to timings
         }.toMap()
 
-        return MeteringPointState(
-            availableMeteringPoints = configuredFixes,
+        return FeederFixState(
+            availableFixes = configuredFixes,
             timingsByCallsign = timingsByCallsign,
         )
     }

@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.view.forms
 
-import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.FeederFixTimelineConfig
 import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
@@ -30,7 +30,7 @@ class NewTimelineForm(
     private val airportIcao: String,
     private val existingConfig: TimelineConfig?,
     availableRunwaysInitial: Set<String>,
-    availableMeteringPointsInitial: Set<String>,
+    availableFixesInitial: Set<String>,
     private val canDeleteExistingConfig: Boolean = false,
     confirmDeleteAction: (() -> Boolean)? = null,
 ) : JPanel() {
@@ -39,7 +39,7 @@ class NewTimelineForm(
 
     private enum class AnchorType(val label: String) {
         RUNWAYS("Runways"),
-        METERING_POINTS("Metering points");
+        FEEDER_FIXES("Feeder fixes");
 
         override fun toString(): String = label
     }
@@ -47,7 +47,7 @@ class NewTimelineForm(
     private data class SideTargetSelector(
         val targetCards: JPanel,
         val runwayList: JList<String>,
-        val meteringPointList: JList<String>,
+        val feederFixList: JList<String>,
     )
 
     private val initialDepLayoutSelection = (existingConfig as? RunwayTimelineConfig)?.depLabelLayout
@@ -73,7 +73,7 @@ class NewTimelineForm(
     }
 
     private var availableRunways: Set<String> = availableRunwaysInitial.map { it.uppercase() }.toSet()
-    private var availableMeteringPoints: Set<String> = availableMeteringPointsInitial.map { it.uppercase() }.toSet()
+    private var availableFixes: Set<String> = availableFixesInitial.map { it.uppercase() }.toSet()
     private var syncingListState = false
 
     init {
@@ -127,15 +127,15 @@ class NewTimelineForm(
 
     private fun createSideTargetSelector(prefix: String): SideTargetSelector {
         val runwayList = createSelectionList("${prefix}RunwayList")
-        val meteringPointList = createSelectionList("${prefix}MeteringPointList")
+        val feederFixList = createSelectionList("${prefix}FeederFixList")
 
         val runwayCard = JScrollPane(runwayList).apply {
             name = "${prefix}RunwayCard"
             minimumSize = Dimension(140, 70)
             preferredSize = Dimension(240, 110)
         }
-        val meteringCard = JScrollPane(meteringPointList).apply {
-            name = "${prefix}MeteringPointCard"
+        val feederFixCard = JScrollPane(feederFixList).apply {
+            name = "${prefix}FeederFixCard"
             minimumSize = Dimension(140, 70)
             preferredSize = Dimension(240, 110)
         }
@@ -143,10 +143,10 @@ class NewTimelineForm(
         val targetCards = JPanel(CardLayout()).apply {
             name = "${prefix}TargetCards"
             add(runwayCard, AnchorType.RUNWAYS.name)
-            add(meteringCard, AnchorType.METERING_POINTS.name)
+            add(feederFixCard, AnchorType.FEEDER_FIXES.name)
         }
 
-        return SideTargetSelector(targetCards, runwayList, meteringPointList)
+        return SideTargetSelector(targetCards, runwayList, feederFixList)
     }
 
     private fun createSelectionList(name: String): JList<String> = JList<String>().apply {
@@ -185,13 +185,13 @@ class NewTimelineForm(
         arrLayouts: Set<String>,
         depLayouts: Set<String>,
         availableRunways: Set<String>,
-        availableMeteringPoints: Set<String>,
+        availableFixes: Set<String>,
     ) {
         updateLayoutCombo(depLayoutCombo, depLayouts, initialDepLayoutSelection)
         updateLayoutCombo(arrLayoutCombo, arrLayouts, initialArrLayoutSelection)
 
         this.availableRunways = availableRunways.map { it.uppercase() }.toSet()
-        this.availableMeteringPoints = availableMeteringPoints.map { it.uppercase() }.toSet()
+        this.availableFixes = availableFixes.map { it.uppercase() }.toSet()
 
         refreshSideOptionLists()
         applyAnchorType(anchorTypeCombo.selectedItem as AnchorType)
@@ -267,7 +267,7 @@ class NewTimelineForm(
                 }
             }
 
-            AnchorType.METERING_POINTS -> CreateOrUpdateTimelineDto.MeteringPoint(
+            AnchorType.FEEDER_FIXES -> CreateOrUpdateTimelineDto.FeederFix(
                 airportIcao = airportIcao,
                 title = titleText,
                 left = leftTargets,
@@ -290,7 +290,7 @@ class NewTimelineForm(
 
     private fun getSelectedTargets(selector: SideTargetSelector, type: AnchorType): List<String> = when (type) {
         AnchorType.RUNWAYS -> selector.runwayList.selectedValuesList.map { it.uppercase() }
-        AnchorType.METERING_POINTS -> selector.meteringPointList.selectedValuesList.map { it.uppercase() }
+        AnchorType.FEEDER_FIXES -> selector.feederFixList.selectedValuesList.map { it.uppercase() }
     }
 
     private fun applyExistingConfig(config: TimelineConfig) {
@@ -304,10 +304,10 @@ class NewTimelineForm(
                 depLayoutCombo.selectedItem = config.depLabelLayout
             }
 
-            is MeteringPointTimelineConfig -> {
-                applyExistingMeteringSelections(leftSelector, config.leftMeteringPoints)
-                applyExistingMeteringSelections(rightSelector, config.rightMeteringPoints)
-                anchorTypeCombo.selectedItem = AnchorType.METERING_POINTS
+            is FeederFixTimelineConfig -> {
+                applyExistingFixSelections(leftSelector, config.leftFixes)
+                applyExistingFixSelections(rightSelector, config.rightFixes)
+                anchorTypeCombo.selectedItem = AnchorType.FEEDER_FIXES
                 depLayoutCombo.selectedItem = null
             }
         }
@@ -318,11 +318,11 @@ class NewTimelineForm(
 
     private fun applyExistingRunwaySelections(selector: SideTargetSelector, runways: List<String>) {
         selectListValues(selector.runwayList, runways.map { it.uppercase() }.toSet())
-        selector.meteringPointList.clearSelection()
+        selector.feederFixList.clearSelection()
     }
 
-    private fun applyExistingMeteringSelections(selector: SideTargetSelector, meteringPoints: List<String>) {
-        selectListValues(selector.meteringPointList, meteringPoints.map { it.uppercase() }.toSet())
+    private fun applyExistingFixSelections(selector: SideTargetSelector, fixes: List<String>) {
+        selectListValues(selector.feederFixList, fixes.map { it.uppercase() }.toSet())
         selector.runwayList.clearSelection()
     }
 
@@ -348,13 +348,13 @@ class NewTimelineForm(
             ?.toSet()
             ?: emptySet()
 
-        val preservedLeftMeteringPoints = (preservedConfig as? MeteringPointTimelineConfig)
-            ?.leftMeteringPoints
+        val preservedLeftFixes = (preservedConfig as? FeederFixTimelineConfig)
+            ?.leftFixes
             ?.map { it.uppercase() }
             ?.toSet()
             ?: emptySet()
-        val preservedRightMeteringPoints = (preservedConfig as? MeteringPointTimelineConfig)
-            ?.rightMeteringPoints
+        val preservedRightFixes = (preservedConfig as? FeederFixTimelineConfig)
+            ?.rightFixes
             ?.map { it.uppercase() }
             ?.toSet()
             ?: emptySet()
@@ -362,39 +362,39 @@ class NewTimelineForm(
         refreshSideOptions(
             selector = leftSelector,
             preservedRunways = preservedLeftRunways,
-            preservedMeteringPoints = preservedLeftMeteringPoints,
+            preservedFixes = preservedLeftFixes,
         )
         refreshSideOptions(
             selector = rightSelector,
             preservedRunways = preservedRightRunways,
-            preservedMeteringPoints = preservedRightMeteringPoints,
+            preservedFixes = preservedRightFixes,
         )
     }
 
     private fun refreshSideOptions(
         selector: SideTargetSelector,
         preservedRunways: Set<String>,
-        preservedMeteringPoints: Set<String>,
+        preservedFixes: Set<String>,
     ) {
         val selectedRunways = selector.runwayList.selectedValuesList.map { it.uppercase() }.toSet()
-        val selectedMeteringPoints = selector.meteringPointList.selectedValuesList.map { it.uppercase() }.toSet()
+        val selectedFixes = selector.feederFixList.selectedValuesList.map { it.uppercase() }.toSet()
 
         val runwayOptions = (availableRunways + selectedRunways + preservedRunways).sorted()
-        val meteringPointOptions = (availableMeteringPoints + selectedMeteringPoints + preservedMeteringPoints).sorted()
+        val fixOptions = (availableFixes + selectedFixes + preservedFixes).sorted()
 
         selector.runwayList.setListData(runwayOptions.toTypedArray())
-        selector.meteringPointList.setListData(meteringPointOptions.toTypedArray())
+        selector.feederFixList.setListData(fixOptions.toTypedArray())
 
         selectListValues(selector.runwayList, selectedRunways + preservedRunways)
-        selectListValues(selector.meteringPointList, selectedMeteringPoints + preservedMeteringPoints)
+        selectListValues(selector.feederFixList, selectedFixes + preservedFixes)
     }
 
     private fun attachListSyncListeners() {
         listOf(
             leftSelector.runwayList,
             rightSelector.runwayList,
-            leftSelector.meteringPointList,
-            rightSelector.meteringPointList,
+            leftSelector.feederFixList,
+            rightSelector.feederFixList,
         ).forEach { list ->
             list.addListSelectionListener {
                 if (!it.valueIsAdjusting) {
@@ -414,9 +414,9 @@ class NewTimelineForm(
                 configuredOptions = availableRunways,
             )
             syncOneTypeAcrossSides(
-                leftList = leftSelector.meteringPointList,
-                rightList = rightSelector.meteringPointList,
-                configuredOptions = availableMeteringPoints,
+                leftList = leftSelector.feederFixList,
+                rightList = rightSelector.feederFixList,
+                configuredOptions = availableFixes,
             )
         } finally {
             syncingListState = false

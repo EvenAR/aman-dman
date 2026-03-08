@@ -13,7 +13,7 @@ import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.sharedstate.DataUpdatesServerSender
 import no.vaccsca.amandman.model.planning.LocalSequencePlanner
 import no.vaccsca.amandman.model.sharedstate.RemoteDataMirror
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.ControllerInfoData
@@ -358,9 +358,9 @@ class MainPresenter(
             }
         }
 
-        override fun onMeteringPointStateUpdated(airportIcao: String, meteringPointState: MeteringPointState) {
+        override fun onFeederFixStateUpdated(airportIcao: String, feederFixState: FeederFixState) {
             runOnEdt {
-                listeners[airportIcao]?.onMeteringPointStateUpdated(airportIcao, meteringPointState)
+                listeners[airportIcao]?.onFeederFixStateUpdated(airportIcao, feederFixState)
             }
         }
     }

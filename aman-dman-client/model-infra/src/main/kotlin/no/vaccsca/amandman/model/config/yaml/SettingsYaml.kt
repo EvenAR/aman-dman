@@ -50,7 +50,7 @@ data class AirportTimelinesYaml(
 
     @field:NotNull
     @field:Valid
-    val meteringPointBased: List<@Valid MeteringPointTimelineYaml> = emptyList(),
+    val feederFixBased: List<@Valid FeederFixTimelineYaml> = emptyList(),
 )
 
 data class TimelineDefaultsYaml(
@@ -80,7 +80,7 @@ data class RunwayTimelineYaml(
     val departureLabelLayoutId: String? = null,
 )
 
-data class MeteringPointTimelineYaml(
+data class FeederFixTimelineYaml(
     @field:NotBlank
     val timelineTitle: String,
 

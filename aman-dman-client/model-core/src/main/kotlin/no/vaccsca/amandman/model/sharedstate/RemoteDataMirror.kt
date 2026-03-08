@@ -95,8 +95,8 @@ class RemoteDataMirror(
             .onSuccess { dataUpdateListener.onNonSequencedListUpdated(airportIcao, it) }
             .onFailure { logger.error("Failed to fetch non-sequenced list: ${it.message}") }
 
-        runCatching { sharedState.getMeteringPointState(airportIcao) }
-            .onSuccess { dataUpdateListener.onMeteringPointStateUpdated(airportIcao, it) }
-            .onFailure { logger.error("Failed to fetch metering point state: ${it.message}") }
+        runCatching { sharedState.getFeederFixState(airportIcao) }
+            .onSuccess { dataUpdateListener.onFeederFixStateUpdated(airportIcao, it) }
+            .onFailure { logger.error("Failed to fetch feeder fix state: ${it.message}") }
     }
 }

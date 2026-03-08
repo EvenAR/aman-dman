@@ -136,10 +136,10 @@ class AirportView(
 
     fun openPopupMenu(
         customizedTimelines: List<TimelineConfig>,
-        generatedMeteringPointTimelines: List<TimelineConfig>,
+        generatedFixTimelines: List<TimelineConfig>,
         screenPos: Point
     ) {
-        timelineScrollPane.openPopupMenu(customizedTimelines, generatedMeteringPointTimelines, screenPos)
+        timelineScrollPane.openPopupMenu(customizedTimelines, generatedFixTimelines, screenPos)
     }
 
     fun openLandingRatesWindow() {

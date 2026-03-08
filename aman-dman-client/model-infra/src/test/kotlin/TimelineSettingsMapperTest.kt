@@ -1,7 +1,7 @@
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.mapper.toYaml
 import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
-import no.vaccsca.amandman.model.config.yaml.MeteringPointTimelineYaml
+import no.vaccsca.amandman.model.config.yaml.FeederFixTimelineYaml
 import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
 import no.vaccsca.amandman.model.config.yaml.TimelineDefaultsYaml
 import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
@@ -90,7 +90,7 @@ class TimelineSettingsMapperTest {
     }
 
     @Test
-    fun `metering timelines map without departure layout field`() {
+    fun `feeder fix timelines map without departure layout field`() {
         val settings = TimelineSettingsYaml(
             timelines = mapOf(
                 "TEST" to AirportTimelinesYaml(
@@ -98,8 +98,8 @@ class TimelineSettingsMapperTest {
                         defaultArrivalLabelLayoutId = "ARR",
                         defaultDepartureLabelLayoutId = "DEP",
                     ),
-                    meteringPointBased = listOf(
-                        MeteringPointTimelineYaml(
+                    feederFixBased = listOf(
+                        FeederFixTimelineYaml(
                             timelineTitle = "MP",
                             right = listOf("BAVAD")
                         )
@@ -109,9 +109,9 @@ class TimelineSettingsMapperTest {
         )
 
         val mapped = settings.toDomain()
-        val metering = mapped.getValue("TEST").meteringPointBased.single()
+        val feederFixTimeline = mapped.getValue("TEST").feederFixBased.single()
 
-        assertEquals("ARR", metering.arrivalLabelLayoutId)
+        assertEquals("ARR", feederFixTimeline.arrivalLabelLayoutId)
     }
 
     @Test

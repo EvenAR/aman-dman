@@ -71,9 +71,9 @@ object SettingsRepository : SettingsProvider {
         val availableArrivalLayouts = loadedSettings.arrivalLabelLayouts.keys
 
         loadedAirportData.forEach { airport ->
-            val layoutId = airport.meteringTimelineArrivalLabelLayoutId ?: return@forEach
+            val layoutId = airport.feederFixTimelineArrivalLabelLayoutId ?: return@forEach
             require(layoutId in availableArrivalLayouts) {
-                "Airport ${airport.icao} uses unknown meteringTimelineArrivalLabelLayoutId '$layoutId'. " +
+                "Airport ${airport.icao} uses unknown feederFixTimelineArrivalLabelLayoutId '$layoutId'. " +
                     "Available arrival layouts: ${availableArrivalLayouts.sorted().joinToString(", ")}"
             }
         }

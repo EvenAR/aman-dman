@@ -4,7 +4,7 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -26,11 +26,11 @@ interface AirportViewInterface {
     fun updateRunwayModes(runwayModes: List<Pair<String, Boolean>>)
     fun updateMinimumSpacing(minimumSpacingNm: Double)
     fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean)
-    fun updateMeteringPointState(meteringPointState: MeteringPointState)
+    fun updateFeederFixState(feederFixState: FeederFixState)
 
     fun showAirportContextMenu(
         cusomizedTimelines: List<TimelineConfig>,
-        generatedMeteringPointTimelines: List<TimelineConfig>,
+        generatedFixTimelines: List<TimelineConfig>,
         screenPos: Point
     )
     fun openMetWindow()
@@ -48,7 +48,7 @@ interface AirportViewInterface {
         availableTagLayoutsDep: Set<String>,
         availableTagLayoutsArr: Set<String>,
         availableRunways: Set<String>,
-        availableMeteringPoints: Set<String>,
+        availableFixes: Set<String>,
         existingConfig: TimelineConfig? = null,
         canDeleteExistingConfig: Boolean = false
     )

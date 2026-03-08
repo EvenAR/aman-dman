@@ -3,7 +3,7 @@ package no.vaccsca.amandman.model.sharedstate
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.integration.IntegrationStatus
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 
@@ -22,7 +22,7 @@ interface MasterSlaveSharedState {
     fun checkVersionCompatibility(): VersionCompatibilityResult
     fun sendNonSequencedList(airportIcao: String, nonSequencedList: List<NonSequencedEvent>)
     fun getNonSequencedList(airportIcao: String): List<NonSequencedEvent>
-    fun sendMeteringPointState(airportIcao: String, meteringPointState: MeteringPointState)
-    fun getMeteringPointState(airportIcao: String): MeteringPointState
+    fun sendFeederFixState(airportIcao: String, feederFixState: FeederFixState)
+    fun getFeederFixState(airportIcao: String): FeederFixState
     fun getIntegrationStatus(airportIcao: String): IntegrationStatus
 }

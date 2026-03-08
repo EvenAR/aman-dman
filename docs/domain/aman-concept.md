@@ -13,7 +13,7 @@ It does not replace controller judgment. It supports it with predictions, sequen
 At a high level, AMAN aims to:
 
 - reduce holding and tactical vectoring;
-- smooth demand at runway and metering points;
+- smooth demand at runway and fixes;
 - improve predictability for en-route, approach, and tower teams;
 - keep runway throughput stable under varying traffic and weather conditions.
 
@@ -22,7 +22,7 @@ At a high level, AMAN aims to:
 AMAN trajectory prediction is usually runway-anchored:
 
 - Predict runway-threshold ETA (estimated crossing time) and other key-point ETAs from route, performance, and wind data.
-- Propagate estimates across the expected route/profile to derive timing at metering points and approach-relevant fixes.
+- Propagate estimates across the expected route/profile to derive timing at fixes and approach-relevant fixes.
 - Use aircraft performance assumptions (speed, descent capability, configuration effects) to model travel time.
 - Apply forecast/measured wind components along altitude bands and route segments.
 - Continuously recompute as wind, route, runway mode, and aircraft intent data change.
@@ -39,7 +39,7 @@ AMAN first estimates how the aircraft is likely to progress in time (prediction)
 
 
 1. AMAN ingests flight, surveillance, runway, and constraint data.
-2. It predicts key times (for example metering-point and runway-threshold times).
+2. It predicts key times (for example feeder-fix and runway-threshold times).
 3. It computes or updates an arrival sequence and target times.
 4. It generates advisories (for example Time to Gain/Time to Lose, speed control, holding expectations).
 5. Controllers apply clearances and can override or adjust the sequence.
@@ -99,7 +99,7 @@ AMAN is most effective when each position sees a role-tailored view instead of a
 
 ### 1) Sequence Manager View (Planning View)
 
-- timeline/sequence view by runway (and optionally by metering point);
+- timeline/sequence view by runway (and optionally by feeder fix);
 - sequence edit controls (swap, freeze groups, apply constraints);
 - stability horizons (where sequence should be increasingly stable);
 - what-if tools for runway/weather/capacity scenarios.

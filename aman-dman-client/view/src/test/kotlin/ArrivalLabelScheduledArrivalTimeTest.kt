@@ -70,7 +70,7 @@ class ArrivalLabelScheduledArrivalTimeTest {
     }
 
     @Test
-    fun `scheduledArrivalTime should render metering STA when display scheduled time is overridden`() {
+    fun `scheduledArrivalTime should render feeder fix STA when display scheduled time is overridden`() {
         val label = createLabel(scheduledTime = Instant.parse("2026-03-07T12:34:56Z"))
         label.applyDisplayTimes(
             scheduledTime = Instant.parse("2026-03-07T11:22:33Z"),

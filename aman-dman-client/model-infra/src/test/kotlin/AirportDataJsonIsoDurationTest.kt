@@ -23,13 +23,13 @@ class AirportDataJsonIsoDurationTest {
                   latitude: 60.0
                   longitude: 11.0
                 runwayThresholds: {}
-                meteringPointTransitTimesMinutes:
+                feederFixTransitTimesMinutes:
                   FIX1:
                     "01L": 8
         """.trimIndent()
 
         val parsed = yamlMapper.readValue<AirportDataJson>(yaml)
-        val minutes = parsed.airports["TEST"]?.meteringPointTransitTimesMinutes?.get("FIX1")?.get("01L")
+        val minutes = parsed.airports["TEST"]?.feederFixTransitTimesMinutes?.get("FIX1")?.get("01L")
         assertEquals(8, minutes)
     }
 
@@ -42,7 +42,7 @@ class AirportDataJsonIsoDurationTest {
                   latitude: 60.0
                   longitude: 11.0
                 runwayThresholds: {}
-                meteringPointTransitTimesMinutes:
+                feederFixTransitTimesMinutes:
                   FIX1:
                     "01L": PT8M30S
         """.trimIndent()

@@ -18,7 +18,7 @@ sealed interface CreateOrUpdateTimelineDto {
         override val timelineId: String? = null,
     ) : CreateOrUpdateTimelineDto
 
-    data class MeteringPoint(
+    data class FeederFix(
         override val airportIcao: String,
         override val title: String,
         override val left: List<String>,

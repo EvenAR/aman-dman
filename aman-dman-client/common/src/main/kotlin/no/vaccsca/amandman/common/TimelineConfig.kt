@@ -22,14 +22,14 @@ data class RunwayTimelineConfig(
     override val rightTargets: List<String> = rightRunways
 }
 
-data class MeteringPointTimelineConfig(
+data class FeederFixTimelineConfig(
     override val title: String,
     override val airportIcao: String,
-    val leftMeteringPoints: List<String>,
-    val rightMeteringPoints: List<String>,
+    val leftFixes: List<String>,
+    val rightFixes: List<String>,
     override val arrLabelLayout: String,
     override val timelineId: String? = null,
 ) : TimelineConfig {
-    override val leftTargets: List<String> = leftMeteringPoints
-    override val rightTargets: List<String> = rightMeteringPoints
+    override val leftTargets: List<String> = leftFixes
+    override val rightTargets: List<String> = rightFixes
 }

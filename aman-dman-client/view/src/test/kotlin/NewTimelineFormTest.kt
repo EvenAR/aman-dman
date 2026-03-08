@@ -1,5 +1,5 @@
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.FeederFixTimelineConfig
 import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
@@ -37,14 +37,14 @@ class NewTimelineFormTest {
                 airportIcao = "TEST",
                 existingConfig = null,
                 availableRunwaysInitial = setOf("19L", "19R"),
-                availableMeteringPointsInitial = setOf("M1", "M2")
+                availableFixesInitial = setOf("M1", "M2")
             )
 
             val anchorTypeCombo = findByName<JComboBox<*>>(form, "timelineAnchorTypeCombo")
             val rightRunwayCard = findByName<Component>(form, "rightRunwayCard")
-            val rightMeteringCard = findByName<Component>(form, "rightMeteringPointCard")
+            val rightMeteringCard = findByName<Component>(form, "rightFeederFixCard")
             val leftRunwayCard = findByName<Component>(form, "leftRunwayCard")
-            val leftMeteringCard = findByName<Component>(form, "leftMeteringPointCard")
+            val leftMeteringCard = findByName<Component>(form, "leftFeederFixCard")
             val depLayoutCombo = findByName<JComboBox<*>>(form, "departureLayoutCombo")
 
             assertTrue(rightRunwayCard.isVisible)
@@ -72,7 +72,7 @@ class NewTimelineFormTest {
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
                 availableRunways = setOf("19L", "19R"),
-                availableMeteringPoints = setOf("M1", "M2")
+                availableFixes = setOf("M1", "M2")
             )
 
             val rightRunwayList = findByName<JList<String>>(form, "rightRunwayList")
@@ -104,7 +104,7 @@ class NewTimelineFormTest {
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
                 availableRunways = setOf("19L", "19R"),
-                availableMeteringPoints = setOf("M1", "M2")
+                availableFixes = setOf("M1", "M2")
             )
 
             val rightRunwayList = findByName<JList<String>>(form, "rightRunwayList")
@@ -132,13 +132,13 @@ class NewTimelineFormTest {
                 presenter = presenter,
                 existingConfig = existingConfig,
                 availableRunwaysInitial = setOf("19L"),
-                availableMeteringPointsInitial = emptySet()
+                availableFixesInitial = emptySet()
             )
             form.update(
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
                 availableRunways = setOf("19L"),
-                availableMeteringPoints = emptySet()
+                availableFixes = emptySet()
             )
 
             val rightRunwayList = findByName<JList<String>>(form, "rightRunwayList")
@@ -156,13 +156,13 @@ class NewTimelineFormTest {
             val form = createForm(
                 presenter = presenter,
                 availableRunwaysInitial = setOf("19L"),
-                availableMeteringPointsInitial = setOf("M1")
+                availableFixesInitial = setOf("M1")
             )
             form.update(
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
                 availableRunways = setOf("19L"),
-                availableMeteringPoints = setOf("M1")
+                availableFixes = setOf("M1")
             )
 
             findByName<JTextField>(form, "titleInput").text = "NEW"
@@ -173,7 +173,7 @@ class NewTimelineFormTest {
     }
 
     @Test
-    fun `submit maps metering timeline to metering dto without departure layout`() {
+    fun `submit maps feeder fix timeline to feeder fix dto without departure layout`() {
         onEdt {
             val presenter = CapturingPresenter()
             val form = createForm(presenter = presenter)
@@ -181,7 +181,7 @@ class NewTimelineFormTest {
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
                 availableRunways = setOf("19L", "19R"),
-                availableMeteringPoints = setOf("M1", "M2")
+                availableFixes = setOf("M1", "M2")
             )
 
             populateMeteringForm(form)
@@ -189,7 +189,7 @@ class NewTimelineFormTest {
 
             assertEquals(1, presenter.createdTimelines.size)
             val created = presenter.createdTimelines.single()
-            assertTrue(created is CreateOrUpdateTimelineDto.MeteringPoint)
+            assertTrue(created is CreateOrUpdateTimelineDto.FeederFix)
             assertEquals(setOf("M2"), created.left.toSet())
             assertEquals(setOf("M1"), created.right.toSet())
         }
@@ -243,11 +243,11 @@ class NewTimelineFormTest {
             val presenter = CapturingPresenter()
             val form = createForm(
                 presenter = presenter,
-                existingConfig = MeteringPointTimelineConfig(
+                existingConfig = FeederFixTimelineConfig(
                     title = "FLOW",
                     airportIcao = "TEST",
-                    leftMeteringPoints = listOf("M2"),
-                    rightMeteringPoints = listOf("M1"),
+                    leftFixes = listOf("M2"),
+                    rightFixes = listOf("M1"),
                     arrLabelLayout = "ARR",
                     timelineId = "saved-mp",
                 )
@@ -256,7 +256,7 @@ class NewTimelineFormTest {
                 arrLayouts = setOf("ARR"),
                 depLayouts = setOf("DEP"),
                 availableRunways = setOf("19L", "19R"),
-                availableMeteringPoints = setOf("M1", "M2")
+                availableFixes = setOf("M1", "M2")
             )
 
             val titleInput = findByName<JTextField>(form, "titleInput")
@@ -264,7 +264,7 @@ class NewTimelineFormTest {
             titleInput.text = "RENAMED"
             findByName<JButton>(form, "saveButton").doClick()
 
-            val created = presenter.createdTimelines.single() as CreateOrUpdateTimelineDto.MeteringPoint
+            val created = presenter.createdTimelines.single() as CreateOrUpdateTimelineDto.FeederFix
             assertEquals("RENAMED", created.title)
             assertEquals("saved-mp", created.timelineId)
         }
@@ -274,7 +274,7 @@ class NewTimelineFormTest {
         presenter: CapturingPresenter,
         existingConfig: TimelineConfig? = null,
         availableRunwaysInitial: Set<String> = setOf("19L", "19R"),
-        availableMeteringPointsInitial: Set<String> = setOf("M1", "M2"),
+        availableFixesInitial: Set<String> = setOf("M1", "M2"),
         canDeleteExistingConfig: Boolean = false,
         confirmDeleteAction: (() -> Boolean)? = null,
     ): NewTimelineForm = NewTimelineForm(
@@ -282,7 +282,7 @@ class NewTimelineFormTest {
         airportIcao = "TEST",
         existingConfig = existingConfig,
         availableRunwaysInitial = availableRunwaysInitial,
-        availableMeteringPointsInitial = availableMeteringPointsInitial,
+        availableFixesInitial = availableFixesInitial,
         canDeleteExistingConfig = canDeleteExistingConfig,
         confirmDeleteAction = confirmDeleteAction,
     )
@@ -291,8 +291,8 @@ class NewTimelineFormTest {
         findByName<JTextField>(form, "titleInput").text = "FLOW"
         findByName<JComboBox<*>>(form, "timelineAnchorTypeCombo").selectedIndex = 1
 
-        val leftMeteringList = findByName<JList<String>>(form, "leftMeteringPointList")
-        val rightMeteringList = findByName<JList<String>>(form, "rightMeteringPointList")
+        val leftMeteringList = findByName<JList<String>>(form, "leftFeederFixList")
+        val rightMeteringList = findByName<JList<String>>(form, "rightFeederFixList")
         selectValues(leftMeteringList, setOf("M2"))
         selectValues(rightMeteringList, setOf("M1", "M2"))
     }

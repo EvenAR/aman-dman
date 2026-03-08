@@ -64,7 +64,7 @@ class LocalSequencePlanner(
         }
     )
 
-    private val meteringPointTimingService = MeteringPointTimingService()
+    private val feederFixTimingService = FeederFixTimingService()
 
     private var arrivalsCache: List<RunwayArrivalEvent> = emptyList()
     private var departuresCache: List<DepartureEvent> = emptyList()
@@ -97,7 +97,7 @@ class LocalSequencePlanner(
     override fun start() {
         scope.launch {
             dataUpdateListeners.forEach { it.onMinimumSpacingUpdated(airportIcao, minimumSpacingNm) }
-            publishMeteringPointState(arrivalsCache)
+            publishFeederFixState(arrivalsCache)
         }
         atcClient.start { controllerInfo = it }
     }
@@ -391,17 +391,17 @@ class LocalSequencePlanner(
             listener.onTimelineEventsUpdated(airportIcao, sequencedArrivals + departuresCache)
             listener.onNonSequencedListUpdated(airportIcao, nonSequencedList)
         }
-        publishMeteringPointState(sequencedArrivals)
+        publishFeederFixState(sequencedArrivals)
     }
 
-    private fun publishMeteringPointState(arrivals: List<RunwayArrivalEvent>) {
-        val meteringPointState = meteringPointTimingService.buildState(
+    private fun publishFeederFixState(arrivals: List<RunwayArrivalEvent>) {
+        val feederFixState = feederFixTimingService.buildState(
             airport = airport,
             arrivals = arrivals,
             trajectoryProvider = ArrivalEventService::getDescentProfileForCallsign,
         )
         dataUpdateListeners.forEach { listener ->
-            listener.onMeteringPointStateUpdated(airportIcao, meteringPointState)
+            listener.onFeederFixStateUpdated(airportIcao, feederFixState)
         }
     }
 

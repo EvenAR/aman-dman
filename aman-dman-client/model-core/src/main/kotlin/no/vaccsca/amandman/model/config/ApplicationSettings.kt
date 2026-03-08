@@ -10,7 +10,7 @@ data class AmanDmanSettings(
 data class AirportTimelines(
     val defaults: TimelineDefaults,
     val runwayBased: List<RunwayTimeline> = emptyList(),
-    val meteringPointBased: List<MeteringPointTimeline> = emptyList(),
+    val feederFixBased: List<FeederFixTimeline> = emptyList(),
 )
 
 data class TimelineDefaults(
@@ -27,7 +27,7 @@ data class RunwayTimeline(
     val timelineId: String? = null,
 )
 
-data class MeteringPointTimeline(
+data class FeederFixTimeline(
     val title: String,
     val left: List<String> = emptyList(),
     val right: List<String>,

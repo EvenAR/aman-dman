@@ -11,10 +11,10 @@ data class Airport(
     val independentRunwaySystems: List<Set<String>>,
     val sequencingHorizon: Duration,
     val lockedHorizon: Duration,
-    val meteringPoints: List<String> = emptyList(),
-    val meteringTimelineArrivalLabelLayoutId: String? = null,
-    // Reserved for future fixed-transit metering point timing strategy.
-    val meteringPointTransitTimesMinutes: Map<String, Map<String, Int>> = emptyMap(),
+    val feederFixes: List<String> = emptyList(),
+    val feederFixTimelineArrivalLabelLayoutId: String? = null,
+    // Reserved for future fixed-transit feeder fix timing strategy.
+    val feederFixTransitTimesMinutes: Map<String, Map<String, Int>> = emptyMap(),
 )
 
 data class RunwayThreshold(

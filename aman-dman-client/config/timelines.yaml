@@ -37,7 +37,7 @@ timelines:
       - "01R"
       arrivalLabelLayoutId: "osloArr"
       departureLabelLayoutId: "osloDep"
-    meteringPointBased:
+    feederFixBased:
     - timelineTitle: "BAVAD / TITLA"
       timelineId: "b2706193-c900-4863-936d-34c463c78511"
       left:
@@ -79,4 +79,4 @@ timelines:
       - "35"
       arrivalLabelLayoutId: "osloArr"
       departureLabelLayoutId: "osloDep"
-    meteringPointBased: []
+    feederFixBased: []

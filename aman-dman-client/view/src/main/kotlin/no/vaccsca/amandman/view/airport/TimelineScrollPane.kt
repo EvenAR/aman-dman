@@ -2,8 +2,8 @@ package no.vaccsca.amandman.view.airport
 
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.common.RunwayTimelineConfig
-import no.vaccsca.amandman.common.MeteringPointTimelineConfig
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.common.FeederFixTimelineConfig
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
@@ -33,7 +33,7 @@ class TimelineScrollPane(
     private val presenter: AirportPresenterInterface get() = presenterProvider()
     private var minSpacingSelectionNm: Double? = null
     private var latestRunwayEvents: List<RunwayEvent> = emptyList()
-    private var latestMeteringPointState: MeteringPointState = MeteringPointState()
+    private var latestFeederFixState: FeederFixState = FeederFixState()
 
     init {
         val items = JPanel(GridBagLayout())
@@ -53,8 +53,8 @@ class TimelineScrollPane(
             updateTimelineEvents()
         }
 
-        airportViewState.meteringPointState.addListener { newValue ->
-            latestMeteringPointState = newValue
+        airportViewState.feederFixState.addListener { newValue ->
+            latestFeederFixState = newValue
             updateTimelineEvents()
         }
 
@@ -111,9 +111,9 @@ class TimelineScrollPane(
     private fun updateTimelineEvents() {
         val timelineData = airportViewState.openTimelines.value
             .map { timelineConfig ->
-                val leftEvents = buildSideEvents(latestRunwayEvents, timelineConfig, isLeft = true, latestMeteringPointState)
+                val leftEvents = buildSideEvents(latestRunwayEvents, timelineConfig, isLeft = true, latestFeederFixState)
                 val leftCallsigns = leftEvents.mapNotNull { (it.event as? RunwayFlightEvent)?.callsign }.toSet()
-                val rightEvents = buildSideEvents(latestRunwayEvents, timelineConfig, isLeft = false, latestMeteringPointState)
+                val rightEvents = buildSideEvents(latestRunwayEvents, timelineConfig, isLeft = false, latestFeederFixState)
                     .filterNot { sideEvent ->
                         val callsign = (sideEvent.event as? RunwayFlightEvent)?.callsign
                         callsign != null && callsign in leftCallsigns
@@ -140,7 +140,7 @@ class TimelineScrollPane(
         runwayEvents: List<RunwayEvent>,
         timelineConfig: TimelineConfig,
         isLeft: Boolean,
-        meteringPointState: MeteringPointState,
+        feederFixState: FeederFixState,
     ): List<TimelineDisplayEvent> = when (timelineConfig) {
         is RunwayTimelineConfig -> {
             val runwaySet = (if (isLeft) timelineConfig.leftRunways else timelineConfig.rightRunways)
@@ -149,10 +149,10 @@ class TimelineScrollPane(
             buildRunwaySideEvents(runwayEvents, runwaySet)
         }
 
-        is MeteringPointTimelineConfig -> {
-            val selectedFixes = (if (isLeft) timelineConfig.leftMeteringPoints else timelineConfig.rightMeteringPoints)
+        is FeederFixTimelineConfig -> {
+            val selectedFixes = (if (isLeft) timelineConfig.leftFixes else timelineConfig.rightFixes)
                 .map { it.uppercase() }
-            buildMeteringPointSideEvents(runwayEvents, selectedFixes, meteringPointState)
+            buildFeederFixSideEvents(runwayEvents, selectedFixes, feederFixState)
         }
     }
 
@@ -165,15 +165,15 @@ class TimelineScrollPane(
             .map { TimelineDisplayEvent(event = it) }
     }
 
-    private fun buildMeteringPointSideEvents(
+    private fun buildFeederFixSideEvents(
         runwayEvents: List<RunwayEvent>,
         selectedFixes: List<String>,
-        meteringPointState: MeteringPointState,
+        feederFixState: FeederFixState,
     ): List<TimelineDisplayEvent> {
         return runwayEvents
             .filterIsInstance<RunwayArrivalEvent>()
             .mapNotNull { arrival ->
-                val perFix = meteringPointState.timingsByCallsign[arrival.callsign] ?: return@mapNotNull null
+                val perFix = feederFixState.timingsByCallsign[arrival.callsign] ?: return@mapNotNull null
                 val selectedTimings = selectedFixes.mapNotNull { fix ->
                     perFix[fix]?.let { timing -> fix to timing }
                 }
@@ -217,19 +217,19 @@ class TimelineScrollPane(
 
     fun openPopupMenu(
         customizedTimelines: List<TimelineConfig>,
-        generatedMeteringPointTimelines: List<TimelineConfig>,
+        generatedFixTimelines: List<TimelineConfig>,
         screenPos: Point
     ) {
-        val popup = buildPopupMenu(customizedTimelines, generatedMeteringPointTimelines)
+        val popup = buildPopupMenu(customizedTimelines, generatedFixTimelines)
         popup.show(this, screenPos.x, screenPos.y)
     }
 
     internal fun buildPopupMenu(
         customizedTimelines: List<TimelineConfig>,
-        generatedMeteringPointTimelines: List<TimelineConfig>,
+        generatedFixTimelines: List<TimelineConfig>,
     ): AmanPopupMenu {
         val customizedSorted = customizedTimelines.sortedBy { it.title }
-        val meteringPointSorted = generatedMeteringPointTimelines.sortedBy { it.title }
+        val feederFixSorted = generatedFixTimelines.sortedBy { it.title }
         return AmanPopupMenu("${airportViewState.airportIcao} Actions") {
             item("Add timeline") {
                 if (customizedSorted.isNotEmpty()) {
@@ -242,9 +242,9 @@ class TimelineScrollPane(
                     }
                 }
 
-                if (meteringPointSorted.isNotEmpty()) {
-                    item("Metering points") {
-                        meteringPointSorted.forEach { timeline ->
+                if (feederFixSorted.isNotEmpty()) {
+                    item("Feeder fixes") {
+                        feederFixSorted.forEach { timeline ->
                             item(timeline.title, action = {
                                 presenter.onAddTimelineButtonClicked(timeline)
                             })
@@ -252,7 +252,7 @@ class TimelineScrollPane(
                     }
                 }
 
-                if (customizedSorted.isNotEmpty() || meteringPointSorted.isNotEmpty()) {
+                if (customizedSorted.isNotEmpty() || feederFixSorted.isNotEmpty()) {
                     separator()
                 }
                 item("Create ...", action = {

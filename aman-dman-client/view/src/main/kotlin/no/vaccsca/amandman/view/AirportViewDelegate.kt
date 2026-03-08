@@ -5,7 +5,7 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -72,16 +72,16 @@ class AirportViewDelegate(
         )
     }
 
-    override fun updateMeteringPointState(meteringPointState: MeteringPointState) = runOnUiThread {
-        airportViewState.meteringPointState.value = meteringPointState
+    override fun updateFeederFixState(feederFixState: FeederFixState) = runOnUiThread {
+        airportViewState.feederFixState.value = feederFixState
     }
 
     override fun showAirportContextMenu(
         customizedTimelines: List<TimelineConfig>,
-        generatedMeteringPointTimelines: List<TimelineConfig>,
+        generatedFixTimelines: List<TimelineConfig>,
         screenPos: Point
     ) = runOnUiThread {
-        airportView.openPopupMenu(customizedTimelines, generatedMeteringPointTimelines, screenPos)
+        airportView.openPopupMenu(customizedTimelines, generatedFixTimelines, screenPos)
     }
 
     override fun openMetWindow() = runOnUiThread {
@@ -121,7 +121,7 @@ class AirportViewDelegate(
         availableTagLayoutsDep: Set<String>,
         availableTagLayoutsArr: Set<String>,
         availableRunways: Set<String>,
-        availableMeteringPoints: Set<String>,
+        availableFixes: Set<String>,
         existingConfig: TimelineConfig?,
         canDeleteExistingConfig: Boolean,
     ) = runOnUiThread {
@@ -130,7 +130,7 @@ class AirportViewDelegate(
         newTimelineForm?.dispose()
         newTimelineForm = JDialog(parentFrame, "New timeline for $groupId").apply {
             defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
-            contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableMeteringPoints, canDeleteExistingConfig)
+            contentPane = NewTimelineForm(airportPresenterInterface, groupId, existingConfig, availableRunways, availableFixes, canDeleteExistingConfig)
             pack()
             minimumSize = Dimension(520, 460)
             isResizable = true
@@ -143,7 +143,7 @@ class AirportViewDelegate(
             arrLayouts = availableTagLayoutsArr,
             depLayouts = availableTagLayoutsDep,
             availableRunways = availableRunways,
-            availableMeteringPoints = availableMeteringPoints,
+            availableFixes = availableFixes,
         )
     }
 

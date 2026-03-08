@@ -20,12 +20,12 @@ data class AirportJson(
 
     val lockedHorizon: Duration? = null,
 
-    val meteringPoints: List<String>? = null,
+    val feederFixes: List<String>? = null,
 
-    val meteringTimelineArrivalLabelLayoutId: String? = null,
+    val feederFixTimelineArrivalLabelLayoutId: String? = null,
 
     // Reserved for future fixed-transit strategy, currently not used in projection.
-    val meteringPointTransitTimesMinutes: Map<String, Map<String, Int>>? = null,
+    val feederFixTransitTimesMinutes: Map<String, Map<String, Int>>? = null,
 )
 
 data class RunwayThresholdJson(

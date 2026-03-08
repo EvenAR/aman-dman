@@ -16,7 +16,7 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.integration.IntegrationStatus
 import no.vaccsca.amandman.model.integration.IntegrationStatusState
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
@@ -154,18 +154,18 @@ class MasterSlaveSharedStateHttpClient(
         return sharedState.data
     }
 
-    override fun sendMeteringPointState(airportIcao: String, meteringPointState: MeteringPointState) {
+    override fun sendFeederFixState(airportIcao: String, feederFixState: FeederFixState) {
         val sharedStateJson = SharedStateJson(
             lastUpdate = NtpClock.now(),
-            data = meteringPointState
+            data = feederFixState
         )
-        sendStateJson(airportIcao, "metering-points", sharedStateJson)
+        sendStateJson(airportIcao, "feeder-fixes", sharedStateJson)
     }
 
-    override fun getMeteringPointState(airportIcao: String): MeteringPointState {
-        val typeRef = object : TypeReference<SharedStateJson<MeteringPointState>>() {}
-        val sharedState = fetchStateJsonOrNull(airportIcao, "metering-points", typeRef)
-        return sharedState?.data ?: MeteringPointState()
+    override fun getFeederFixState(airportIcao: String): FeederFixState {
+        val typeRef = object : TypeReference<SharedStateJson<FeederFixState>>() {}
+        val sharedState = fetchStateJsonOrNull(airportIcao, "feeder-fixes", typeRef)
+        return sharedState?.data ?: FeederFixState()
     }
 
     override fun getIntegrationStatus(airportIcao: String): IntegrationStatus {

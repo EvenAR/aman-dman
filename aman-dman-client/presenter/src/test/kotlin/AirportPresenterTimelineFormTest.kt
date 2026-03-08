@@ -1,5 +1,5 @@
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.common.MeteringPointTimelineConfig
+import no.vaccsca.amandman.common.FeederFixTimelineConfig
 import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.airport.Airport
@@ -10,7 +10,7 @@ import no.vaccsca.amandman.model.config.AmanDmanSettings
 import no.vaccsca.amandman.model.config.AtcClientConnectionParameters
 import no.vaccsca.amandman.model.config.ConnectionConfig
 import no.vaccsca.amandman.model.config.LabelItem
-import no.vaccsca.amandman.model.config.MeteringPointTimeline
+import no.vaccsca.amandman.model.config.FeederFixTimeline
 import no.vaccsca.amandman.model.config.RunwayTimeline
 import no.vaccsca.amandman.model.config.SettingsProvider
 import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
@@ -23,7 +23,7 @@ import no.vaccsca.amandman.model.integration.IntegrationKind
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.planning.AirportDataSource
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
-import no.vaccsca.amandman.model.timeline.MeteringPointState
+import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -44,10 +44,10 @@ import kotlin.time.Duration.Companion.minutes
 class AirportPresenterTimelineFormTest {
 
     @Test
-    fun `onCreateNewTimelineClicked passes live runways and metering points`() {
+    fun `onCreateNewTimelineClicked passes live runways and fixes`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("01L", "01R"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("01L", "01R"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore()
         val view = CapturingAirportView()
@@ -61,16 +61,16 @@ class AirportPresenterTimelineFormTest {
                 "19R" to RunwayStatus(arrivals = true, departures = true)
             )
         )
-        presenter.onMeteringPointStateUpdated(
+        presenter.onFeederFixStateUpdated(
             "TEST",
-            MeteringPointState(availableMeteringPoints = listOf("M2", "M3"))
+            FeederFixState(availableFixes = listOf("M2", "M3"))
         )
 
         presenter.onCreateNewTimelineClicked()
 
         val args = assertNotNull(view.lastOpenTimelineConfigFormArgs)
         assertEquals(setOf("19L", "19R"), args.availableRunways)
-        assertEquals(setOf("M2", "M3"), args.availableMeteringPoints)
+        assertEquals(setOf("M2", "M3"), args.availableFixes)
         assertTrue(!args.canDeleteExistingConfig)
     }
 
@@ -78,7 +78,7 @@ class AirportPresenterTimelineFormTest {
     fun `onCreateNewTimelineClicked falls back to airport-config runways when no live runway state`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("01L", "01R"), meteringPoints = setOf("MPA")))
+            airports = listOf(airport("TEST", runways = setOf("01L", "01R"), fixes = setOf("MPA")))
         )
         val timelineStore = InMemoryTimelineSettingsStore()
         val view = CapturingAirportView()
@@ -88,21 +88,21 @@ class AirportPresenterTimelineFormTest {
 
         val args = assertNotNull(view.lastOpenTimelineConfigFormArgs)
         assertEquals(setOf("01L", "01R"), args.availableRunways)
-        assertEquals(setOf("MPA"), args.availableMeteringPoints)
+        assertEquals(setOf("MPA"), args.availableFixes)
     }
 
     @Test
     fun `onEditTimelineRequested passes delete-enabled flag for saved timelines`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L", "19R"), meteringPoints = setOf("MPX")))
+            airports = listOf(airport("TEST", runways = setOf("19L", "19R"), fixes = setOf("MPX")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
                 "TEST" to AirportTimelines(
                     defaults = TimelineDefaults(defaultArrivalLabelLayoutId = "ARR", defaultDepartureLabelLayoutId = "DEP"),
-                    meteringPointBased = listOf(
-                        MeteringPointTimeline(
+                    feederFixBased = listOf(
+                        FeederFixTimeline(
                             title = "FLOW",
                             left = listOf("MPX"),
                             right = listOf("MPY"),
@@ -115,11 +115,11 @@ class AirportPresenterTimelineFormTest {
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, timelineStore, view)
 
-        val generatedTimeline: TimelineConfig = MeteringPointTimelineConfig(
+        val generatedTimeline: TimelineConfig = FeederFixTimelineConfig(
             title = "FLOW",
             airportIcao = "TEST",
-            leftMeteringPoints = listOf("MPX"),
-            rightMeteringPoints = listOf("MPY"),
+            leftFixes = listOf("MPX"),
+            rightFixes = listOf("MPY"),
             arrLabelLayout = "ARR"
         )
 
@@ -129,7 +129,7 @@ class AirportPresenterTimelineFormTest {
         assertNotNull(args.existingConfig)
         assertEquals(generatedTimeline, args.existingConfig)
         assertEquals(setOf("19L", "19R"), args.availableRunways)
-        assertEquals(setOf("MPX"), args.availableMeteringPoints)
+        assertEquals(setOf("MPX"), args.availableFixes)
         assertTrue(args.canDeleteExistingConfig)
     }
 
@@ -137,17 +137,17 @@ class AirportPresenterTimelineFormTest {
     fun `onEditTimelineRequested keeps delete hidden for unsaved timelines`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore()
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, timelineStore, view)
 
-        val unsaved: TimelineConfig = MeteringPointTimelineConfig(
+        val unsaved: TimelineConfig = FeederFixTimelineConfig(
             title = "M1",
             airportIcao = "TEST",
-            leftMeteringPoints = emptyList(),
-            rightMeteringPoints = listOf("M1"),
+            leftFixes = emptyList(),
+            rightFixes = listOf("M1"),
             arrLabelLayout = "ARR"
         )
 
@@ -161,7 +161,7 @@ class AirportPresenterTimelineFormTest {
     fun `onCreateNewTimeline replaces original when edit mode is active and persists update`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
@@ -216,14 +216,14 @@ class AirportPresenterTimelineFormTest {
     fun `onCreateNewTimeline adds and persists when not editing`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore()
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, timelineStore, view)
 
         presenter.onCreateNewTimeline(
-            CreateOrUpdateTimelineDto.MeteringPoint(
+            CreateOrUpdateTimelineDto.FeederFix(
                 airportIcao = "TEST",
                 title = "NEW",
                 left = emptyList(),
@@ -235,32 +235,32 @@ class AirportPresenterTimelineFormTest {
         assertTrue(view.removedTimelines.isEmpty())
         assertEquals(1, view.addedTimelines.size)
         assertEquals("NEW", view.addedTimelines.single().title)
-        assertTrue(view.addedTimelines.single() is MeteringPointTimelineConfig)
+        assertTrue(view.addedTimelines.single() is FeederFixTimelineConfig)
         assertEquals(1, view.closeTimelineFormCalls)
-        assertEquals("NEW", timelineStore.timelines.getValue("TEST").meteringPointBased.single().title)
+        assertEquals("NEW", timelineStore.timelines.getValue("TEST").feederFixBased.single().title)
     }
 
     @Test
     fun `editing unsaved timeline creates saved entry and replaces strip`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore()
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, timelineStore, view)
 
-        val unsaved: TimelineConfig = MeteringPointTimelineConfig(
+        val unsaved: TimelineConfig = FeederFixTimelineConfig(
             title = "M1",
             airportIcao = "TEST",
-            leftMeteringPoints = emptyList(),
-            rightMeteringPoints = listOf("M1"),
+            leftFixes = emptyList(),
+            rightFixes = listOf("M1"),
             arrLabelLayout = "ARR"
         )
         presenter.onEditTimelineRequested(unsaved)
 
         presenter.onCreateNewTimeline(
-            CreateOrUpdateTimelineDto.MeteringPoint(
+            CreateOrUpdateTimelineDto.FeederFix(
                 airportIcao = "TEST",
                 title = "CUSTOM",
                 left = emptyList(),
@@ -271,13 +271,13 @@ class AirportPresenterTimelineFormTest {
 
         assertEquals(1, view.replacedTimelines.size)
         assertEquals(unsaved, view.replacedTimelines.single().first)
-        assertEquals("CUSTOM", timelineStore.timelines.getValue("TEST").meteringPointBased.single().title)
+        assertEquals("CUSTOM", timelineStore.timelines.getValue("TEST").feederFixBased.single().title)
     }
     @Test
     fun `duplicate title can be overwritten when confirmed`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
@@ -324,7 +324,7 @@ class AirportPresenterTimelineFormTest {
     fun `overwrite removes conflicting open saved timeline when editing another timeline`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
@@ -357,11 +357,11 @@ class AirportPresenterTimelineFormTest {
             arrLabelLayout = "ARR",
             timelineId = "saved-flow",
         )
-        val unsaved: TimelineConfig = MeteringPointTimelineConfig(
+        val unsaved: TimelineConfig = FeederFixTimelineConfig(
             title = "TEMP",
             airportIcao = "TEST",
-            leftMeteringPoints = emptyList(),
-            rightMeteringPoints = listOf("M1"),
+            leftFixes = emptyList(),
+            rightFixes = listOf("M1"),
             arrLabelLayout = "ARR",
         )
 
@@ -396,7 +396,7 @@ class AirportPresenterTimelineFormTest {
     fun `duplicate title stays unchanged when overwrite is declined`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
@@ -444,7 +444,7 @@ class AirportPresenterTimelineFormTest {
     fun `onDeleteEditedTimeline deletes saved config and removes live strip`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
@@ -486,7 +486,7 @@ class AirportPresenterTimelineFormTest {
     fun `failed persistence shows error and does not mutate strip`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(failure = IllegalStateException("disk full"))
         val view = CapturingAirportView()
@@ -494,7 +494,7 @@ class AirportPresenterTimelineFormTest {
         val presenter = createPresenter(settingsProvider, timelineStore, view, errors)
 
         presenter.onCreateNewTimeline(
-            CreateOrUpdateTimelineDto.MeteringPoint(
+            CreateOrUpdateTimelineDto.FeederFix(
                 airportIcao = "TEST",
                 title = "NEW",
                 left = emptyList(),
@@ -513,7 +513,7 @@ class AirportPresenterTimelineFormTest {
     fun `move timeline requests are forwarded to view with expected direction`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore()
         val view = CapturingAirportView()
@@ -535,15 +535,15 @@ class AirportPresenterTimelineFormTest {
     }
 
     @Test
-    fun `onTabMenu generates metering point timelines using airport default layout and live fixes`() {
+    fun `onTabMenu generates feeder fix timelines using airport default layout and live fixes`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
             airports = listOf(
                 airport(
                     "TEST",
                     runways = setOf("19L"),
-                    meteringPoints = setOf("M1"),
-                    meteringTimelineArrivalLabelLayoutId = "ARR"
+                    fixes = setOf("M1"),
+                    feederFixTimelineArrivalLabelLayoutId = "ARR"
                 )
             )
         )
@@ -551,8 +551,8 @@ class AirportPresenterTimelineFormTest {
             timelines = linkedMapOf(
                 "TEST" to AirportTimelines(
                     defaults = TimelineDefaults(defaultArrivalLabelLayoutId = "ARR", defaultDepartureLabelLayoutId = "DEP"),
-                    meteringPointBased = listOf(
-                        MeteringPointTimeline(
+                    feederFixBased = listOf(
+                        FeederFixTimeline(
                             title = "M2",
                             right = listOf("M2"),
                             arrivalLabelLayoutId = "ARR",
@@ -564,26 +564,26 @@ class AirportPresenterTimelineFormTest {
         val view = CapturingAirportView()
         val presenter = createPresenter(settingsProvider, timelineStore, view)
 
-        presenter.onMeteringPointStateUpdated("TEST", MeteringPointState(availableMeteringPoints = listOf("M2", "M3")))
+        presenter.onFeederFixStateUpdated("TEST", FeederFixState(availableFixes = listOf("M2", "M3")))
         presenter.onTabMenu(Point(5, 5))
 
         assertEquals(1, view.lastContextMenuConfiguredTimelines.size)
         assertEquals("M2", view.lastContextMenuConfiguredTimelines.single().title)
         assertEquals(listOf("M2", "M3"), view.lastContextMenuGeneratedTimelines.map { it.title })
-        assertTrue(view.lastContextMenuGeneratedTimelines.all { it is MeteringPointTimelineConfig })
-        assertTrue(view.lastContextMenuGeneratedTimelines.all { (it as MeteringPointTimelineConfig).arrLabelLayout == "ARR" })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { it is FeederFixTimelineConfig })
+        assertTrue(view.lastContextMenuGeneratedTimelines.all { (it as FeederFixTimelineConfig).arrLabelLayout == "ARR" })
     }
 
     @Test
-    fun `onTabMenu falls back to airport metering points when live fixes unavailable`() {
+    fun `onTabMenu falls back to airport fixes when live fixes unavailable`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
             airports = listOf(
                 airport(
                     "TEST",
                     runways = setOf("19L"),
-                    meteringPoints = setOf("M9", "M1"),
-                    meteringTimelineArrivalLabelLayoutId = "ARR"
+                    fixes = setOf("M9", "M1"),
+                    feederFixTimelineArrivalLabelLayoutId = "ARR"
                 )
             )
         )
@@ -597,15 +597,15 @@ class AirportPresenterTimelineFormTest {
     }
 
     @Test
-    fun `onTabMenu generates no metering timelines when airport default layout is missing`() {
+    fun `onTabMenu generates no feeder fix timelines when airport default layout is missing`() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
             airports = listOf(
                 airport(
                     "TEST",
                     runways = setOf("19L"),
-                    meteringPoints = setOf("M1"),
-                    meteringTimelineArrivalLabelLayoutId = null
+                    fixes = setOf("M1"),
+                    feederFixTimelineArrivalLabelLayoutId = null
                 )
             )
         )
@@ -621,7 +621,7 @@ class AirportPresenterTimelineFormTest {
     fun savingEditedSavedTimelineRenamesAndOverwritesOriginalConfig() {
         val settingsProvider = FakeSettingsProvider(
             settings = baseSettings(),
-            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+            airports = listOf(airport("TEST", runways = setOf("19L"), fixes = setOf("M1")))
         )
         val timelineStore = InMemoryTimelineSettingsStore(
             timelines = linkedMapOf(
@@ -711,8 +711,8 @@ class AirportPresenterTimelineFormTest {
     private fun airport(
         icao: String,
         runways: Set<String>,
-        meteringPoints: Set<String>,
-        meteringTimelineArrivalLabelLayoutId: String? = null
+        fixes: Set<String>,
+        feederFixTimelineArrivalLabelLayoutId: String? = null
     ): Airport {
         val runwayMap = runways.associateWith { id ->
             RunwayThreshold(
@@ -730,8 +730,8 @@ class AirportPresenterTimelineFormTest {
             independentRunwaySystems = emptyList(),
             sequencingHorizon = 30.minutes,
             lockedHorizon = 10.minutes,
-            meteringPoints = meteringPoints.toList(),
-            meteringTimelineArrivalLabelLayoutId = meteringTimelineArrivalLabelLayoutId
+            feederFixes = fixes.toList(),
+            feederFixTimelineArrivalLabelLayoutId = feederFixTimelineArrivalLabelLayoutId
         )
     }
 
@@ -790,7 +790,7 @@ class AirportPresenterTimelineFormTest {
         val availableTagLayoutsDep: Set<String>,
         val availableTagLayoutsArr: Set<String>,
         val availableRunways: Set<String>,
-        val availableMeteringPoints: Set<String>,
+        val availableFixes: Set<String>,
         val existingConfig: TimelineConfig?,
         val canDeleteExistingConfig: Boolean,
     )
@@ -815,14 +815,14 @@ class AirportPresenterTimelineFormTest {
         override fun updateRunwayModes(runwayModes: List<Pair<String, Boolean>>) {}
         override fun updateMinimumSpacing(minimumSpacingNm: Double) {}
         override fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean) {}
-        override fun updateMeteringPointState(meteringPointState: MeteringPointState) {}
+        override fun updateFeederFixState(feederFixState: FeederFixState) {}
         override fun showAirportContextMenu(
             cusomizedTimelines: List<TimelineConfig>,
-            generatedMeteringPointTimelines: List<TimelineConfig>,
+            generatedFixTimelines: List<TimelineConfig>,
             screenPos: Point
         ) {
             lastContextMenuConfiguredTimelines = cusomizedTimelines
-            lastContextMenuGeneratedTimelines = generatedMeteringPointTimelines
+            lastContextMenuGeneratedTimelines = generatedFixTimelines
         }
 
         override fun openMetWindow() {}
@@ -840,7 +840,7 @@ class AirportPresenterTimelineFormTest {
             availableTagLayoutsDep: Set<String>,
             availableTagLayoutsArr: Set<String>,
             availableRunways: Set<String>,
-            availableMeteringPoints: Set<String>,
+            availableFixes: Set<String>,
             existingConfig: TimelineConfig?,
             canDeleteExistingConfig: Boolean,
         ) {
@@ -848,7 +848,7 @@ class AirportPresenterTimelineFormTest {
                 availableTagLayoutsDep = availableTagLayoutsDep,
                 availableTagLayoutsArr = availableTagLayoutsArr,
                 availableRunways = availableRunways,
-                availableMeteringPoints = availableMeteringPoints,
+                availableFixes = availableFixes,
                 existingConfig = existingConfig,
                 canDeleteExistingConfig = canDeleteExistingConfig,
             )

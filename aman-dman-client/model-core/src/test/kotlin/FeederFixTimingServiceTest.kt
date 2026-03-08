@@ -1,8 +1,8 @@
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.planning.DynamicFromTrajectoryMeteringPointTimingStrategy
-import no.vaccsca.amandman.model.planning.MeteringPointTimingService
+import no.vaccsca.amandman.model.planning.DynamicFromTrajectoryFeederFixTimingStrategy
+import no.vaccsca.amandman.model.planning.FeederFixTimingService
 import no.vaccsca.amandman.model.planning.SequenceStatus
 import no.vaccsca.amandman.model.planning.TrajectoryPoint
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
@@ -13,15 +13,15 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
-class MeteringPointTimingServiceTest {
+class FeederFixTimingServiceTest {
 
     private val referenceEta = Instant.parse("2026-03-07T12:30:00Z")
     private val referenceSta = Instant.parse("2026-03-07T12:35:00Z")
 
     @Test
-    fun `buildState should derive metering point ETA and STA from trajectory points`() {
-        val service = MeteringPointTimingService()
-        val airport = airportWithMeteringPoints("F1", "F2")
+    fun `buildState should derive feeder fix ETA and STA from trajectory points`() {
+        val service = FeederFixTimingService()
+        val airport = airportWithFixes("F1", "F2")
         val arrival = sampleArrival(estimatedTime = referenceEta, scheduledTime = referenceSta)
 
         val state = service.buildState(
@@ -51,9 +51,9 @@ class MeteringPointTimingServiceTest {
     }
 
     @Test
-    fun `buildState should ignore metering points that are not present in trajectory`() {
-        val service = MeteringPointTimingService()
-        val airport = airportWithMeteringPoints("F1", "UNKNOWN")
+    fun `buildState should ignore fixes that are not present in trajectory`() {
+        val service = FeederFixTimingService()
+        val airport = airportWithFixes("F1", "UNKNOWN")
         val arrival = sampleArrival(estimatedTime = referenceEta, scheduledTime = referenceSta)
 
         val state = service.buildState(
@@ -75,7 +75,7 @@ class MeteringPointTimingServiceTest {
 
     @Test
     fun `dynamic strategy should use first matching fix occurrence`() {
-        val strategy = DynamicFromTrajectoryMeteringPointTimingStrategy()
+        val strategy = DynamicFromTrajectoryFeederFixTimingStrategy()
         val arrival = sampleArrival(estimatedTime = referenceEta, scheduledTime = referenceSta)
 
         val result = strategy.computeTimingsForArrival(
@@ -84,7 +84,7 @@ class MeteringPointTimingServiceTest {
                 trajectoryPoint("F1", 18.minutes),
                 trajectoryPoint("F1", 8.minutes),
             ),
-            targetMeteringPoints = setOf("F1")
+            targetFixes = setOf("F1")
         )
 
         val timing = result["F1"]
@@ -93,14 +93,14 @@ class MeteringPointTimingServiceTest {
         assertEquals(Instant.parse("2026-03-07T12:17:00Z"), timing.sta)
     }
 
-    private fun airportWithMeteringPoints(vararg meteringPoints: String): Airport = Airport(
+    private fun airportWithFixes(vararg fixes: String): Airport = Airport(
         icao = "TEST",
         location = LatLng(60.0, 11.0),
         runways = emptyMap(),
         independentRunwaySystems = emptyList(),
         sequencingHorizon = 30.minutes,
         lockedHorizon = 10.minutes,
-        meteringPoints = meteringPoints.toList(),
+        feederFixes = fixes.toList(),
     )
 
     private fun sampleArrival(estimatedTime: Instant, scheduledTime: Instant): RunwayArrivalEvent = RunwayArrivalEvent(

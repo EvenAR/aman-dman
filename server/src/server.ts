@@ -10,7 +10,7 @@ interface AirportData {
   runwayModes?: unknown;
   minimumSpacing?: unknown;
   nonSequenced?: unknown;
-  meteringPoints?: unknown;
+  feederFixes?: unknown;
 }
 
 interface VersionCache {
@@ -453,9 +453,9 @@ app.post('/api/v1/airports/:icao/minimum-spacing', postDataHandler('minimumSpaci
 app.get('/api/v1/airports/:icao/non-sequenced', getDataHandler('nonSequenced'));
 app.post('/api/v1/airports/:icao/non-sequenced', postDataHandler('nonSequenced'));
 
-// Metering points endpoints
-app.get('/api/v1/airports/:icao/metering-points', getDataHandler('meteringPoints'));
-app.post('/api/v1/airports/:icao/metering-points', postDataHandler('meteringPoints'));
+// Feeder fixes endpoints
+app.get('/api/v1/airports/:icao/feeder-fixes', getDataHandler('feederFixes'));
+app.post('/api/v1/airports/:icao/feeder-fixes', postDataHandler('feederFixes'));
 
 // Get all data for a specific airport
 app.get('/api/v1/airports/:icao', (req: Request, res: Response): void => {
@@ -480,7 +480,7 @@ app.get('/api/v1/airports/:icao', (req: Request, res: Response): void => {
     runwayModes: airport.runwayModes || null,
     minimumSpacing: airport.minimumSpacing || null,
     nonSequenced: airport.nonSequenced || null,
-    meteringPoints: airport.meteringPoints || null,
+    feederFixes: airport.feederFixes || null,
   });
 });
 
@@ -493,7 +493,7 @@ app.get('/api/v1/airports', (req: Request, res: Response): void => {
     hasRunwayModes: !!airportData[icao].runwayModes,
     hasMinimumSpacing: !!airportData[icao].minimumSpacing,
     hasNonSequenced: !!airportData[icao].nonSequenced,
-    hasMeteringPoints: !!airportData[icao].meteringPoints,
+    hasFeederFixes: !!airportData[icao].feederFixes,
   }));
 
   res.json({ airports });
@@ -581,8 +581,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   POST /api/v1/airports/:icao/minimum-spacing`);
   console.log(`   GET  /api/v1/airports/:icao/non-sequenced`);
   console.log(`   POST /api/v1/airports/:icao/non-sequenced`);
-  console.log(`   GET  /api/v1/airports/:icao/metering-points`);
-  console.log(`   POST /api/v1/airports/:icao/metering-points`);
+  console.log(`   GET  /api/v1/airports/:icao/feeder-fixes`);
+  console.log(`   POST /api/v1/airports/:icao/feeder-fixes`);
   console.log(`   GET  /api/v1/airports/:icao`);
   console.log(`   GET  /api/v1/airports`);
   console.log(`   POST /api/v1/heartbeat`);
