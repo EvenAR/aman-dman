@@ -16,7 +16,7 @@ import kotlin.test.assertNotNull
 class TimeScaleTest {
 
     @Test
-    fun `timeline popup contains edit and remove and triggers presenter actions`() {
+    fun `timeline popup contains edit move and remove and triggers presenter actions`() {
         val timelineConfig: TimelineConfig = RunwayTimelineConfig(
             title = "T1",
             airportIcao = "TEST",
@@ -30,7 +30,10 @@ class TimeScaleTest {
         val popup = buildTimelinePopupMenu(presenter, timelineConfig)
         val menuItems = popup.components.filterIsInstance<JMenuItem>()
 
-        assertEquals(listOf("Edit timeline", "Remove timeline"), menuItems.map { it.text })
+        assertEquals(
+            listOf("Edit timeline", "Move left", "Move right", "Remove timeline"),
+            menuItems.map { it.text }
+        )
 
         val editItem = menuItems.firstOrNull { it.text == "Edit timeline" }
         assertNotNull(editItem)
@@ -41,12 +44,24 @@ class TimeScaleTest {
         assertNotNull(removeItem)
         removeItem.doClick()
         assertEquals(listOf(timelineConfig), presenter.removeRequests)
+
+        val moveLeftItem = menuItems.firstOrNull { it.text == "Move left" }
+        assertNotNull(moveLeftItem)
+        moveLeftItem.doClick()
+        assertEquals(listOf(timelineConfig), presenter.moveLeftRequests)
+
+        val moveRightItem = menuItems.firstOrNull { it.text == "Move right" }
+        assertNotNull(moveRightItem)
+        moveRightItem.doClick()
+        assertEquals(listOf(timelineConfig), presenter.moveRightRequests)
     }
 
     private class CapturingPresenter : AirportPresenterInterface {
         override val airportIcao: String = "TEST"
         val editRequests = mutableListOf<TimelineConfig>()
         val removeRequests = mutableListOf<TimelineConfig>()
+        val moveLeftRequests = mutableListOf<TimelineConfig>()
+        val moveRightRequests = mutableListOf<TimelineConfig>()
 
         override fun onLabelDrag(timelineEvent: TimelineEvent, newInstant: Instant) {}
         override fun onLabelDragEnd(timelineEvent: TimelineEvent, newScheduledTime: Instant, newRunway: String?) {}
@@ -69,6 +84,12 @@ class TimeScaleTest {
         }
         override fun onEditTimelineRequested(timelineConfig: TimelineConfig) {
             editRequests += timelineConfig
+        }
+        override fun onMoveTimelineLeftRequested(timelineConfig: TimelineConfig) {
+            moveLeftRequests += timelineConfig
+        }
+        override fun onMoveTimelineRightRequested(timelineConfig: TimelineConfig) {
+            moveRightRequests += timelineConfig
         }
         override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {}
         override fun onRemoveTab() {}

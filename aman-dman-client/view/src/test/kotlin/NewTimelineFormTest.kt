@@ -298,6 +298,8 @@ class NewTimelineFormTest {
         override fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig) {}
         override fun onRemoveTimelineClicked(timelineConfig: TimelineConfig) {}
         override fun onEditTimelineRequested(timelineConfig: TimelineConfig) {}
+        override fun onMoveTimelineLeftRequested(timelineConfig: TimelineConfig) {}
+        override fun onMoveTimelineRightRequested(timelineConfig: TimelineConfig) {}
         override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
             createdTimelines += config
         }

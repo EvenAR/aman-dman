@@ -151,11 +151,48 @@ class AirportViewDelegate(
     }
 
     override fun addNewTimeline(timelineConfig: TimelineConfig) {
-        airportViewState.openTimelines.value += timelineConfig
+        airportViewState.openTimelines.update { current ->
+            if (timelineConfig in current) current else current + timelineConfig
+        }
     }
 
     override fun removeTimeline(timelineConfig: TimelineConfig) {
-        airportViewState.openTimelines.value -= timelineConfig
+        airportViewState.openTimelines.update { current ->
+            current.filterNot { it == timelineConfig }
+        }
+    }
+
+    override fun replaceTimeline(previous: TimelineConfig, updated: TimelineConfig) {
+        airportViewState.openTimelines.update { current ->
+            val ordered = current.toMutableList()
+            val index = ordered.indexOf(previous)
+            if (index == -1) {
+                if (updated in ordered) current else current + updated
+            } else if (updated in ordered && updated != previous) {
+                ordered.removeAt(index)
+                ordered
+            } else {
+                ordered.also { it[index] = updated }
+            }
+        }
+    }
+
+    override fun moveTimeline(timelineConfig: TimelineConfig, positions: Int) {
+        if (positions == 0) return
+
+        airportViewState.openTimelines.update { current ->
+            val ordered = current.toMutableList()
+            val index = ordered.indexOf(timelineConfig)
+            if (index == -1) return@update current
+
+            val targetIndex = (index + positions).coerceIn(0, ordered.lastIndex)
+            if (targetIndex == index) return@update current
+
+            ordered.also { list ->
+                val timeline = list.removeAt(index)
+                list.add(targetIndex, timeline)
+            }
+        }
     }
 
     override fun setSelectedAircraftCallsign(callsign: String) {

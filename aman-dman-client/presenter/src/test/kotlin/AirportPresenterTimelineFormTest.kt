@@ -157,9 +157,11 @@ class AirportPresenterTimelineFormTest {
             )
         )
 
-        assertEquals(listOf(existing), view.removedTimelines)
-        assertEquals(1, view.addedTimelines.size)
-        assertEquals("NEW", view.addedTimelines.single().title)
+        assertTrue(view.removedTimelines.isEmpty())
+        assertTrue(view.addedTimelines.isEmpty())
+        assertEquals(1, view.replacedTimelines.size)
+        assertEquals(existing, view.replacedTimelines.single().first)
+        assertEquals("NEW", view.replacedTimelines.single().second.title)
     }
 
     @Test
@@ -185,6 +187,30 @@ class AirportPresenterTimelineFormTest {
         assertEquals(1, view.addedTimelines.size)
         assertEquals("NEW", view.addedTimelines.single().title)
         assertTrue(view.addedTimelines.single() is MeteringPointTimelineConfig)
+    }
+
+    @Test
+    fun `move timeline requests are forwarded to view with expected direction`() {
+        val settingsProvider = FakeSettingsProvider(
+            settings = baseSettings(),
+            airports = listOf(airport("TEST", runways = setOf("19L"), meteringPoints = setOf("M1")))
+        )
+        val view = CapturingAirportView()
+        val presenter = createPresenter(settingsProvider, view)
+
+        val timeline: TimelineConfig = RunwayTimelineConfig(
+            title = "FLOW",
+            airportIcao = "TEST",
+            leftRunways = emptyList(),
+            rightRunways = listOf("19L"),
+            depLabelLayout = "DEP",
+            arrLabelLayout = "ARR"
+        )
+
+        presenter.onMoveTimelineLeftRequested(timeline)
+        presenter.onMoveTimelineRightRequested(timeline)
+
+        assertEquals(listOf(timeline to -1, timeline to 1), view.moveTimelineCalls)
     }
 
     @Test
@@ -367,6 +393,8 @@ class AirportPresenterTimelineFormTest {
         var lastContextMenuGeneratedTimelines: List<TimelineConfig> = emptyList()
         val addedTimelines = mutableListOf<TimelineConfig>()
         val removedTimelines = mutableListOf<TimelineConfig>()
+        val replacedTimelines = mutableListOf<Pair<TimelineConfig, TimelineConfig>>()
+        val moveTimelineCalls = mutableListOf<Pair<TimelineConfig, Int>>()
 
         override fun updateTab(timelineEvents: List<TimelineEvent>, nonSequencedList: List<NonSequencedEvent>) {}
         override fun updateWeatherData(weather: VerticalWeatherProfile?) {}
@@ -417,6 +445,12 @@ class AirportPresenterTimelineFormTest {
         }
         override fun removeTimeline(timelineConfig: TimelineConfig) {
             removedTimelines += timelineConfig
+        }
+        override fun replaceTimeline(previous: TimelineConfig, updated: TimelineConfig) {
+            replacedTimelines += previous to updated
+        }
+        override fun moveTimeline(timelineConfig: TimelineConfig, positions: Int) {
+            moveTimelineCalls += timelineConfig to positions
         }
         override fun setSelectedAircraftCallsign(callsign: String) {}
     }

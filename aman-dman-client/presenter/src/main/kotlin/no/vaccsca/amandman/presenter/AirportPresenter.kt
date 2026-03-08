@@ -289,6 +289,14 @@ class AirportPresenter(
         )
     }
 
+    override fun onMoveTimelineLeftRequested(timelineConfig: TimelineConfig) {
+        view.moveTimeline(timelineConfig, positions = -1)
+    }
+
+    override fun onMoveTimelineRightRequested(timelineConfig: TimelineConfig) {
+        view.moveTimeline(timelineConfig, positions = 1)
+    }
+
     override fun onCreateNewTimeline(config: CreateOrUpdateTimelineDto) {
         val timelineConfig: TimelineConfig = when (config) {
             is CreateOrUpdateTimelineDto.Runway -> RunwayTimelineConfig(
@@ -307,9 +315,10 @@ class AirportPresenter(
                 arrLabelLayout = config.arrLabelLayout,
             )
         }
-        editingTimelineConfig?.let { view.removeTimeline(it) }
+        editingTimelineConfig?.let { previous ->
+            view.replaceTimeline(previous, timelineConfig)
+        } ?: view.addNewTimeline(timelineConfig)
         editingTimelineConfig = null
-        view.addNewTimeline(timelineConfig)
         view.closeTimelineForm()
     }
 

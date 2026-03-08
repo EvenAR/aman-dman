@@ -55,6 +55,8 @@ interface AirportViewInterface {
 
     fun addNewTimeline(timelineConfig: TimelineConfig)
     fun removeTimeline(timelineConfig: TimelineConfig)
+    fun replaceTimeline(previous: TimelineConfig, updated: TimelineConfig)
+    fun moveTimeline(timelineConfig: TimelineConfig, positions: Int)
 
     fun setSelectedAircraftCallsign(callsign: String)
 }

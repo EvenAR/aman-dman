@@ -122,7 +122,7 @@ class AirportView(
         this.currentTime = currentTime
     }
 
-    private fun updateVisibleTimelines(configs: Set<TimelineConfig>) {
+    private fun updateVisibleTimelines(configs: List<TimelineConfig>) {
         val items = timelineScrollPane.viewport.view as JPanel
         items.components
             .filterIsInstance<TimelineView>()

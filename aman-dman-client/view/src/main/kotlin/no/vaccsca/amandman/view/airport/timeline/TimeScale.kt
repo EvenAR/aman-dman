@@ -131,6 +131,12 @@ internal fun buildTimelinePopupMenu(
         item("Edit timeline", action = {
             presenter.onEditTimelineRequested(timelineConfig)
         })
+        item("Move left", action = {
+            presenter.onMoveTimelineLeftRequested(timelineConfig)
+        })
+        item("Move right", action = {
+            presenter.onMoveTimelineRightRequested(timelineConfig)
+        })
         item("Remove timeline", action = {
             presenter.onRemoveTimelineClicked(timelineConfig)
         })
