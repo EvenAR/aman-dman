@@ -7,7 +7,7 @@ airports:
       longitude: 11.096549971455543
     sequencingHorizon: PT60M
     lockedHorizon: PT10M
-    feederFixes: ["LUNIP", "ADOPI", "ESEBA", "BELGU", "INREX", "RIPAM", "VALPU", "INSUV", "TITLA", "BAVAD"]
+    feederFixes: ["LUNIP", "ADOPI", "ESEBA", "BELGU", "INREX", "RIPAM", "VALPU", "INSUV", "TITLA", "BAVAD", "GM402", "GM428", "GM432", "GM403", "GM422" ]
     feederFixTimelineArrivalLabelLayoutId: "osloArr"
     runwayThresholds:
       01L:
