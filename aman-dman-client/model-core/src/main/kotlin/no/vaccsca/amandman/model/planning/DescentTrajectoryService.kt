@@ -5,7 +5,6 @@ import no.vaccsca.amandman.model.navigation.NavigationUtils.interpolatePositionA
 import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
 import no.vaccsca.amandman.model.weather.WeatherUtils
-import no.vaccsca.amandman.model.weather.WeatherUtils.interpolateWeatherAtAltitude
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.airport.Airport
@@ -15,7 +14,7 @@ import no.vaccsca.amandman.model.navigation.StarFix
 import no.vaccsca.amandman.model.navigation.Waypoint
 import no.vaccsca.amandman.model.navigation.bearingTo
 import no.vaccsca.amandman.model.navigation.distanceTo
-import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.weather.SpatialWeatherField
 import no.vaccsca.amandman.model.weather.WindVector
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
@@ -35,7 +34,7 @@ object DescentTrajectoryService {
      * @param currentPosition The current position of the aircraft.
      * @param assignedRunway The runway assigned to the aircraft.
      * @param remainingWaypoints The remaining waypoints in the flight plan leading to the runway
-     * @param verticalWeatherProfile The vertical weather profile, if available.
+     * @param spatialWeatherField The spatial weather field, if available.
      * @param assignedStar The STAR assigned to the aircraft, if any.
      * @param aircraftPerformance The performance characteristics of the aircraft.
      * @param flightPlanTas The true airspeed (TAS) from the flight plan
@@ -46,7 +45,7 @@ object DescentTrajectoryService {
         currentPosition: AircraftPosition,
         assignedRunway: String,
         remainingWaypoints: List<Waypoint>,
-        verticalWeatherProfile: VerticalWeatherProfile?,
+        spatialWeatherField: SpatialWeatherField?,
         assignedStar: String?,
         aircraftPerformance: AircraftPerformance,
         flightPlanTas: Int?,
@@ -118,7 +117,7 @@ object DescentTrajectoryService {
                 } else {
                     aircraftPerformance.getPreferredIas(
                         altitudeFt = nextAltitudeExpectation,
-                        temperatureC = verticalWeatherProfile?.weatherLayers?.interpolateWeatherAtAltitude(nextAltitudeExpectation)?.temperatureC,
+                        temperatureC = spatialWeatherField?.sampleWeather(earlierPoint.latLng, nextAltitudeExpectation)?.temperatureC,
                         flightPlanTas = flightPlanTas
                     )
                 }
@@ -128,7 +127,7 @@ object DescentTrajectoryService {
                 higherAltitude = nextAltitudeExpectation,
                 laterPoint = probePosition,
                 earlierPoint = earlierPoint.latLng,
-                verticalWeatherProfile = verticalWeatherProfile,
+                spatialWeatherField = spatialWeatherField,
                 earlierExpectedSpeed = earlierSpeedExpectation,
                 laterExpectedSpeed = trajectoryPoints.last().ias,
                 flightPlanTas = flightPlanTas
@@ -173,7 +172,7 @@ object DescentTrajectoryService {
      * @param higherAltitude The altitude we are descending from in feet.
      * @param laterPoint The point we are descending towards as a LatLng.
      * @param earlierPoint The point we are descending from as a LatLng.
-     * @param verticalWeatherProfile The vertical weather profile, if available.
+     * @param spatialWeatherField The spatial weather field, if available.
      * @param earlierExpectedSpeed The expected speed at the earlier point in IAS, if available
      * @param laterExpectedSpeed The expected speed at the later point in IAS, if available
      * @param flightPlanTas The true airspeed from the flight plan, if available.
@@ -185,7 +184,7 @@ object DescentTrajectoryService {
         higherAltitude: Int,
         laterPoint: LatLng,
         earlierPoint: LatLng,
-        verticalWeatherProfile: VerticalWeatherProfile?,
+        spatialWeatherField: SpatialWeatherField?,
         earlierExpectedSpeed: Int?,
         laterExpectedSpeed: Int?,
         flightPlanTas: Int?
@@ -199,10 +198,15 @@ object DescentTrajectoryService {
         val verticalSpeed = descentRateFpm / 60.0 // ft/sec
 
         var remainingProbingDistance = laterPoint.distanceTo(earlierPoint)
-        var currentExpectedSpeed = laterExpectedSpeed ?: this.getPreferredIas(probeAltitude, verticalWeatherProfile?.weatherLayers?.interpolateWeatherAtAltitude(probeAltitude)?.temperatureC, flightPlanTas)
+        var currentExpectedSpeed = laterExpectedSpeed
+            ?: this.getPreferredIas(
+                probeAltitude,
+                spatialWeatherField?.sampleWeather(probePosition, probeAltitude)?.temperatureC,
+                flightPlanTas
+            )
 
         while (true) {
-            val probeWeather = verticalWeatherProfile?.weatherLayers?.interpolateWeatherAtAltitude(probeAltitude)
+            val probeWeather = spatialWeatherField?.sampleWeather(probePosition, probeAltitude)
             val estimatedOutsideTemperature = WeatherUtils.getStandardTemperatureAt(probeAltitude)
 
             val targetSpeed = earlierExpectedSpeed ?: getPreferredIas(probeAltitude, probeWeather?.temperatureC, flightPlanTas)

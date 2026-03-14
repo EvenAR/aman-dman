@@ -11,6 +11,7 @@ data class Airport(
     val independentRunwaySystems: List<Set<String>>,
     val sequencingHorizon: Duration,
     val lockedHorizon: Duration,
+    val weatherFetchRadiusNm: Double = 200.0,
     val feederFixes: List<String> = emptyList(),
     val feederFixTimelineArrivalLabelLayoutId: String? = null,
     // Reserved for future fixed-transit feeder fix timing strategy.

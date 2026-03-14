@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.model.config.yaml
 
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Positive
 import java.time.Duration
 
 data class AirportDataJson(
@@ -19,6 +20,9 @@ data class AirportJson(
     val sequencingHorizon: Duration? = null,
 
     val lockedHorizon: Duration? = null,
+
+    @field:Positive
+    val weatherFetchRadiusNm: Double? = null,
 
     val feederFixes: List<String>? = null,
 
