@@ -7,6 +7,7 @@ import no.vaccsca.amandman.model.planning.TrajectoryPoint
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.bearingTo
 import no.vaccsca.amandman.model.navigation.distanceTo
+import no.vaccsca.amandman.model.weather.SpatialWeatherField
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.model.weather.WeatherLayer
 import no.vaccsca.amandman.model.weather.WindVector
@@ -246,6 +247,52 @@ class DescentProfileTest {
         assertEquals(221, gsWithCrosswind)
     }
 
+    @Test
+    fun `Descent sampling uses aircraft position when weather varies laterally`() {
+        val lateralGradientField = SpatialWeatherField(
+            listOf(
+                VerticalWeatherProfile(
+                    NtpClock.now(),
+                    testFlight.currentPosition.latLng,
+                    listOf(
+                        WeatherLayer(0, 0, windVector = WindVector(180, 15)),
+                        WeatherLayer(10000, -10, windVector = WindVector(180, 15)),
+                        WeatherLayer(20000, -20, windVector = WindVector(180, 15)),
+                        WeatherLayer(30000, -30, windVector = WindVector(180, 15)),
+                    )
+                ),
+                VerticalWeatherProfile(
+                    NtpClock.now(),
+                    runwayThreshold01L.latLng,
+                    listOf(
+                        WeatherLayer(0, 0, windVector = WindVector(0, 15)),
+                        WeatherLayer(10000, -10, windVector = WindVector(0, 15)),
+                        WeatherLayer(20000, -20, windVector = WindVector(0, 15)),
+                        WeatherLayer(30000, -30, windVector = WindVector(0, 15)),
+                    )
+                )
+            )
+        )
+
+        val descentTrajectoryResult = DescentTrajectoryService.calculateDescentTrajectory(
+            currentPosition = testFlight.currentPosition,
+            remainingWaypoints = testFlight.remainingRoute,
+            assignedRunway = testFlight.assignedRunway,
+            assignedStar = testFlight.assignedStar,
+            spatialWeatherField = lateralGradientField,
+            aircraftPerformance = b738performance,
+            flightPlanTas = 450,
+            airport = testAirport
+        )
+
+        val sampledWindVectors = descentTrajectoryResult!!.trajectoryPoints
+            .dropLast(1)
+            .map { it.windVector }
+            .distinct()
+
+        assertTrue(sampledWindVectors.size > 1)
+    }
+
     private fun calculateTestDescent(testFlight: TestFlight): List<TrajectoryPoint> {
         val weatherData = listOf(
             WeatherLayer(0, 0, windVector = WindVector(180, 0)),
@@ -259,13 +306,14 @@ class DescentProfileTest {
             testFlight.currentPosition.latLng,
             weatherData.toMutableList()
         )
+        val weatherField = SpatialWeatherField(listOf(weatherProfile))
 
         val descentTrajectoryResult = DescentTrajectoryService.calculateDescentTrajectory(
             currentPosition = testFlight.currentPosition,
             remainingWaypoints = testFlight.remainingRoute,
             assignedRunway = testFlight.assignedRunway,
             assignedStar = testFlight.assignedStar,
-            verticalWeatherProfile = weatherProfile,
+            spatialWeatherField = weatherField,
             aircraftPerformance = b738performance,
             flightPlanTas = 450,
             airport = testAirport

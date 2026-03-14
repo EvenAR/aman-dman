@@ -173,6 +173,9 @@ fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
         independentRunwaySystems = independentRunwaySystems?.map { it.toSet() } ?: listOf(runwayThresholds.keys),
         sequencingHorizon = sequencingHorizon?.toKotlinDuration() ?: 30.minutes,
         lockedHorizon = lockedHorizon?.toKotlinDuration() ?: 10.minutes,
+        weatherFetchRadiusNm = (weatherFetchRadiusNm ?: 200.0).also {
+            require(it > 0.0) { "Airport $icao has invalid weatherFetchRadiusNm=$it. Value must be > 0." }
+        },
         runways = runwayThresholds.mapValues { (id, value) ->
             RunwayThreshold(
                 id = id,

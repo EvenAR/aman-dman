@@ -9,7 +9,7 @@ import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.navigation.distanceTo
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
-import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
+import no.vaccsca.amandman.model.weather.SpatialWeatherField
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -22,7 +22,7 @@ object ArrivalEventService {
     fun createRunwayArrivalEvent(
         airport: Airport,
         arrival: AtcClientArrivalData,
-        weatherData: VerticalWeatherProfile?,
+        weatherField: SpatialWeatherField?,
         aircraftPerformanceProvider: AircraftPerformanceProvider
     ): RunwayArrivalEvent {
         val aircraftPerformance = try {
@@ -47,7 +47,7 @@ object ArrivalEventService {
             currentPosition = arrival.currentPosition,
             assignedRunway = arrival.assignedRunway,
             remainingWaypoints = arrival.remainingWaypoints,
-            verticalWeatherProfile = weatherData,
+            spatialWeatherField = weatherField,
             assignedStar = arrival.assignedStar,
             aircraftPerformance = aircraftPerformance,
             flightPlanTas = arrival.flightPlanTas,

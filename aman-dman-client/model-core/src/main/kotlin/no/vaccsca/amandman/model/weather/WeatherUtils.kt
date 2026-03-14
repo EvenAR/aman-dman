@@ -1,11 +1,6 @@
 package no.vaccsca.amandman.model.weather
 
-import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
-import no.vaccsca.amandman.model.weather.WeatherLayer
-import no.vaccsca.amandman.model.weather.WindVector
-import kotlin.compareTo
 import kotlin.math.roundToInt
-import kotlin.text.toFloat
 
 object WeatherUtils {
 
@@ -44,5 +39,4 @@ object WeatherUtils {
             temperatureC = temperature.roundToInt()
         )
     }
-
 }

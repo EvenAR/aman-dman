@@ -329,7 +329,7 @@ class DescentTrajectoryServiceTest {
             assignedRunway = arrival.assignedRunway!!,
             remainingWaypoints = arrival.remainingWaypoints,
             assignedStar = arrival.assignedStar,
-            verticalWeatherProfile = null,
+            spatialWeatherField = null,
             flightPlanTas = 450,
             aircraftPerformance = b738performance,
             airport = testAirport
