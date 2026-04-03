@@ -8,10 +8,11 @@ import type {
   AirportRouteNavItem,
   ArrivalRouteConfig,
   BootstrapData,
+  FeederFixRecord,
   HorizonConfig,
   LabelLayoutConfig,
   ThresholdRecord,
-  TimelineRecord,
+  TimelinePresetRecord,
   VaccSummary,
 } from '../../../shared/contracts';
 
@@ -34,8 +35,16 @@ async function listArrivalRoutesCached(): Promise<ArrivalRouteConfig[]> {
   return getConfigRepository().listArrivalRoutes();
 }
 
-async function listTimelinesCached(): Promise<TimelineRecord[]> {
-  return getConfigRepository().listTimelines();
+async function listFeederFixesCached(): Promise<FeederFixRecord[]> {
+  return getConfigRepository().listFeederFixes();
+}
+
+async function listLabelLayoutsCached(): Promise<LabelLayoutConfig[]> {
+  return getConfigRepository().listLabelLayouts();
+}
+
+async function listTimelinePresetsCached(): Promise<TimelinePresetRecord[]> {
+  return getConfigRepository().listTimelinePresets();
 }
 
 async function listHorizonsCached(): Promise<HorizonConfig[]> {
@@ -204,21 +213,28 @@ export async function loadTimelinesPage(
   airportIcao: string
 ): Promise<{
   context: AirportRouteContext;
-  timelines: TimelineRecord[];
+  timelines: TimelinePresetRecord[];
   thresholds: ThresholdRecord[];
+  feederFixes: FeederFixRecord[];
+  labelLayouts: LabelLayoutConfig[];
 }> {
   await requireAuthenticatedPage(`/admin/${toSlug(vaccSlug)}/${toSlug(airportIcao)}/timelines`);
   const context = await getAirportConfigContext(vaccSlug, airportIcao);
   const bootstrap = await getBootstrapCached();
+  const feederFixes = await listFeederFixesCached();
+  const labelLayouts = await listLabelLayoutsCached();
+  const subdivision = requireSubdivision(context.airport);
 
   return {
     context,
-    timelines: (await listTimelinesCached()).filter(
+    timelines: (await listTimelinePresetsCached()).filter(
       (timeline) => timeline.airport_id === context.airport.id
     ),
     thresholds: bootstrap.thresholds.filter(
       (threshold) => threshold.airport_id === context.airport.id
     ),
+    feederFixes: feederFixes.filter((feederFix) => feederFix.airport_id === context.airport.id),
+    labelLayouts: labelLayouts.filter((layout) => layout.layout.subdivision === subdivision),
   };
 }
 

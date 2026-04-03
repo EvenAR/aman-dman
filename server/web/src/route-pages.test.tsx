@@ -1,13 +1,15 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { AirportArrivalRoutesPageClient } from './route-pages';
+import { AirportArrivalRoutesPageClient, AirportTimelinesPageClient } from './route-pages';
 
-const { push, refresh, saveArrivalRoute, deleteArrivalRoute } = vi.hoisted(() => ({
+const { push, refresh, saveArrivalRoute, deleteArrivalRoute, saveTimelinePreset, deleteTimelinePreset } = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
   saveArrivalRoute: vi.fn(),
   deleteArrivalRoute: vi.fn(),
+  saveTimelinePreset: vi.fn(),
+  deleteTimelinePreset: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -21,6 +23,8 @@ vi.mock('./api', () => ({
   api: {
     saveArrivalRoute,
     deleteArrivalRoute,
+    saveTimelinePreset,
+    deleteTimelinePreset,
   },
 }));
 
@@ -29,6 +33,8 @@ beforeEach(() => {
   refresh.mockReset();
   saveArrivalRoute.mockReset();
   deleteArrivalRoute.mockReset();
+  saveTimelinePreset.mockReset();
+  deleteTimelinePreset.mockReset();
 });
 
 afterEach(() => {
@@ -282,4 +288,82 @@ test('uppercases and constrains expectation fix names while editing', () => {
   fireEvent.change(expectationFixInput, { target: { value: 'ab-c12345' } });
 
   expect(screen.getByDisplayValue('ABC12')).toBeInTheDocument();
+});
+
+test('timeline presets render left and right sides with simple multi-selects and no group name field', () => {
+  render(
+    <AirportTimelinesPageClient
+      records={[
+        {
+          id: 10,
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          name: '19R Arrivals',
+          label_layout_id: 11,
+          left_group: null,
+          right_group: {
+            id: 21,
+            airport_id: 1,
+            group_type: 'RUNWAY',
+            runway_members: ['19R'],
+            feeder_fix_members: [],
+          },
+        },
+      ]}
+      airport={{
+        id: 1,
+        icao: 'ENGM',
+        latitude: 60.1939,
+        longitude: 11.1004,
+        subdivision: 'VACCSCA',
+      }}
+      thresholds={[
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: '19R',
+          runway_true_bearing: 192,
+          latitude: 60.1939,
+          longitude: 11.1004,
+          elevation_feet: 681,
+        },
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: '19L',
+          runway_true_bearing: 192,
+          latitude: 60.1939,
+          longitude: 11.1004,
+          elevation_feet: 681,
+        },
+      ]}
+      feederFixes={[
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: 'BAVAD',
+          created_at: null,
+        },
+      ]}
+      labelLayouts={[
+        {
+          layout: {
+            id: 11,
+            name: 'ENGM ARR',
+            description: null,
+            created_at: null,
+            subdivision: 'VACCSCA',
+          },
+          arrival_items: [],
+          departure_items: [],
+        },
+      ]}
+    />
+  );
+
+  expect(screen.getByText('Left side')).toBeInTheDocument();
+  expect(screen.getByText('Right side')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Group name')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Runways')).toHaveAttribute('multiple');
+  expect(screen.getByRole('button', { name: 'Add left side' })).toBeInTheDocument();
 });

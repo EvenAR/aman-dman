@@ -10,7 +10,7 @@ import type {
   RoleAssignmentRecord,
   RoleRecord,
   SubdivisionRecord,
-  TimelineRecord,
+  TimelinePresetRecord,
 } from '../../shared/contracts';
 
 const API_TIMEOUT_MS = 15000;
@@ -114,20 +114,21 @@ export const api = {
   deleteLabelLayout: (id: number): Promise<void> =>
     apiRequest(`/api/v1/admin/label-layouts/${id}`, { method: 'DELETE' }),
 
-  listTimelines: (): Promise<TimelineRecord[]> => apiRequest('/api/v1/config/timelines'),
-  saveTimeline: (record: TimelineRecord): Promise<TimelineRecord> =>
-    apiRequest(
-      `/api/v1/admin/airports/${record.airport_id}/timelines/${encodeURIComponent(record.name)}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(record),
-      }
-    ),
-  deleteTimeline: (record: TimelineRecord): Promise<void> =>
-    apiRequest(
-      `/api/v1/admin/airports/${record.airport_id}/timelines/${encodeURIComponent(record.name)}`,
-      { method: 'DELETE' }
-    ),
+  listTimelines: (): Promise<TimelinePresetRecord[]> => apiRequest('/api/v1/config/timelines'),
+  saveTimelinePreset: (record: TimelinePresetRecord): Promise<TimelinePresetRecord> =>
+    record.id === null
+      ? apiRequest(`/api/v1/admin/airports/${record.airport_id}/timeline-presets`, {
+          method: 'POST',
+          body: JSON.stringify(record),
+        })
+      : apiRequest(`/api/v1/admin/airports/${record.airport_id}/timeline-presets/${record.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(record),
+        }),
+  deleteTimelinePreset: (record: TimelinePresetRecord): Promise<void> =>
+    apiRequest(`/api/v1/admin/airports/${record.airport_id}/timeline-presets/${record.id}`, {
+      method: 'DELETE',
+    }),
 
   listSubdivisions: (): Promise<SubdivisionRecord[]> => apiRequest('/api/v1/config/subdivisions'),
   saveSubdivision: (record: SubdivisionRecord): Promise<SubdivisionRecord> =>

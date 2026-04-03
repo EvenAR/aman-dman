@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
 import type {
@@ -9,6 +9,7 @@ import type {
   AirportRecord,
   ArrivalRouteConfig,
   BootstrapData,
+  FeederFixRecord,
   HorizonConfig,
   LabelItemSourceRecord,
   LabelLayoutConfig,
@@ -16,7 +17,9 @@ import type {
   RoleRecord,
   SubdivisionRecord,
   ThresholdRecord,
-  TimelineRecord,
+  TimelineGroupType,
+  TimelinePresetRecord,
+  TimelineSideGroupRecord,
 } from '../../../shared/contracts';
 import { EditableTable } from '../components/EditableTable';
 import { Field } from '../components/Field';
@@ -63,6 +66,8 @@ const aircraftNumericFields = [
   'landing_vat',
   'landing_distance',
 ] as const;
+
+const timelineGroupTypeOptions: TimelineGroupType[] = ['RUNWAY', 'FEEDER_FIX'];
 
 export function AircraftEditor({
   draft,
@@ -405,89 +410,249 @@ export function ArrivalRouteEditor({
   );
 }
 
-export function TimelineEditor({
-  draft,
-  airports,
-  thresholds,
-  fixedAirport,
+function createEmptyTimelineSideGroup(
+  airportId: number | null,
+  groupType: TimelineGroupType
+): TimelineSideGroupRecord {
+  return {
+    id: null,
+    airport_id: airportId,
+    group_type: groupType,
+    runway_members: [],
+    feeder_fix_members: [],
+  };
+}
+
+function TimelineSideGroupEditor({
+  title,
+  group,
+  airportId,
+  runwayOptions,
+  feederFixOptions,
+  removable,
   onChange,
+  onRemove,
 }: {
-  draft: TimelineRecord;
-  airports: AirportRecord[];
-  thresholds: BootstrapData['thresholds'];
-  fixedAirport?: AirportRecord;
-  onChange: (value: TimelineRecord) => void;
+  title: string;
+  group: TimelineSideGroupRecord | null;
+  airportId: number | null;
+  runwayOptions: string[];
+  feederFixOptions: string[];
+  removable?: boolean;
+  onChange: (group: TimelineSideGroupRecord | null) => void;
+  onRemove?: () => void;
 }): React.JSX.Element {
-  const thresholdOptions = thresholds
-    .filter((threshold) => threshold.airport_id === draft.airport_id)
-    .map((threshold) => threshold.identifier);
+  if (group === null) {
+    return (
+      <section className="editor-card">
+        <header className="panel-header">
+          <h3>{title}</h3>
+          <span>Optional</span>
+        </header>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => onChange(createEmptyTimelineSideGroup(airportId, 'RUNWAY'))}
+        >
+          Add left side
+        </button>
+      </section>
+    );
+  }
+
+  const memberOptions = group.group_type === 'RUNWAY' ? runwayOptions : feederFixOptions;
+  const members = group.group_type === 'RUNWAY' ? group.runway_members : group.feeder_fix_members;
 
   return (
     <section className="editor-card">
       <header className="panel-header">
-        <h3>Timeline</h3>
-        <span>{draft.name || 'New timeline'}</span>
+        <h3>{title}</h3>
+        <span>{group.group_type === 'RUNWAY' ? 'Runways' : 'Feeder fixes'}</span>
       </header>
       <div className="field-grid">
-        {fixedAirport ? null : (
-          <Field label="Airport">
-            <select
-              value={draft.airport_id ?? ''}
-              onChange={(event) => {
-                const airport =
-                  airports.find((candidate) => String(candidate.id) === event.target.value) ?? null;
-                onChange({
-                  ...draft,
-                  airport_id: airport?.id ?? null,
-                  airport_icao: airport?.icao ?? '',
-                  runway_left: null,
-                  runway_right: null,
-                });
-              }}
-            >
-              <option value="">Select airport</option>
-              {airports.map((airport) => (
-                <option key={airport.id ?? airport.icao} value={airport.id ?? ''}>
-                  {airport.subdivision ? `${airport.subdivision} / ${airport.icao}` : airport.icao}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        <Field label="Name">
-          <input
-            value={draft.name}
-            onChange={(event) => onChange({ ...draft, name: event.target.value })}
-          />
-        </Field>
-        <Field label="Runway left">
+        <Field label="Type">
           <select
-            value={draft.runway_left ?? ''}
-            onChange={(event) => onChange({ ...draft, runway_left: event.target.value || null })}
+            value={group.group_type}
+            onChange={(event) =>
+              onChange({
+                ...group,
+                group_type: event.target.value as TimelineGroupType,
+                runway_members: [],
+                feeder_fix_members: [],
+              })
+            }
           >
-            <option value="">None</option>
-            {thresholdOptions.map((threshold) => (
-              <option key={threshold} value={threshold}>
-                {threshold}
+            {timelineGroupTypeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === 'RUNWAY' ? 'Runway' : 'Feeder fix'}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Runway right">
+        <Field label={group.group_type === 'RUNWAY' ? 'Runways' : 'Feeder fixes'}>
           <select
-            value={draft.runway_right ?? ''}
-            onChange={(event) => onChange({ ...draft, runway_right: event.target.value || null })}
+            multiple
+            size={Math.min(Math.max(memberOptions.length, 4), 10)}
+            value={members}
+            onChange={(event) => {
+              const values = Array.from(event.target.selectedOptions, (option) => option.value);
+              onChange({
+                ...group,
+                runway_members: group.group_type === 'RUNWAY' ? values : [],
+                feeder_fix_members: group.group_type === 'FEEDER_FIX' ? values : [],
+              });
+            }}
           >
-            <option value="">None</option>
-            {thresholdOptions.map((threshold) => (
-              <option key={threshold} value={threshold}>
-                {threshold}
+            {memberOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </select>
         </Field>
       </div>
+      <p className="vacc-create-card__hint">
+        Hold Ctrl or Cmd to select multiple{' '}
+        {group.group_type === 'RUNWAY' ? 'runways' : 'feeder fixes'}.
+      </p>
+      {removable ? (
+        <button type="button" className="ghost-button" onClick={onRemove}>
+          Remove {title.toLowerCase()}
+        </button>
+      ) : null}
     </section>
+  );
+}
+
+export function TimelineEditor({
+  draft,
+  airports,
+  thresholds,
+  feederFixes,
+  labelLayouts,
+  fixedAirport,
+  onChange,
+}: {
+  draft: TimelinePresetRecord;
+  airports: AirportRecord[];
+  thresholds: BootstrapData['thresholds'];
+  feederFixes: FeederFixRecord[];
+  labelLayouts: LabelLayoutConfig[];
+  fixedAirport?: AirportRecord;
+  onChange: (value: TimelinePresetRecord) => void;
+}): React.JSX.Element {
+  const thresholdOptions = useMemo(
+    () =>
+      thresholds
+        .filter((threshold) => threshold.airport_id === draft.airport_id)
+        .map((threshold) => threshold.identifier),
+    [draft.airport_id, thresholds]
+  );
+  const feederFixOptions = useMemo(
+    () =>
+      feederFixes
+        .filter((feederFix) => feederFix.airport_id === draft.airport_id)
+        .map((feederFix) => feederFix.identifier),
+    [draft.airport_id, feederFixes]
+  );
+
+  return (
+    <div className="route-page-stack">
+      <section className="editor-card">
+        <header className="panel-header">
+          <h3>Timeline preset</h3>
+          <span>{draft.name || 'New timeline preset'}</span>
+        </header>
+        <div className="field-grid">
+          {fixedAirport ? null : (
+            <Field label="Airport">
+              <select
+                value={draft.airport_id ?? ''}
+                onChange={(event) => {
+                  const airport =
+                    airports.find((candidate) => String(candidate.id) === event.target.value) ??
+                    null;
+                  onChange({
+                    ...draft,
+                    airport_id: airport?.id ?? null,
+                    airport_icao: airport?.icao ?? '',
+                    left_group: draft.left_group
+                      ? createEmptyTimelineSideGroup(
+                          airport?.id ?? null,
+                          draft.left_group.group_type
+                        )
+                      : null,
+                    right_group: createEmptyTimelineSideGroup(
+                      airport?.id ?? null,
+                      draft.right_group.group_type
+                    ),
+                  });
+                }}
+              >
+                <option value="">Select airport</option>
+                {airports.map((airport) => (
+                  <option key={airport.id ?? airport.icao} value={airport.id ?? ''}>
+                    {airport.subdivision
+                      ? `${airport.subdivision} / ${airport.icao}`
+                      : airport.icao}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <Field label="Name">
+            <input
+              value={draft.name}
+              onChange={(event) => onChange({ ...draft, name: event.target.value })}
+            />
+          </Field>
+          <Field label="Label layout">
+            <select
+              value={draft.label_layout_id ?? ''}
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  label_layout_id: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+            >
+              <option value="">Select label layout</option>
+              {labelLayouts.map((layout) => (
+                <option key={layout.layout.id ?? layout.layout.name} value={layout.layout.id ?? ''}>
+                  {layout.layout.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </section>
+
+      <div className="field-grid">
+        <TimelineSideGroupEditor
+          title="Left side"
+          group={draft.left_group}
+          airportId={draft.airport_id}
+          runwayOptions={thresholdOptions}
+          feederFixOptions={feederFixOptions}
+          removable
+          onChange={(left_group) => onChange({ ...draft, left_group })}
+          onRemove={() => onChange({ ...draft, left_group: null })}
+        />
+        <TimelineSideGroupEditor
+          title="Right side"
+          group={draft.right_group}
+          airportId={draft.airport_id}
+          runwayOptions={thresholdOptions}
+          feederFixOptions={feederFixOptions}
+          onChange={(right_group) =>
+            onChange({
+              ...draft,
+              right_group: right_group ?? createEmptyTimelineSideGroup(draft.airport_id, 'RUNWAY'),
+            })
+          }
+        />
+      </div>
+    </div>
   );
 }
 
@@ -496,12 +661,14 @@ export function LabelLayoutEditor({
   arrivalSources,
   departureSources,
   alignmentOptions,
+  subdivisions,
   onChange,
 }: {
   draft: LabelLayoutConfig;
   arrivalSources: string[];
   departureSources: string[];
   alignmentOptions: string[];
+  subdivisions: SubdivisionRecord[];
   onChange: (value: LabelLayoutConfig) => void;
 }): React.JSX.Element {
   return (
@@ -533,6 +700,24 @@ export function LabelLayoutEditor({
                 })
               }
             />
+          </Field>
+          <Field label="Subdivision">
+            <select
+              value={draft.layout.subdivision}
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  layout: { ...draft.layout, subdivision: event.target.value },
+                })
+              }
+            >
+              <option value="">Select subdivision</option>
+              {subdivisions.map((subdivision) => (
+                <option key={subdivision.abbreviation} value={subdivision.abbreviation}>
+                  {subdivision.abbreviation}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
       </section>

@@ -3,13 +3,14 @@ import type {
   AirportConfig,
   ArrivalRouteConfig,
   BootstrapData,
+  FeederFixRecord,
   HorizonConfig,
   LabelItemSourceRecord,
   LabelLayoutConfig,
   RoleAssignmentRecord,
   RoleRecord,
   SubdivisionRecord,
-  TimelineRecord,
+  TimelinePresetRecord,
 } from '../../../shared/contracts';
 
 export interface ConfigRepository {
@@ -28,13 +29,15 @@ export interface ConfigRepository {
   saveArrivalRoute(config: ArrivalRouteConfig): Promise<ArrivalRouteConfig>;
   deleteArrivalRoute(id: number): Promise<void>;
 
+  listFeederFixes(): Promise<FeederFixRecord[]>;
+
   listLabelLayouts(): Promise<LabelLayoutConfig[]>;
   saveLabelLayout(config: LabelLayoutConfig): Promise<LabelLayoutConfig>;
   deleteLabelLayout(id: number): Promise<void>;
 
-  listTimelines(): Promise<TimelineRecord[]>;
-  saveTimeline(record: TimelineRecord): Promise<TimelineRecord>;
-  deleteTimeline(airportId: number, name: string): Promise<void>;
+  listTimelinePresets(): Promise<TimelinePresetRecord[]>;
+  saveTimelinePreset(record: TimelinePresetRecord): Promise<TimelinePresetRecord>;
+  deleteTimelinePreset(airportId: number, id: number): Promise<void>;
 
   listSubdivisions(): Promise<SubdivisionRecord[]>;
   saveSubdivision(record: SubdivisionRecord): Promise<SubdivisionRecord>;

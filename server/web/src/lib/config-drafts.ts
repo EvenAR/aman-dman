@@ -11,7 +11,9 @@ import type {
   RoleAssignmentRecord,
   RoleRecord,
   SubdivisionRecord,
-  TimelineRecord,
+  TimelineGroupType,
+  TimelinePresetRecord,
+  TimelineSideGroupRecord,
 } from '../../../shared/contracts';
 
 const FIX_NAME_PATTERN = /^[A-Z0-9]{1,5}$/;
@@ -137,20 +139,78 @@ export function emptyLabelLayout(): LabelLayoutConfig {
       name: '',
       description: null,
       created_at: null,
+      subdivision: '',
     },
     arrival_items: [],
     departure_items: [],
   };
 }
 
-export function emptyTimeline(airport?: AirportRecord): TimelineRecord {
+function emptyTimelineSideGroup(groupType: TimelineGroupType): TimelineSideGroupRecord {
   return {
+    id: null,
+    airport_id: null,
+    group_type: groupType,
+    runway_members: [],
+    feeder_fix_members: [],
+  };
+}
+
+export function emptyTimelinePreset(airport?: AirportRecord): TimelinePresetRecord {
+  return {
+    id: null,
     airport_id: airport?.id ?? null,
     airport_icao: airport?.icao ?? '',
     name: '',
-    runway_left: null,
-    runway_right: null,
+    label_layout_id: null,
+    left_group: null,
+    right_group: emptyTimelineSideGroup('RUNWAY'),
   };
+}
+
+export function validateTimelinePreset(draft: TimelinePresetRecord): string | null {
+  if (!draft.name.trim()) {
+    return 'Timeline preset name is required.';
+  }
+
+  if (draft.label_layout_id === null) {
+    return 'Label layout is required.';
+  }
+
+  const validateGroup = (
+    group: TimelineSideGroupRecord | null,
+    sideLabel: 'Left side' | 'Right side',
+    required: boolean
+  ): string | null => {
+    if (group === null) {
+      return required ? `${sideLabel} is required.` : null;
+    }
+
+    if (group.group_type === 'RUNWAY') {
+      if (group.runway_members.length === 0) {
+        return `${sideLabel} runway group must contain at least one runway.`;
+      }
+      if (group.feeder_fix_members.length > 0) {
+        return `${sideLabel} runway group cannot contain feeder fixes.`;
+      }
+    }
+
+    if (group.group_type === 'FEEDER_FIX') {
+      if (group.feeder_fix_members.length === 0) {
+        return `${sideLabel} feeder-fix group must contain at least one feeder fix.`;
+      }
+      if (group.runway_members.length > 0) {
+        return `${sideLabel} feeder-fix group cannot contain runways.`;
+      }
+    }
+
+    return null;
+  };
+
+  return (
+    validateGroup(draft.left_group, 'Left side', false) ??
+    validateGroup(draft.right_group, 'Right side', true)
+  );
 }
 
 export function emptyHorizon(

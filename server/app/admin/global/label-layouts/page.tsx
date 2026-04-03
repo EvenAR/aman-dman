@@ -24,6 +24,7 @@ export default async function AdminGlobalLabelLayoutsPage(): Promise<React.JSX.E
         arrivalSources={bootstrap.label_item_source_arr.map((item) => item.name)}
         departureSources={bootstrap.label_item_source_dep.map((item) => item.name)}
         alignmentOptions={bootstrap.alignment_options}
+        subdivisions={bootstrap.subdivisions}
       />
     </GlobalAdminShell>
   );

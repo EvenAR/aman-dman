@@ -36,6 +36,8 @@ export default async function AdminAirportTimelinesRoute({
       records={data.timelines}
       airport={data.context.airport}
       thresholds={data.thresholds}
+      feederFixes={data.feederFixes}
+      labelLayouts={data.labelLayouts}
     />
   );
 }

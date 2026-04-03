@@ -8,6 +8,7 @@ import type {
   ArrivalRouteExpectationRecord,
   ArrivalRouteRecord,
   BootstrapData,
+  FeederFixRecord,
   Geometry,
   HorizonConfig,
   HorizonRecord,
@@ -20,7 +21,9 @@ import type {
   RoleRecord,
   SubdivisionRecord,
   ThresholdRecord,
-  TimelineRecord,
+  TimelineGroupType,
+  TimelinePresetRecord,
+  TimelineSideGroupRecord,
 } from '../../../shared/contracts';
 import { NotFoundError, ValidationError } from '../../app/errors';
 import type { Database, DatabaseClient } from '../../db/database';
@@ -110,6 +113,15 @@ function mapThreshold(row: Record<string, unknown>): ThresholdRecord {
   };
 }
 
+function mapFeederFix(row: Record<string, unknown>): FeederFixRecord {
+  return {
+    airport_id: asNumber(row.airport_id),
+    airport_icao: String(row.airport_icao),
+    identifier: String(row.identifier),
+    created_at: asIsoTimestamp(row.created_at),
+  };
+}
+
 function mapAircraftPerformance(row: Record<string, unknown>): AircraftPerformanceRecord {
   return {
     aircraft_type: String(row.aircraft_type),
@@ -178,6 +190,7 @@ function mapLabelLayout(row: Record<string, unknown>): LabelLayoutRecord {
     name: String(row.name),
     description: (row.description as string | null) ?? null,
     created_at: asIsoTimestamp(row.created_at),
+    subdivision: String(row.subdivision),
   };
 }
 
@@ -203,13 +216,32 @@ function mapLabelLayoutDep(row: Record<string, unknown>): LabelLayoutDepRecord {
   };
 }
 
-function mapTimeline(row: Record<string, unknown>): TimelineRecord {
+function normalizeTimelineGroupType(value: unknown): TimelineGroupType {
+  const normalized = String(value);
+  if (normalized === 'RUNWAY' || normalized === 'FEEDER_FIX') {
+    return normalized;
+  }
+
+  throw new ValidationError(`Unsupported timeline group type '${normalized}'.`);
+}
+
+function createTimelineSideGroup(
+  id: number | null,
+  airportId: number | null,
+  groupType: unknown,
+  runwayMembers: string[],
+  feederFixMembers: string[]
+): TimelineSideGroupRecord | null {
+  if (id === null) {
+    return null;
+  }
+
   return {
-    airport_id: asNumber(row.airport_id),
-    airport_icao: String(row.airport_icao),
-    name: String(row.name),
-    runway_left: (row.runway_left as string | null) ?? null,
-    runway_right: (row.runway_right as string | null) ?? null,
+    id,
+    airport_id: airportId,
+    group_type: normalizeTimelineGroupType(groupType),
+    runway_members: runwayMembers,
+    feeder_fix_members: feederFixMembers,
   };
 }
 
@@ -248,9 +280,9 @@ function mapLabelItemSource(row: Record<string, unknown>): LabelItemSourceRecord
 async function resolveAirportById(
   queryable: DatabaseClient,
   airportId: number
-): Promise<{ id: number; icao: string }> {
+): Promise<{ id: number; icao: string; subdivision: string }> {
   const result = await queryable.query<Record<string, unknown>>(
-    'SELECT id, icao FROM public.airport WHERE id = $1',
+    'SELECT id, icao, subdivision FROM public.airport WHERE id = $1',
     [airportId]
   );
 
@@ -262,6 +294,26 @@ async function resolveAirportById(
   return {
     id: requireNumericId(row.id, 'airport.id'),
     icao: String(row.icao),
+    subdivision: String(row.subdivision),
+  };
+}
+
+async function resolveLabelLayoutById(
+  queryable: DatabaseClient,
+  labelLayoutId: number
+): Promise<{ id: number; subdivision: string }> {
+  const result = await queryable.query<Record<string, unknown>>(
+    'SELECT id, subdivision FROM public.label_layout WHERE id = $1',
+    [labelLayoutId]
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new NotFoundError(`Label layout '${labelLayoutId}' was not found.`);
+  }
+
+  return {
+    id: requireNumericId(row.id, 'label_layout.id'),
+    subdivision: String(row.subdivision),
   };
 }
 
@@ -287,13 +339,21 @@ export class PgConfigRepository implements ConfigRepository {
   constructor(private readonly database: Database) {}
 
   async getBootstrap(): Promise<BootstrapData> {
-    const [airports, thresholds, subdivisions, roles, arrSources, depSources, metadata] =
-      await Promise.all([
-        this.database.query<Record<string, unknown>>(
-          'SELECT id, icao, latitude, longitude, subdivision FROM public.airport ORDER BY icao, id'
-        ),
-        this.database.query<Record<string, unknown>>(
-          `
+    const [
+      airports,
+      thresholds,
+      feederFixes,
+      subdivisions,
+      roles,
+      arrSources,
+      depSources,
+      metadata,
+    ] = await Promise.all([
+      this.database.query<Record<string, unknown>>(
+        'SELECT id, icao, latitude, longitude, subdivision FROM public.airport ORDER BY icao, id'
+      ),
+      this.database.query<Record<string, unknown>>(
+        `
             SELECT
               t.airport_id,
               a.icao AS airport_icao,
@@ -306,25 +366,38 @@ export class PgConfigRepository implements ConfigRepository {
             JOIN public.airport a ON a.id = t.airport_id
             ORDER BY a.icao, t.identifier
           `
-        ),
-        this.database.query<Record<string, unknown>>(
-          'SELECT name, abbreviation FROM public.subdivision ORDER BY abbreviation'
-        ),
-        this.database.query<Record<string, unknown>>(
-          'SELECT id, name, description FROM public.role ORDER BY id'
-        ),
-        this.database.query<Record<string, unknown>>(
-          'SELECT name, description, example FROM public.label_item_source_arr ORDER BY name'
-        ),
-        this.database.query<Record<string, unknown>>(
-          'SELECT name, description, NULL::text AS example FROM public.label_item_source_dep ORDER BY name'
-        ),
-        this.database.getSchemaMetadata(),
-      ]);
+      ),
+      this.database.query<Record<string, unknown>>(
+        `
+            SELECT
+              f.airport_id,
+              a.icao AS airport_icao,
+              f.identifier,
+              f.created_at
+            FROM public.feeder_fix f
+            JOIN public.airport a ON a.id = f.airport_id
+            ORDER BY a.icao, f.identifier
+          `
+      ),
+      this.database.query<Record<string, unknown>>(
+        'SELECT name, abbreviation FROM public.subdivision ORDER BY abbreviation'
+      ),
+      this.database.query<Record<string, unknown>>(
+        'SELECT id, name, description FROM public.role ORDER BY id'
+      ),
+      this.database.query<Record<string, unknown>>(
+        'SELECT name, description, example FROM public.label_item_source_arr ORDER BY name'
+      ),
+      this.database.query<Record<string, unknown>>(
+        'SELECT name, description, NULL::text AS example FROM public.label_item_source_dep ORDER BY name'
+      ),
+      this.database.getSchemaMetadata(),
+    ]);
 
     return {
       airports: airports.rows.map(mapAirport),
       thresholds: thresholds.rows.map(mapThreshold),
+      feeder_fixes: feederFixes.rows.map(mapFeederFix),
       subdivisions: subdivisions.rows.map(mapSubdivision),
       roles: roles.rows.map(mapRole),
       label_item_source_arr: arrSources.rows.map(mapLabelItemSource),
@@ -700,10 +773,27 @@ export class PgConfigRepository implements ConfigRepository {
     await this.database.query('DELETE FROM public.arrival_route WHERE id = $1', [id]);
   }
 
+  async listFeederFixes(): Promise<FeederFixRecord[]> {
+    const result = await this.database.query<Record<string, unknown>>(
+      `
+        SELECT
+          f.airport_id,
+          a.icao AS airport_icao,
+          f.identifier,
+          f.created_at
+        FROM public.feeder_fix f
+        JOIN public.airport a ON a.id = f.airport_id
+        ORDER BY a.icao, f.identifier
+      `
+    );
+
+    return result.rows.map(mapFeederFix);
+  }
+
   async listLabelLayouts(): Promise<LabelLayoutConfig[]> {
     const [layouts, arrivalItems, departureItems] = await Promise.all([
       this.database.query<Record<string, unknown>>(
-        'SELECT id, name, description, created_at FROM public.label_layout ORDER BY name'
+        'SELECT id, name, description, created_at, subdivision FROM public.label_layout ORDER BY subdivision, name'
       ),
       this.database.query<Record<string, unknown>>(
         'SELECT "order", source, width, max_length, alignment, label_layout_id FROM public.label_layout_arr ORDER BY label_layout_id, "order"'
@@ -743,6 +833,7 @@ export class PgConfigRepository implements ConfigRepository {
     const layout = {
       name: requireNonEmpty(config.layout.name, 'name'),
       description: config.layout.description,
+      subdivision: requireNonEmpty(config.layout.subdivision, 'subdivision'),
     };
 
     const layoutId = await this.database.withTransaction(async (client) => {
@@ -812,87 +903,471 @@ export class PgConfigRepository implements ConfigRepository {
     await this.database.query('DELETE FROM public.label_layout WHERE id = $1', [id]);
   }
 
-  async listTimelines(): Promise<TimelineRecord[]> {
-    const result = await this.database.query<Record<string, unknown>>(
-      `
-        SELECT
-          COALESCE(al.id, ar.id, NULL::integer) AS airport_id,
-          COALESCE(al.icao, ar.icao, '') AS airport_icao,
-          t.name,
-          t.runway_left,
-          t.runway_right
-        FROM public.timeline t
-        LEFT JOIN public.threshold tl ON tl.identifier = t.runway_left
-        LEFT JOIN public.airport al ON al.id = tl.airport_id
-        LEFT JOIN public.threshold tr ON tr.identifier = t.runway_right
-        LEFT JOIN public.airport ar ON ar.id = tr.airport_id
-        ORDER BY COALESCE(al.icao, ar.icao, ''), t.name
-      `
-    );
-    return result.rows.map(mapTimeline);
-  }
+  async listTimelinePresets(): Promise<TimelinePresetRecord[]> {
+    const [presets, runwayMembers, feederFixMembers] = await Promise.all([
+      this.database.query<Record<string, unknown>>(
+        `
+          SELECT
+            p.id,
+            p.airport_id,
+            a.icao AS airport_icao,
+            p.name,
+            p.label_layout_id,
+            lg.id AS left_group_id,
+            lg.airport_id AS left_group_airport_id,
+            lg.group_type AS left_group_type,
+            rg.id AS right_group_id,
+            rg.airport_id AS right_group_airport_id,
+            rg.group_type AS right_group_type
+          FROM public.timeline_preset p
+          JOIN public.airport a ON a.id = p.airport_id
+          LEFT JOIN public.timeline_side_group lg ON lg.id = p.left_group_id
+          JOIN public.timeline_side_group rg ON rg.id = p.right_group_id
+          ORDER BY a.icao, p.name, p.id
+        `
+      ),
+      this.database.query<Record<string, unknown>>(
+        `
+          SELECT group_id, threshold_identifier
+          FROM public.timeline_runway_group_member
+          ORDER BY group_id, threshold_identifier
+        `
+      ),
+      this.database.query<Record<string, unknown>>(
+        `
+          SELECT group_id, feeder_fix_identifier
+          FROM public.timeline_feeder_fix_group_member
+          ORDER BY group_id, feeder_fix_identifier
+        `
+      ),
+    ]);
 
-  async saveTimeline(record: TimelineRecord): Promise<TimelineRecord> {
-    const airport = await resolveAirportById(
-      this.database,
-      requireNumericId(record.airport_id, 'timeline.airport_id')
-    );
-    const airportIcao = airport.icao;
-    const runwayLeft = record.runway_left
-      ? requireNonEmpty(record.runway_left, 'runway_left')
-      : null;
-    const runwayRight = record.runway_right
-      ? requireNonEmpty(record.runway_right, 'runway_right')
-      : null;
+    const runwayMemberMap = new Map<number, string[]>();
+    for (const row of runwayMembers.rows) {
+      const groupId = requireNumericId(row.group_id, 'timeline_runway_group_member.group_id');
+      const collection = runwayMemberMap.get(groupId) ?? [];
+      collection.push(String(row.threshold_identifier));
+      runwayMemberMap.set(groupId, collection);
+    }
 
-    await this.database.withTransaction(async (client) => {
-      const runwayIdentifiers = [runwayLeft, runwayRight].filter(
-        (value): value is string => value !== null
+    const feederFixMemberMap = new Map<number, string[]>();
+    for (const row of feederFixMembers.rows) {
+      const groupId = requireNumericId(row.group_id, 'timeline_feeder_fix_group_member.group_id');
+      const collection = feederFixMemberMap.get(groupId) ?? [];
+      collection.push(String(row.feeder_fix_identifier));
+      feederFixMemberMap.set(groupId, collection);
+    }
+
+    return presets.rows.map((row) => {
+      const leftGroupId = asNumber(row.left_group_id);
+      const rightGroupId = requireNumericId(row.right_group_id, 'timeline_preset.right_group_id');
+
+      const leftGroup = createTimelineSideGroup(
+        leftGroupId,
+        asNumber(row.left_group_airport_id),
+        row.left_group_type,
+        leftGroupId === null ? [] : (runwayMemberMap.get(leftGroupId) ?? []),
+        leftGroupId === null ? [] : (feederFixMemberMap.get(leftGroupId) ?? [])
       );
 
-      if (runwayIdentifiers.length > 0) {
-        const result = await client.query<Record<string, unknown>>(
-          `
-            SELECT DISTINCT a.icao
-            FROM public.threshold t
-            JOIN public.airport a ON a.id = t.airport_id
-            WHERE t.identifier = ANY($1::text[])
-          `,
-          [runwayIdentifiers]
-        );
-        const airports = result.rows.map((row) => String(row.icao));
-        if (airports.length !== 1 || airports[0] !== airportIcao) {
-          throw new ValidationError('Selected runways must belong to the requested airport.', {
-            field: 'runways',
+      const rightGroup = createTimelineSideGroup(
+        rightGroupId,
+        asNumber(row.right_group_airport_id),
+        row.right_group_type,
+        runwayMemberMap.get(rightGroupId) ?? [],
+        feederFixMemberMap.get(rightGroupId) ?? []
+      );
+
+      if (!rightGroup) {
+        throw new ValidationError('Timeline preset is missing a right side group.');
+      }
+
+      return {
+        id: requireNumericId(row.id, 'timeline_preset.id'),
+        airport_id: asNumber(row.airport_id),
+        airport_icao: String(row.airport_icao),
+        name: String(row.name),
+        label_layout_id: asNumber(row.label_layout_id),
+        left_group: leftGroup,
+        right_group: rightGroup,
+      };
+    });
+  }
+
+  async saveTimelinePreset(record: TimelinePresetRecord): Promise<TimelinePresetRecord> {
+    const airport = await resolveAirportById(
+      this.database,
+      requireNumericId(record.airport_id, 'timeline_preset.airport_id')
+    );
+    const labelLayoutId = requireNumericId(
+      record.label_layout_id,
+      'timeline_preset.label_layout_id'
+    );
+    const labelLayout = await resolveLabelLayoutById(this.database, labelLayoutId);
+    if (labelLayout.subdivision !== airport.subdivision) {
+      throw new ValidationError('Selected label layout must belong to the same subdivision.', {
+        field: 'label_layout_id',
+      });
+    }
+
+    const presetName = requireNonEmpty(record.name, 'name');
+
+    const normalizeGroup = (
+      group: TimelineSideGroupRecord | null,
+      side: 'left_group' | 'right_group'
+    ): TimelineSideGroupRecord | null => {
+      if (group === null) {
+        if (side === 'right_group') {
+          throw new ValidationError('Right side is required.', { field: side });
+        }
+        return null;
+      }
+
+      const groupType = normalizeTimelineGroupType(group.group_type);
+      const runwayMembers = Array.from(
+        new Set(
+          group.runway_members.map((member) =>
+            requireNonEmpty(member, `${side}.runway_members`).toUpperCase()
+          )
+        )
+      );
+      const feederFixMembers = Array.from(
+        new Set(
+          group.feeder_fix_members.map((member) =>
+            requireNonEmpty(member, `${side}.feeder_fix_members`).toUpperCase()
+          )
+        )
+      );
+
+      if (groupType === 'RUNWAY') {
+        if (feederFixMembers.length > 0) {
+          throw new ValidationError('Runway groups cannot contain feeder fixes.', {
+            field: `${side}.feeder_fix_members`,
+          });
+        }
+        if (runwayMembers.length === 0) {
+          throw new ValidationError('Runway groups must contain at least one runway.', {
+            field: `${side}.runway_members`,
+          });
+        }
+      } else {
+        if (runwayMembers.length > 0) {
+          throw new ValidationError('Feeder-fix groups cannot contain runways.', {
+            field: `${side}.runway_members`,
+          });
+        }
+        if (feederFixMembers.length === 0) {
+          throw new ValidationError('Feeder-fix groups must contain at least one feeder fix.', {
+            field: `${side}.feeder_fix_members`,
           });
         }
       }
 
-      const timeline = {
-        name: requireNonEmpty(record.name, 'name'),
-        runway_left: runwayLeft,
-        runway_right: runwayRight,
+      return {
+        id: group.id,
+        airport_id: airport.id,
+        group_type: groupType,
+        runway_members: runwayMembers,
+        feeder_fix_members: feederFixMembers,
+      };
+    };
+
+    const leftGroup = normalizeGroup(record.left_group, 'left_group');
+    const rightGroup = normalizeGroup(record.right_group, 'right_group');
+    if (!rightGroup) {
+      throw new ValidationError('Right side is required.', { field: 'right_group' });
+    }
+
+    const presetId = await this.database.withTransaction(async (client) => {
+      const validateRunwayMembers = async (members: string[]): Promise<void> => {
+        const existingRunways = await client.query<Record<string, unknown>>(
+          `
+            SELECT identifier
+            FROM public.threshold
+            WHERE airport_id = $1
+              AND identifier = ANY($2::text[])
+          `,
+          [airport.id, members]
+        );
+        if (existingRunways.rows.length !== members.length) {
+          throw new ValidationError('Selected runways must belong to the requested airport.', {
+            field: 'runway_members',
+          });
+        }
       };
 
-      const upsert = buildUpsertStatement('public.timeline', timeline, ['name']);
-      await client.query(upsert.text, upsert.params);
+      const validateFeederFixMembers = async (members: string[]): Promise<void> => {
+        const existingFeederFixes = await client.query<Record<string, unknown>>(
+          `
+            SELECT identifier
+            FROM public.feeder_fix
+            WHERE airport_id = $1
+              AND identifier = ANY($2::text[])
+          `,
+          [airport.id, members]
+        );
+        if (existingFeederFixes.rows.length !== members.length) {
+          throw new ValidationError('Selected feeder fixes must belong to the requested airport.', {
+            field: 'feeder_fix_members',
+          });
+        }
+      };
+
+      const saveSideGroup = async (group: TimelineSideGroupRecord): Promise<number> => {
+        if (group.group_type === 'RUNWAY') {
+          await validateRunwayMembers(group.runway_members);
+        } else {
+          await validateFeederFixMembers(group.feeder_fix_members);
+        }
+
+        let groupId = group.id;
+        if (groupId === null) {
+          const insert = buildInsertStatement(
+            'public.timeline_side_group',
+            {
+              airport_id: airport.id,
+              group_type: group.group_type,
+            },
+            'id'
+          );
+          const inserted = await client.query<{ id: number }>(insert.text, insert.params);
+          groupId = requireNumericId(inserted.rows[0]?.id, 'timeline_side_group.id');
+        } else {
+          const existingGroup = await client.query<Record<string, unknown>>(
+            'SELECT airport_id FROM public.timeline_side_group WHERE id = $1',
+            [groupId]
+          );
+          const existingGroupRow = existingGroup.rows[0];
+          if (!existingGroupRow) {
+            throw new NotFoundError(`Timeline side group '${groupId}' was not found.`);
+          }
+          if (
+            requireNumericId(existingGroupRow.airport_id, 'timeline_side_group.airport_id') !==
+            airport.id
+          ) {
+            throw new ValidationError(
+              'Timeline side groups must belong to the requested airport.',
+              {
+                field: 'group_id',
+              }
+            );
+          }
+
+          await client.query(
+            `
+              UPDATE public.timeline_side_group
+              SET airport_id = $1, group_type = $2
+              WHERE id = $3
+            `,
+            [airport.id, group.group_type, groupId]
+          );
+        }
+
+        await client.query('DELETE FROM public.timeline_runway_group_member WHERE group_id = $1', [
+          groupId,
+        ]);
+        await client.query(
+          'DELETE FROM public.timeline_feeder_fix_group_member WHERE group_id = $1',
+          [groupId]
+        );
+
+        if (group.group_type === 'RUNWAY') {
+          for (const identifier of group.runway_members) {
+            const insert = buildInsertStatement(
+              'public.timeline_runway_group_member',
+              {
+                group_id: groupId,
+                airport_id: airport.id,
+                threshold_identifier: identifier,
+              },
+              '*'
+            );
+            await client.query(insert.text, insert.params);
+          }
+        } else {
+          for (const identifier of group.feeder_fix_members) {
+            const insert = buildInsertStatement(
+              'public.timeline_feeder_fix_group_member',
+              {
+                group_id: groupId,
+                airport_id: airport.id,
+                feeder_fix_identifier: identifier,
+              },
+              '*'
+            );
+            await client.query(insert.text, insert.params);
+          }
+        }
+
+        return groupId;
+      };
+
+      const cleanupTimelineSideGroup = async (groupId: number): Promise<void> => {
+        const references = await client.query<Record<string, unknown>>(
+          `
+            SELECT 1
+            FROM public.timeline_preset
+            WHERE left_group_id = $1 OR right_group_id = $1
+            LIMIT 1
+          `,
+          [groupId]
+        );
+        if (references.rows[0]) {
+          return;
+        }
+
+        await client.query('DELETE FROM public.timeline_runway_group_member WHERE group_id = $1', [
+          groupId,
+        ]);
+        await client.query(
+          'DELETE FROM public.timeline_feeder_fix_group_member WHERE group_id = $1',
+          [groupId]
+        );
+        await client.query('DELETE FROM public.timeline_side_group WHERE id = $1', [groupId]);
+      };
+
+      const existingPreset =
+        record.id === null
+          ? null
+          : await client.query<Record<string, unknown>>(
+              `
+                SELECT id, airport_id, left_group_id, right_group_id
+                FROM public.timeline_preset
+                WHERE id = $1
+              `,
+              [record.id]
+            );
+      const existingPresetRow = existingPreset?.rows[0] ?? null;
+
+      if (record.id !== null) {
+        if (!existingPresetRow) {
+          throw new NotFoundError(`Timeline preset '${record.id}' was not found.`);
+        }
+        if (
+          requireNumericId(existingPresetRow.airport_id, 'timeline_preset.airport_id') !==
+          airport.id
+        ) {
+          throw new ValidationError('Timeline preset does not belong to the requested airport.', {
+            field: 'airport_id',
+          });
+        }
+      }
+
+      const leftGroupId = leftGroup ? await saveSideGroup(leftGroup) : null;
+      const rightGroupId = await saveSideGroup(rightGroup);
+
+      let currentPresetId = record.id;
+      if (currentPresetId === null) {
+        const insert = buildInsertStatement(
+          'public.timeline_preset',
+          {
+            airport_id: airport.id,
+            name: presetName,
+            label_layout_id: labelLayoutId,
+            left_group_id: leftGroupId,
+            right_group_id: rightGroupId,
+          },
+          'id'
+        );
+        const inserted = await client.query<{ id: number }>(insert.text, insert.params);
+        currentPresetId = requireNumericId(inserted.rows[0]?.id, 'timeline_preset.id');
+      } else {
+        await client.query(
+          `
+            UPDATE public.timeline_preset
+            SET
+              airport_id = $1,
+              name = $2,
+              label_layout_id = $3,
+              left_group_id = $4,
+              right_group_id = $5
+            WHERE id = $6
+          `,
+          [airport.id, presetName, labelLayoutId, leftGroupId, rightGroupId, currentPresetId]
+        );
+      }
+
+      const previousLeftGroupId = asNumber(existingPresetRow?.left_group_id);
+      const previousRightGroupId = asNumber(existingPresetRow?.right_group_id);
+      const obsoleteGroupIds = new Set<number>();
+      if (previousLeftGroupId !== null && previousLeftGroupId !== leftGroupId) {
+        obsoleteGroupIds.add(previousLeftGroupId);
+      }
+      if (previousRightGroupId !== null && previousRightGroupId !== rightGroupId) {
+        obsoleteGroupIds.add(previousRightGroupId);
+      }
+
+      for (const groupId of obsoleteGroupIds) {
+        await cleanupTimelineSideGroup(groupId);
+      }
+
+      return currentPresetId;
     });
 
-    const timeline = {
-      airport_id: airport.id,
-      airport_icao: airportIcao,
-      name: requireNonEmpty(record.name, 'name'),
-      runway_left: runwayLeft,
-      runway_right: runwayRight,
-    };
-    return timeline;
+    const saved = (await this.listTimelinePresets()).find((preset) => preset.id === presetId);
+    if (!saved) {
+      throw new NotFoundError(`Timeline preset '${presetId}' was not found after save.`);
+    }
+    return saved;
   }
 
-  async deleteTimeline(airportId: number, name: string): Promise<void> {
+  async deleteTimelinePreset(airportId: number, id: number): Promise<void> {
     await resolveAirportById(this.database, airportId);
-    await this.database.query('DELETE FROM public.timeline WHERE name = $1', [
-      requireNonEmpty(name, 'name'),
-    ]);
+    await this.database.withTransaction(async (client) => {
+      const existingPreset = await client.query<Record<string, unknown>>(
+        `
+          SELECT id, airport_id, left_group_id, right_group_id
+          FROM public.timeline_preset
+          WHERE id = $1
+        `,
+        [id]
+      );
+      const row = existingPreset.rows[0];
+      if (!row) {
+        throw new NotFoundError(`Timeline preset '${id}' was not found.`);
+      }
+      if (requireNumericId(row.airport_id, 'timeline_preset.airport_id') !== airportId) {
+        throw new ValidationError('Timeline preset does not belong to the requested airport.', {
+          field: 'airport_id',
+        });
+      }
+
+      const groupIds = new Set<number>();
+      const leftGroupId = asNumber(row.left_group_id);
+      const rightGroupId = asNumber(row.right_group_id);
+      if (leftGroupId !== null) {
+        groupIds.add(leftGroupId);
+      }
+      if (rightGroupId !== null) {
+        groupIds.add(rightGroupId);
+      }
+
+      await client.query('DELETE FROM public.timeline_preset WHERE id = $1', [id]);
+
+      for (const groupId of groupIds) {
+        const references = await client.query<Record<string, unknown>>(
+          `
+            SELECT 1
+            FROM public.timeline_preset
+            WHERE left_group_id = $1 OR right_group_id = $1
+            LIMIT 1
+          `,
+          [groupId]
+        );
+        if (references.rows[0]) {
+          continue;
+        }
+
+        await client.query('DELETE FROM public.timeline_runway_group_member WHERE group_id = $1', [
+          groupId,
+        ]);
+        await client.query(
+          'DELETE FROM public.timeline_feeder_fix_group_member WHERE group_id = $1',
+          [groupId]
+        );
+        await client.query('DELETE FROM public.timeline_side_group WHERE id = $1', [groupId]);
+      }
+    });
   }
 
   async listSubdivisions(): Promise<SubdivisionRecord[]> {

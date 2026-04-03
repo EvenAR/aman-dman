@@ -29,6 +29,13 @@ export interface ThresholdRecord {
   elevation_feet: number;
 }
 
+export interface FeederFixRecord {
+  airport_id: number | null;
+  airport_icao: string;
+  identifier: string;
+  created_at: string | null;
+}
+
 export interface AircraftPerformanceRecord {
   aircraft_type: string;
   approach_ias: number | null;
@@ -109,6 +116,7 @@ export interface LabelLayoutRecord {
   name: string;
   description: string | null;
   created_at: string | null;
+  subdivision: string;
 }
 
 export interface LabelLayoutArrRecord {
@@ -135,12 +143,24 @@ export interface LabelLayoutConfig {
   departure_items: LabelLayoutDepRecord[];
 }
 
-export interface TimelineRecord {
+export type TimelineGroupType = 'RUNWAY' | 'FEEDER_FIX';
+
+export interface TimelineSideGroupRecord {
+  id: number | null;
+  airport_id: number | null;
+  group_type: TimelineGroupType;
+  runway_members: string[];
+  feeder_fix_members: string[];
+}
+
+export interface TimelinePresetRecord {
+  id: number | null;
   airport_id: number | null;
   airport_icao: string;
   name: string;
-  runway_left: string | null;
-  runway_right: string | null;
+  label_layout_id: number | null;
+  left_group: TimelineSideGroupRecord | null;
+  right_group: TimelineSideGroupRecord;
 }
 
 export interface SubdivisionRecord {
@@ -185,6 +205,7 @@ export interface HorizonConfig {
 export interface BootstrapData {
   airports: AirportRecord[];
   thresholds: ThresholdRecord[];
+  feeder_fixes: FeederFixRecord[];
   subdivisions: SubdivisionRecord[];
   roles: RoleRecord[];
   label_item_source_arr: LabelItemSourceRecord[];

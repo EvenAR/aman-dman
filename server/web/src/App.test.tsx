@@ -12,6 +12,7 @@ beforeEach(() => {
       json: async () => ({
         airports: [],
         thresholds: [],
+        feeder_fixes: [],
         subdivisions: [],
         roles: [],
         label_item_source_arr: [],

@@ -12,6 +12,7 @@ function createBootstrapFixture(): BootstrapData {
       { id: 3, icao: 'ESGG', latitude: 57.6, longitude: 12.3, subdivision: 'ESAA' },
     ],
     thresholds: [],
+    feeder_fixes: [],
     subdivisions: [
       { abbreviation: 'ENOR', name: 'Norway' },
       { abbreviation: 'ESAA', name: 'Sweden' },

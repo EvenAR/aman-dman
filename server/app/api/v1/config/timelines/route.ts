@@ -6,5 +6,5 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export const GET = withErrorHandling(
-  async (): Promise<Response> => jsonResponse(await getConfigRepository().listTimelines())
+  async (): Promise<Response> => jsonResponse(await getConfigRepository().listTimelinePresets())
 );

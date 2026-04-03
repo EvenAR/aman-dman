@@ -7,6 +7,7 @@ import type {
   AirportConfig,
   AirportRecord,
   ArrivalRouteConfig,
+  FeederFixRecord,
   GeometryType,
   HorizonConfig,
   LabelItemSourceRecord,
@@ -15,7 +16,7 @@ import type {
   RoleRecord,
   SubdivisionRecord,
   ThresholdRecord,
-  TimelineRecord,
+  TimelinePresetRecord,
 } from '../../shared/contracts';
 import {
   AircraftEditor,
@@ -39,9 +40,10 @@ import {
   emptyRole,
   emptyRoleAssignment,
   emptySubdivision,
-  emptyTimeline,
+  emptyTimelinePreset,
   validateArrivalRouteConfig,
   validateAirportConfig,
+  validateTimelinePreset,
 } from './lib/config-drafts';
 import { api } from './api';
 import { EntityEditorPage } from './components/EntityEditorPage';
@@ -99,7 +101,7 @@ function cloneArrivalRoute(record: ArrivalRouteConfig): ArrivalRouteConfig {
   };
 }
 
-function getTimelineLabel(record: TimelineRecord): string {
+function getTimelineLabel(record: TimelinePresetRecord): string {
   return record.name || `${record.airport_icao} timeline`;
 }
 
@@ -138,11 +140,13 @@ export function GlobalLabelLayoutsPageClient({
   arrivalSources,
   departureSources,
   alignmentOptions,
+  subdivisions,
 }: {
   records: LabelLayoutConfig[];
   arrivalSources: string[];
   departureSources: string[];
   alignmentOptions: string[];
+  subdivisions: SubdivisionRecord[];
 }): React.JSX.Element {
   return (
     <EntityEditorPage
@@ -158,6 +162,7 @@ export function GlobalLabelLayoutsPageClient({
           arrivalSources={arrivalSources}
           departureSources={departureSources}
           alignmentOptions={alignmentOptions}
+          subdivisions={subdivisions}
           onChange={onChange}
         />
       )}
@@ -370,30 +375,37 @@ export function AirportTimelinesPageClient({
   records,
   airport,
   thresholds,
+  feederFixes,
+  labelLayouts,
 }: {
-  records: TimelineRecord[];
+  records: TimelinePresetRecord[];
   airport: AirportRecord;
   thresholds: ThresholdRecord[];
+  feederFixes: FeederFixRecord[];
+  labelLayouts: LabelLayoutConfig[];
 }): React.JSX.Element {
   return (
     <EntityEditorPage
       title="Timelines"
-      description="Runway pairings and timeline definitions for this airport."
+      description="Configure left/right timeline sides as runway or feeder-fix groups for this airport."
       records={records}
-      createEmpty={() => emptyTimeline(airport)}
-      getKey={(record) => `${record.airport_id ?? record.airport_icao}:${record.name}`}
+      createEmpty={() => emptyTimelinePreset(airport)}
+      getKey={(record) => String(record.id ?? 'new')}
       getLabel={getTimelineLabel}
       renderEditor={(draft, onChange) => (
         <TimelineEditor
           draft={draft}
           airports={[airport]}
           thresholds={thresholds}
+          feederFixes={feederFixes}
+          labelLayouts={labelLayouts}
           fixedAirport={airport}
           onChange={onChange}
         />
       )}
-      onSave={(draft) => api.saveTimeline(draft)}
-      onDelete={(draft) => api.deleteTimeline(draft)}
+      validate={validateTimelinePreset}
+      onSave={(draft) => api.saveTimelinePreset(draft)}
+      onDelete={(draft) => api.deleteTimelinePreset(draft)}
     />
   );
 }

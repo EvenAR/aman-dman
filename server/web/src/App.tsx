@@ -13,7 +13,7 @@ import type {
   RoleAssignmentRecord,
   RoleRecord,
   SubdivisionRecord,
-  TimelineRecord,
+  TimelinePresetRecord,
 } from '../../shared/contracts';
 import { api } from './api';
 import {
@@ -38,7 +38,7 @@ import {
   emptyRole,
   emptyRoleAssignment,
   emptySubdivision,
-  emptyTimeline,
+  emptyTimelinePreset,
 } from './lib/config-drafts';
 import { cloneValue, isEqual, useBeforeUnload } from './lib/editor-state';
 
@@ -117,8 +117,8 @@ function getItemKey(section: SectionId, item: unknown): string {
     case 'arrivalRoutes':
       return getArrivalRouteKey(item as ArrivalRouteConfig);
     case 'timelines': {
-      const timeline = item as TimelineRecord;
-      return `${timeline.airport_id ?? timeline.airport_icao}:${timeline.name}`;
+      const timeline = item as TimelinePresetRecord;
+      return String(timeline.id ?? 'new');
     }
     case 'labelLayouts':
       return String((item as LabelLayoutConfig).layout.id ?? 'new');
@@ -183,7 +183,7 @@ function getItemLabel(section: SectionId, item: unknown): string {
       return route.airport_icao || 'New arrival route';
     }
     case 'timelines': {
-      const timeline = item as TimelineRecord;
+      const timeline = item as TimelinePresetRecord;
       return timeline.name || `${timeline.airport_icao} timeline`;
     }
     case 'labelLayouts':
@@ -215,7 +215,7 @@ function createEmptyDraft(section: SectionId, bootstrap: BootstrapData): unknown
     case 'arrivalRoutes':
       return emptyArrivalRoute();
     case 'timelines':
-      return emptyTimeline(bootstrap.airports[0]);
+      return emptyTimelinePreset(bootstrap.airports[0]);
     case 'labelLayouts':
       return emptyLabelLayout();
     case 'horizons':
@@ -272,7 +272,7 @@ async function saveSectionRecord(
     case 'arrivalRoutes':
       return api.saveArrivalRoute(draft as ArrivalRouteConfig);
     case 'timelines':
-      return api.saveTimeline(draft as TimelineRecord);
+      return api.saveTimelinePreset(draft as TimelinePresetRecord);
     case 'labelLayouts':
       return api.saveLabelLayout(draft as LabelLayoutConfig);
     case 'horizons':
@@ -299,7 +299,7 @@ async function deleteSectionRecord(section: SectionId, draft: unknown): Promise<
     case 'arrivalRoutes':
       return api.deleteArrivalRoute((draft as ArrivalRouteConfig).route.id ?? 0);
     case 'timelines':
-      return api.deleteTimeline(draft as TimelineRecord);
+      return api.deleteTimelinePreset(draft as TimelinePresetRecord);
     case 'labelLayouts':
       return api.deleteLabelLayout((draft as LabelLayoutConfig).layout.id ?? 0);
     case 'horizons':
@@ -670,9 +670,11 @@ export function App(): React.JSX.Element {
                 ) : null}
                 {activeSection === 'timelines' ? (
                   <TimelineEditor
-                    draft={draft as TimelineRecord}
+                    draft={draft as TimelinePresetRecord}
                     airports={bootstrap.airports}
                     thresholds={bootstrap.thresholds}
+                    feederFixes={bootstrap.feeder_fixes}
+                    labelLayouts={[]}
                     onChange={setDraft}
                   />
                 ) : null}
@@ -682,6 +684,7 @@ export function App(): React.JSX.Element {
                     arrivalSources={bootstrap.label_item_source_arr.map((item) => item.name)}
                     departureSources={bootstrap.label_item_source_dep.map((item) => item.name)}
                     alignmentOptions={bootstrap.alignment_options}
+                    subdivisions={bootstrap.subdivisions}
                     onChange={setDraft}
                   />
                 ) : null}
