@@ -1,4 +1,4 @@
-name: Deploy Simple Server to Fly.io
+name: Deploy Config Server to Fly.io
 
 on:
   workflow_dispatch:
@@ -10,6 +10,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
 
       - name: Check if server folder changed
         id: changes
@@ -33,6 +40,13 @@ jobs:
       - name: Setup Fly.io
         if: steps.changes.outputs.changed == 'true'
         uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Install and build server
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: ./server
+        run: |
+          npm ci
+          npm run build
 
       - name: Deploy to Fly.io
         if: steps.changes.outputs.changed == 'true'

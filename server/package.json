@@ -1,52 +1,61 @@
 {
-  "name": "simple-airport-api",
-  "version": "1.0.0",
-  "description": "Simple Airport API Server - stores arbitrary JSON data for airports",
-  "main": "dist/server.js",
+  "name": "aman-dman-config-server",
+  "version": "3.0.0",
+  "description": "Hosted AMAN/DMAN config editor and API server built with Next.js",
+  "private": true,
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "ts-node src/server.ts",
-    "test": "ts-node src/test-overwrite.ts",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write \"src/**/*.{ts,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,json}\"",
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "node --import tsx --test src/**/*.test.ts",
+    "test:web": "vitest run --config vitest.config.ts",
+    "lint": "eslint \"app/**/*.{ts,tsx}\" \"src/**/*.ts\" \"shared/**/*.ts\" \"web/src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"app/**/*.{ts,tsx}\" \"src/**/*.ts\" \"shared/**/*.ts\" \"web/src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"app/**/*.{ts,tsx,css}\" \"src/**/*.{ts,json}\" \"shared/**/*.ts\" \"web/src/**/*.{ts,tsx,css}\" \"*.{js,mjs,ts,json}\"",
+    "format:check": "prettier --check \"app/**/*.{ts,tsx,css}\" \"src/**/*.{ts,json}\" \"shared/**/*.ts\" \"web/src/**/*.{ts,tsx,css}\" \"*.{js,mjs,ts,json}\"",
     "prepare": "husky"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "dotenv": "^16.4.7",
+    "leaflet": "^1.9.4",
+    "leaflet-draw": "^1.0.4",
+    "next": "^16.2.2",
+    "pg": "^8.13.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.10.6",
-    "@typescript-eslint/eslint-plugin": "^8.18.1",
-    "@typescript-eslint/parser": "^8.18.1",
-    "eslint": "^8.56.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/leaflet": "^1.9.16",
+    "@types/leaflet-draw": "^1.0.11",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
     "husky": "^9.0.0",
+    "jsdom": "^26.0.0",
     "lint-staged": "^15.2.0",
     "prettier": "^3.1.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
   },
   "lint-staged": {
-    "*.ts": [
+    "*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "*.json": [
+    "*.{json,css,js,mjs}": [
       "prettier --write"
     ]
-  },
-  "keywords": [
-    "airport",
-    "api",
-    "simple",
-    "json",
-    "express"
-  ],
-  "author": "",
-  "license": "MIT"
+  }
 }
