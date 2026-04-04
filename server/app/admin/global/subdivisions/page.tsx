@@ -11,7 +11,7 @@ export default async function AdminGlobalSubdivisionsPage(): Promise<React.JSX.E
   return (
     <GlobalAdminShell
       title="Subdivisions"
-      description="Canonical VACC definitions. Editing an abbreviation changes the VACC slug."
+      description="Canonical subdivision definitions. Editing an abbreviation changes the subdivision slug."
     >
       <GlobalSubdivisionsPageClient records={await getConfigRepository().listSubdivisions()} />
     </GlobalAdminShell>

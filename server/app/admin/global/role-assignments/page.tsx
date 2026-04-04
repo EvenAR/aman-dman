@@ -17,7 +17,7 @@ export default async function AdminGlobalRoleAssignmentsPage(): Promise<React.JS
   return (
     <GlobalAdminShell
       title="Role Assignments"
-      description="Shared user-to-role mappings and VACC assignments."
+      description="Shared user-to-role mappings and subdivision assignments."
     >
       <GlobalRoleAssignmentsPageClient
         records={records}

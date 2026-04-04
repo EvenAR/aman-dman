@@ -12,10 +12,10 @@ export function HomeLanding({ vaccs }: { vaccs: VaccSummary[] }): React.JSX.Elem
       <header className="hero-card">
         <div>
           <span className="eyebrow">Route-driven config editor</span>
-          <h1>AMAN/DMAN VACC Admin</h1>
+          <h1>AMAN/DMAN Subdivision Admin</h1>
           <p>
-            Start by choosing a VACC, then drill into an airport and edit only the data that belongs
-            to that airport.
+            Start by choosing a subdivision, then drill into an airport and edit only the data that
+            belongs to that airport.
           </p>
         </div>
         <div className="route-shell__header-actions">
@@ -29,7 +29,7 @@ export function HomeLanding({ vaccs }: { vaccs: VaccSummary[] }): React.JSX.Elem
       <section className="card-grid">
         {vaccs.map((vacc) => (
           <Link key={vacc.slug} href={`/admin/${vacc.slug}`} className="card-grid__item">
-            <span className="eyebrow">VACC</span>
+            <span className="eyebrow">Subdivision</span>
             <h2>{vacc.abbreviation}</h2>
             <p>{vacc.name}</p>
             <strong>{vacc.airport_count} airports</strong>
@@ -59,7 +59,7 @@ export function GlobalAdminShell({
         </div>
         <div className="route-shell__header-actions">
           <Link href="/admin" className="ghost-button route-shell__secondary-link">
-            Back to VACCs
+            Back to Subdivisions
           </Link>
           <AuthStatus />
         </div>
@@ -68,9 +68,7 @@ export function GlobalAdminShell({
       <PathnameNav
         items={[
           { href: '/admin/global/aircraft', label: 'Aircraft' },
-          { href: '/admin/global/label-layouts', label: 'Label Layouts' },
           { href: '/admin/global/label-item-sources', label: 'Label Item Sources' },
-          { href: '/admin/global/roles', label: 'Roles' },
           { href: '/admin/global/role-assignments', label: 'Role Assignments' },
           { href: '/admin/global/subdivisions', label: 'Subdivisions' },
         ]}
@@ -92,7 +90,7 @@ export function VaccAirportListing({
     <main className="route-shell">
       <header className="hero-card hero-card--compact">
         <div>
-          <span className="eyebrow">VACC</span>
+          <span className="eyebrow">Subdivision</span>
           <h1>{vacc.abbreviation}</h1>
           <p>{vacc.name}</p>
         </div>
@@ -109,6 +107,13 @@ export function VaccAirportListing({
           <AuthStatus />
         </div>
       </header>
+
+      <PathnameNav
+        items={[
+          { href: `/admin/${vacc.slug}`, label: 'Airports' },
+          { href: `/admin/${vacc.slug}/label-layouts`, label: 'Label Layouts' },
+        ]}
+      />
 
       <section className="card-grid">
         {airports.length === 0 ? (
@@ -136,6 +141,52 @@ export function VaccAirportListing({
   );
 }
 
+export function VaccLabelLayoutsShell({
+  vacc,
+  children,
+}: {
+  vacc: VaccSummary;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <main className="route-shell">
+      <header className="hero-card hero-card--compact">
+        <div>
+          <div className="breadcrumb-row">
+            <Link href="/admin" className="breadcrumb-link">
+              Subdivisions
+            </Link>
+            <span>/</span>
+            <Link href={`/admin/${vacc.slug}`} className="breadcrumb-link">
+              {vacc.abbreviation}
+            </Link>
+            <span>/</span>
+            <span>Label Layouts</span>
+          </div>
+          <span className="eyebrow">Subdivision</span>
+          <h1>{vacc.abbreviation} Label Layouts</h1>
+          <p>Arrival and departure label column definitions for {vacc.name}.</p>
+        </div>
+        <div className="route-shell__header-actions">
+          <Link href={`/admin/${vacc.slug}`} className="ghost-button route-shell__secondary-link">
+            Back to {vacc.abbreviation}
+          </Link>
+          <AuthStatus />
+        </div>
+      </header>
+
+      <PathnameNav
+        items={[
+          { href: `/admin/${vacc.slug}`, label: 'Airports' },
+          { href: `/admin/${vacc.slug}/label-layouts`, label: 'Label Layouts' },
+        ]}
+      />
+
+      {children}
+    </main>
+  );
+}
+
 export function VaccAirportCreatePage({
   vacc,
   airports,
@@ -149,7 +200,7 @@ export function VaccAirportCreatePage({
         <div>
           <div className="breadcrumb-row">
             <Link href="/admin" className="breadcrumb-link">
-              VACCs
+              Subdivisions
             </Link>
             <span>/</span>
             <Link href={`/admin/${vacc.slug}`} className="breadcrumb-link">
@@ -190,7 +241,7 @@ export function AirportSectionShell({
         <div>
           <div className="breadcrumb-row">
             <Link href="/admin" className="breadcrumb-link">
-              VACCs
+              Subdivisions
             </Link>
             <span>/</span>
             <Link href={`/admin/${context.canonical_vacc_slug}`} className="breadcrumb-link">
@@ -201,8 +252,8 @@ export function AirportSectionShell({
           </div>
           <h1>{context.airport.icao}</h1>
           <p>
-            Airport-scoped operational config for {context.vacc.name}. Routes use canonical
-            lowercase slugs, while values remain stored and displayed in uppercase.
+            Airport-scoped operational config for subdivision {context.vacc.name}. Routes use
+            canonical lowercase slugs, while values remain stored and displayed in uppercase.
           </p>
         </div>
         <div className="route-shell__header-actions">

@@ -5,6 +5,8 @@ import {
   AirportArrivalRoutesPageClient,
   AirportFeederFixesPageClient,
   AirportTimelinesPageClient,
+  GlobalLabelItemSourcesPageClient,
+  VaccLabelLayoutsPageClient,
 } from './route-pages';
 
 const {
@@ -14,6 +16,8 @@ const {
   deleteArrivalRoute,
   saveFeederFix,
   deleteFeederFix,
+  saveLabelLayout,
+  deleteLabelLayout,
   saveTimelinePreset,
   deleteTimelinePreset,
 } = vi.hoisted(() => ({
@@ -23,6 +27,8 @@ const {
   deleteArrivalRoute: vi.fn(),
   saveFeederFix: vi.fn(),
   deleteFeederFix: vi.fn(),
+  saveLabelLayout: vi.fn(),
+  deleteLabelLayout: vi.fn(),
   saveTimelinePreset: vi.fn(),
   deleteTimelinePreset: vi.fn(),
 }));
@@ -40,6 +46,8 @@ vi.mock('./api', () => ({
     deleteArrivalRoute,
     saveFeederFix,
     deleteFeederFix,
+    saveLabelLayout,
+    deleteLabelLayout,
     saveTimelinePreset,
     deleteTimelinePreset,
   },
@@ -52,6 +60,8 @@ beforeEach(() => {
   deleteArrivalRoute.mockReset();
   saveFeederFix.mockReset();
   deleteFeederFix.mockReset();
+  saveLabelLayout.mockReset();
+  deleteLabelLayout.mockReset();
   saveTimelinePreset.mockReset();
   deleteTimelinePreset.mockReset();
 });
@@ -413,4 +423,81 @@ test('feeder fixes page uppercases and constrains identifiers while editing', ()
   });
 
   expect(screen.getByLabelText('Feeder fix identifier')).toHaveValue('ABC12');
+});
+
+test('vacc label layouts show source-based preview examples', () => {
+  render(
+    <VaccLabelLayoutsPageClient
+      records={[
+        {
+          layout: {
+            id: 11,
+            name: 'ESSA ARR',
+            description: null,
+            created_at: null,
+            subdivision: 'VACCSCA',
+          },
+          arrival_items: [
+            {
+              order: 1,
+              source: 'CALLSIGN',
+              width: 6,
+              max_length: null,
+              alignment: 'left',
+              label_layout_id: 11,
+            },
+            {
+              order: 2,
+              source: 'ETA',
+              width: 4,
+              max_length: null,
+              alignment: 'right',
+              label_layout_id: 11,
+            },
+          ],
+          departure_items: [
+            {
+              order: 1,
+              source: 'SID',
+              width: 5,
+              max_length: null,
+              alignment: 'left',
+              label_layout_id: 11,
+            },
+          ],
+        },
+      ]}
+      arrivalSources={[
+        { name: 'CALLSIGN', description: null, example: 'SAS123', },
+        { name: 'ETA', description: null, example: '1240', },
+      ]}
+      departureSources={[{ name: 'SID', description: null, example: 'NILUG', }]}
+      alignmentOptions={['left', 'right']}
+      subdivision={{ abbreviation: 'VACCSCA', name: 'Scandinavia' }}
+    />
+  );
+
+  expect(screen.getByText('Arrival Label Example')).toBeInTheDocument();
+  expect(screen.getByText('Departure Label Example')).toBeInTheDocument();
+  expect(screen.getByLabelText('Arrival label preview')).toHaveTextContent('SAS1231240');
+  expect(screen.getByLabelText('Departure label preview')).toHaveTextContent('NILUG');
+  expect(screen.queryByText('|')).not.toBeInTheDocument();
+});
+
+test('departure label sources also expose an example field', () => {
+  render(
+    <GlobalLabelItemSourcesPageClient
+      arrivalRecords={[]}
+      departureRecords={[
+        {
+          name: 'SID',
+          description: 'Departure route',
+          example: 'NILUG',
+        },
+      ]}
+    />
+  );
+
+  expect(screen.getAllByLabelText('Example').length).toBeGreaterThanOrEqual(1);
+  expect(screen.getByDisplayValue('NILUG')).toBeInTheDocument();
 });

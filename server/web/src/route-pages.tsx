@@ -27,7 +27,6 @@ import {
   LabelLayoutEditor,
   LabelSourceEditor,
   RoleAssignmentEditor,
-  RoleEditor,
   SubdivisionEditor,
   TimelineEditor,
 } from './editors/configEditors';
@@ -39,7 +38,6 @@ import {
   emptyHorizon,
   emptyLabelLayout,
   emptyLabelSource,
-  emptyRole,
   emptyRoleAssignment,
   emptySubdivision,
   emptyTimelinePreset,
@@ -126,7 +124,7 @@ export function GlobalAircraftPageClient({
   return (
     <EntityEditorPage
       title="Aircraft"
-      description="Performance profiles and equivalence mappings shared across all VACCs."
+      description="Performance profiles and equivalence mappings shared across all subdivisions."
       records={records}
       createEmpty={emptyAircraft}
       getKey={(record) => record.performance.aircraft_type}
@@ -138,25 +136,31 @@ export function GlobalAircraftPageClient({
   );
 }
 
-export function GlobalLabelLayoutsPageClient({
+export function VaccLabelLayoutsPageClient({
   records,
   arrivalSources,
   departureSources,
   alignmentOptions,
-  subdivisions,
+  subdivision,
 }: {
   records: LabelLayoutConfig[];
-  arrivalSources: string[];
-  departureSources: string[];
+  arrivalSources: LabelItemSourceRecord[];
+  departureSources: LabelItemSourceRecord[];
   alignmentOptions: string[];
-  subdivisions: SubdivisionRecord[];
+  subdivision: SubdivisionRecord;
 }): React.JSX.Element {
   return (
     <EntityEditorPage
       title="Label Layouts"
-      description="Shared arrival and departure label column definitions."
+      description={`Arrival and departure label column definitions for ${subdivision.abbreviation}.`}
       records={records}
-      createEmpty={emptyLabelLayout}
+      createEmpty={() => ({
+        ...emptyLabelLayout(),
+        layout: {
+          ...emptyLabelLayout().layout,
+          subdivision: subdivision.abbreviation,
+        },
+      })}
       getKey={(record) => String(record.layout.id ?? 'new')}
       getLabel={(record) => record.layout.name || 'New label layout'}
       renderEditor={(draft, onChange) => (
@@ -165,11 +169,16 @@ export function GlobalLabelLayoutsPageClient({
           arrivalSources={arrivalSources}
           departureSources={departureSources}
           alignmentOptions={alignmentOptions}
-          subdivisions={subdivisions}
+          fixedSubdivision={subdivision.abbreviation}
           onChange={onChange}
         />
       )}
-      onSave={(draft) => api.saveLabelLayout(draft)}
+      onSave={(draft) =>
+        api.saveLabelLayout({
+          ...draft,
+          layout: { ...draft.layout, subdivision: subdivision.abbreviation },
+        })
+      }
       onDelete={(draft) => api.deleteLabelLayout(draft.layout.id ?? 0)}
     />
   );
@@ -221,26 +230,11 @@ export function GlobalLabelItemSourcesPageClient({
         title="Departure Label Sources"
         description="Shared departure label source catalogue."
         records={departureRecords}
+        showExample
         save={api.saveDepartureLabelSource}
         remove={api.deleteDepartureLabelSource}
       />
     </div>
-  );
-}
-
-export function GlobalRolesPageClient({ records }: { records: RoleRecord[] }): React.JSX.Element {
-  return (
-    <EntityEditorPage
-      title="Roles"
-      description="Shared role catalogue used across all VACCs."
-      records={records}
-      createEmpty={emptyRole}
-      getKey={(record) => String(record.id)}
-      getLabel={(record) => record.name || `Role ${record.id}`}
-      renderEditor={(draft, onChange) => <RoleEditor draft={draft} onChange={onChange} />}
-      onSave={(draft) => api.saveRole(draft)}
-      onDelete={(draft) => api.deleteRole(draft.id)}
-    />
   );
 }
 
@@ -283,7 +277,7 @@ export function GlobalSubdivisionsPageClient({
   return (
     <EntityEditorPage
       title="Subdivisions"
-      description="Canonical VACC definitions and slugs."
+      description="Canonical subdivision definitions and slugs."
       records={records}
       createEmpty={emptySubdivision}
       getKey={(record) => record.abbreviation}

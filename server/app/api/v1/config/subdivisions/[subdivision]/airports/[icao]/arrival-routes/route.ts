@@ -1,4 +1,4 @@
-import { parseIntegerParam } from '@/src/features/admin-api/routeHelpers';
+import { listConfigAirportArrivalRoutes } from '@/src/features/config-read/service';
 import { getConfigRepository } from '@/src/next/runtime';
 import { jsonResponse } from '@/src/next/routeUtils';
 import { withErrorHandling } from '@/src/next/routeHandlers';
@@ -9,11 +9,11 @@ export const dynamic = 'force-dynamic';
 export const GET = withErrorHandling(
   async (
     _request: Request,
-    context: { params: Promise<{ airportId: string }> }
+    context: { params: Promise<{ subdivision: string; icao: string }> }
   ): Promise<Response> => {
-    const { airportId } = await context.params;
+    const { subdivision, icao } = await context.params;
     return jsonResponse(
-      await getConfigRepository().getAirport(parseIntegerParam(airportId, 'airportId'))
+      await listConfigAirportArrivalRoutes(getConfigRepository(), subdivision, icao)
     );
   }
 );

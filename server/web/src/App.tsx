@@ -681,8 +681,8 @@ export function App(): React.JSX.Element {
                 {activeSection === 'labelLayouts' ? (
                   <LabelLayoutEditor
                     draft={draft as LabelLayoutConfig}
-                    arrivalSources={bootstrap.label_item_source_arr.map((item) => item.name)}
-                    departureSources={bootstrap.label_item_source_dep.map((item) => item.name)}
+                    arrivalSources={bootstrap.label_item_source_arr}
+                    departureSources={bootstrap.label_item_source_dep}
                     alignmentOptions={bootstrap.alignment_options}
                     subdivisions={bootstrap.subdivisions}
                     onChange={setDraft}

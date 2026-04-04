@@ -389,7 +389,7 @@ export class PgConfigRepository implements ConfigRepository {
         'SELECT name, description, example FROM public.label_item_source_arr ORDER BY name'
       ),
       this.database.query<Record<string, unknown>>(
-        'SELECT name, description, NULL::text AS example FROM public.label_item_source_dep ORDER BY name'
+        'SELECT name, description, example FROM public.label_item_source_dep ORDER BY name'
       ),
       this.database.getSchemaMetadata(),
     ]);
@@ -1613,7 +1613,7 @@ export class PgConfigRepository implements ConfigRepository {
 
   async listDepartureLabelSources(): Promise<LabelItemSourceRecord[]> {
     const result = await this.database.query<Record<string, unknown>>(
-      'SELECT name, description, NULL::text AS example FROM public.label_item_source_dep ORDER BY name'
+      'SELECT name, description, example FROM public.label_item_source_dep ORDER BY name'
     );
     return result.rows.map(mapLabelItemSource);
   }
@@ -1622,13 +1622,14 @@ export class PgConfigRepository implements ConfigRepository {
     const source = {
       name: requireNonEmpty(record.name, 'name'),
       description: record.description,
-      example: null,
+      example: record.example,
     };
     const upsert = buildUpsertStatement(
       'public.label_item_source_dep',
       {
         name: source.name,
         description: source.description,
+        example: source.example,
       },
       ['name']
     );

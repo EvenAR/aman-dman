@@ -69,6 +69,54 @@ const aircraftNumericFields = [
 
 const timelineGroupTypeOptions: TimelineGroupType[] = ['RUNWAY', 'FEEDER_FIX'];
 
+function alignPreviewText(value: string, width: number, alignment: string): string {
+  if (width <= 0) {
+    return value;
+  }
+
+  const truncated = value.slice(0, width);
+  if (truncated.length >= width) {
+    return truncated;
+  }
+
+  if (alignment === 'right') {
+    return truncated.padStart(width, ' ');
+  }
+
+  return truncated.padEnd(width, ' ');
+}
+
+const labelPreviewColors = ['rgba(255, 255, 255, 0.78)', 'rgba(120, 130, 145, 0.24)'];
+
+function buildLabelPreviewSegments(
+  items: Array<{
+    order: number;
+    source: string;
+    width: number;
+    max_length: number | null;
+    alignment: string;
+  }>,
+  sources: LabelItemSourceRecord[]
+): Array<{ key: string; text: string; color: string }> {
+  const sourceExamples = new Map(
+    sources.map((source) => [source.name, source.example ?? source.name] as const)
+  );
+
+  return items
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((item, index) => {
+      const example = sourceExamples.get(item.source) ?? item.source;
+      const limited =
+        item.max_length === null ? example : example.slice(0, Math.max(item.max_length, 0));
+      return {
+        key: `${item.order}:${item.source}`,
+        text: alignPreviewText(limited, item.width, item.alignment),
+        color: labelPreviewColors[index % 2] ?? labelPreviewColors[0],
+      };
+    });
+}
+
 export function AircraftEditor({
   draft,
   onChange,
@@ -693,15 +741,22 @@ export function LabelLayoutEditor({
   departureSources,
   alignmentOptions,
   subdivisions,
+  fixedSubdivision,
   onChange,
 }: {
   draft: LabelLayoutConfig;
-  arrivalSources: string[];
-  departureSources: string[];
+  arrivalSources: LabelItemSourceRecord[];
+  departureSources: LabelItemSourceRecord[];
   alignmentOptions: string[];
-  subdivisions: SubdivisionRecord[];
+  subdivisions?: SubdivisionRecord[];
+  fixedSubdivision?: string;
   onChange: (value: LabelLayoutConfig) => void;
 }): React.JSX.Element {
+  const arrivalSourceNames = arrivalSources.map((source) => source.name);
+  const departureSourceNames = departureSources.map((source) => source.name);
+  const arrivalPreview = buildLabelPreviewSegments(draft.arrival_items, arrivalSources);
+  const departurePreview = buildLabelPreviewSegments(draft.departure_items, departureSources);
+
   return (
     <>
       <section className="editor-card">
@@ -732,24 +787,30 @@ export function LabelLayoutEditor({
               }
             />
           </Field>
-          <Field label="Subdivision">
-            <select
-              value={draft.layout.subdivision}
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  layout: { ...draft.layout, subdivision: event.target.value },
-                })
-              }
-            >
-              <option value="">Select subdivision</option>
-              {subdivisions.map((subdivision) => (
-                <option key={subdivision.abbreviation} value={subdivision.abbreviation}>
-                  {subdivision.abbreviation}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {fixedSubdivision ? (
+            <Field label="Subdivision">
+              <input value={fixedSubdivision} readOnly />
+            </Field>
+          ) : (
+            <Field label="Subdivision">
+              <select
+                value={draft.layout.subdivision}
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    layout: { ...draft.layout, subdivision: event.target.value },
+                  })
+                }
+              >
+                <option value="">Select subdivision</option>
+                {(subdivisions ?? []).map((subdivision) => (
+                  <option key={subdivision.abbreviation} value={subdivision.abbreviation}>
+                    {subdivision.abbreviation}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
       </section>
       <EditableTable
@@ -757,7 +818,7 @@ export function LabelLayoutEditor({
         rows={draft.arrival_items}
         columns={[
           { key: 'order', label: 'Order', type: 'number' },
-          { key: 'source', label: 'Source', type: 'select', options: arrivalSources },
+          { key: 'source', label: 'Source', type: 'select', options: arrivalSourceNames },
           { key: 'width', label: 'Width', type: 'number' },
           { key: 'max_length', label: 'Max length', type: 'number' },
           { key: 'alignment', label: 'Alignment', type: 'select', options: alignmentOptions },
@@ -772,12 +833,33 @@ export function LabelLayoutEditor({
         })}
         onChange={(arrival_items) => onChange({ ...draft, arrival_items })}
       />
+      <section className="editor-card label-preview-card">
+        <header className="panel-header">
+          <h3>Arrival Label Example</h3>
+          <span>Based on selected sources</span>
+        </header>
+        {arrivalPreview.length === 0 ? (
+          <pre className="label-preview-text">Add arrival label items to preview the label.</pre>
+        ) : (
+          <div className="label-preview-text" aria-label="Arrival label preview">
+            {arrivalPreview.map((segment) => (
+              <span
+                key={segment.key}
+                className="label-preview-segment"
+                style={{ backgroundColor: segment.color }}
+              >
+                {segment.text}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
       <EditableTable
         title="Departure label items"
         rows={draft.departure_items}
         columns={[
           { key: 'order', label: 'Order', type: 'number' },
-          { key: 'source', label: 'Source', type: 'select', options: departureSources },
+          { key: 'source', label: 'Source', type: 'select', options: departureSourceNames },
           { key: 'width', label: 'Width', type: 'number' },
           { key: 'max_length', label: 'Max length', type: 'number' },
           { key: 'alignment', label: 'Alignment', type: 'select', options: alignmentOptions },
@@ -792,6 +874,27 @@ export function LabelLayoutEditor({
         })}
         onChange={(departure_items) => onChange({ ...draft, departure_items })}
       />
+      <section className="editor-card label-preview-card">
+        <header className="panel-header">
+          <h3>Departure Label Example</h3>
+          <span>Based on selected sources</span>
+        </header>
+        {departurePreview.length === 0 ? (
+          <pre className="label-preview-text">Add departure label items to preview the label.</pre>
+        ) : (
+          <div className="label-preview-text" aria-label="Departure label preview">
+            {departurePreview.map((segment) => (
+              <span
+                key={segment.key}
+                className="label-preview-segment"
+                style={{ backgroundColor: segment.color }}
+              >
+                {segment.text}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }

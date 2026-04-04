@@ -25,7 +25,7 @@ function validateCreateAirportDraft(
   }
 
   if (existingIcaos.includes(icao)) {
-    return `${icao} already exists in this VACC.`;
+    return `${icao} already exists in this subdivision.`;
   }
 
   const latitude = Number(draft.latitude);
@@ -233,7 +233,7 @@ export function VaccAirportCreateCard({
 
         <div className="vacc-create-card__footer">
           <p className="vacc-create-card__hint">
-            New airports inherit the VACC from this page. ICAO lookup can prefill airport
+            New airports inherit the subdivision from this page. ICAO lookup can prefill airport
             coordinates and threshold headings from openAIP.
           </p>
           <button type="submit" className="primary-button" disabled={saving || !!validationError}>

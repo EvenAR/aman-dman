@@ -103,7 +103,7 @@ export function buildAirportRouteContext(
   }
 
   if (matchingAirports.length > 1) {
-    throw new ValidationError('Airport slug is ambiguous inside the requested VACC.');
+    throw new ValidationError('Airport slug is ambiguous inside the requested subdivision.');
   }
 
   const subdivision = requireSubdivision(airport);
@@ -113,7 +113,7 @@ export function buildAirportRouteContext(
     (candidate) => candidate.abbreviation === subdivision
   );
   if (!vacc) {
-    throw new NotFoundError('VACC not found.');
+    throw new NotFoundError('Subdivision not found.');
   }
 
   const canonicalAirportSlug = toSlug(airport.icao);
@@ -147,7 +147,7 @@ export async function listAirportsByVacc(
   const vacc = summaries.find((candidate) => candidate.slug === normalizedVaccSlug);
 
   if (!vacc) {
-    throw new NotFoundError('VACC not found.');
+    throw new NotFoundError('Subdivision not found.');
   }
 
   return {
@@ -155,6 +155,30 @@ export async function listAirportsByVacc(
     airports: bootstrap.airports
       .filter((airport) => requireSubdivision(airport) === vacc.abbreviation)
       .sort((left, right) => left.icao.localeCompare(right.icao)),
+  };
+}
+
+export async function loadVaccLabelLayoutsPage(vaccSlug: string): Promise<{
+  vacc: VaccSummary;
+  labelLayouts: LabelLayoutConfig[];
+  bootstrap: BootstrapData;
+}> {
+  await requireAuthenticatedPage(`/admin/${toSlug(vaccSlug)}/label-layouts`);
+  const bootstrap = await getBootstrapCached();
+  const summaries = buildVaccSummaries(bootstrap);
+  const normalizedVaccSlug = toSlug(vaccSlug);
+  const vacc = summaries.find((candidate) => candidate.slug === normalizedVaccSlug);
+
+  if (!vacc) {
+    throw new NotFoundError('Subdivision not found.');
+  }
+
+  return {
+    vacc,
+    labelLayouts: (await listLabelLayoutsCached()).filter(
+      (layout) => layout.layout.subdivision === vacc.abbreviation
+    ),
+    bootstrap,
   };
 }
 
@@ -285,9 +309,4 @@ export async function loadHorizonsPage(
 export async function loadGlobalBootstrap(): Promise<BootstrapData> {
   await requireAuthenticatedPage('/admin/global');
   return getBootstrapCached();
-}
-
-export async function loadGlobalLabelLayouts(): Promise<LabelLayoutConfig[]> {
-  await requireAuthenticatedPage('/admin/global/label-layouts');
-  return getConfigRepository().listLabelLayouts();
 }

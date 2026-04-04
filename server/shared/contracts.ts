@@ -243,3 +243,93 @@ export interface AirportRouteContext {
   canonical_airport_slug: string;
   nav: AirportRouteNavItem[];
 }
+
+export interface ConfigSubdivisionDto {
+  abbreviation: string;
+  name: string;
+}
+
+export interface ConfigAirportDto {
+  subdivision: string;
+  icao: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ConfigThresholdDto {
+  identifier: string;
+  runwayTrueBearing: number;
+  latitude: number;
+  longitude: number;
+  elevationFeet: number;
+}
+
+export interface ConfigFeederFixDto {
+  identifier: string;
+}
+
+export interface ConfigArrivalRouteExpectationDto {
+  fixName: string;
+  typicalAltitude: number | null;
+  typicalAirspeed: number | null;
+}
+
+export interface ConfigArrivalRouteDto {
+  runwayIdentifier: string;
+  name: string;
+  intermediateFix: string | null;
+  initialApproachFix: string | null;
+  expectations: ConfigArrivalRouteExpectationDto[];
+}
+
+export interface ConfigLabelLayoutItemDto {
+  order: number;
+  source: string;
+  width: number;
+  maxLength: number | null;
+  alignment: string;
+}
+
+export interface ConfigSubdivisionLabelLayoutDto {
+  subdivision: string;
+  name: string;
+  description: string | null;
+  arrivalItems: ConfigLabelLayoutItemDto[];
+  departureItems: ConfigLabelLayoutItemDto[];
+}
+
+export interface ConfigAirportRefDto {
+  subdivision: string;
+  icao: string;
+}
+
+export interface ConfigTimelineSideGroupDto {
+  groupType: TimelineGroupType;
+  runwayMembers: string[];
+  feederFixMembers: string[];
+}
+
+export interface ConfigTimelinePresetDto {
+  airport: ConfigAirportRefDto;
+  name: string;
+  labelLayout: ConfigSubdivisionLabelLayoutDto;
+  leftGroup: ConfigTimelineSideGroupDto | null;
+  rightGroup: ConfigTimelineSideGroupDto;
+}
+
+export interface ConfigHorizonDto {
+  airport: ConfigAirportRefDto;
+  type: string;
+  ceilingFeet: number | null;
+  boundaryText: string | null;
+  boundaryGeometry: Geometry | null;
+}
+
+export interface ConfigAirportAggregateDto {
+  airport: ConfigAirportDto;
+  thresholds: ConfigThresholdDto[];
+  feederFixes: ConfigFeederFixDto[];
+  arrivalRoutes: ConfigArrivalRouteDto[];
+  timelines: ConfigTimelinePresetDto[];
+  horizons: ConfigHorizonDto[];
+}

@@ -182,6 +182,6 @@ test('blocks duplicate ICAO creation inside the vacc', () => {
   fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '59.1867' } });
   fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '10.2586' } });
 
-  expect(screen.getByText('ENTO already exists in this VACC.')).toBeInTheDocument();
+  expect(screen.getByText('ENTO already exists in this subdivision.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Create airport' })).toBeDisabled();
 });
