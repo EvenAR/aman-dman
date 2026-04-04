@@ -19,6 +19,7 @@ import type {
 const airportRouteSections: Array<{ section: AirportRouteNavItem['section']; label: string }> = [
   { section: 'settings', label: 'Settings' },
   { section: 'arrival-routes', label: 'Arrival Routes' },
+  { section: 'feeder-fixes', label: 'Feeder Fixes' },
   { section: 'timelines', label: 'Timelines' },
   { section: 'horizons', label: 'Horizons' },
 ];
@@ -235,6 +236,24 @@ export async function loadTimelinesPage(
     ),
     feederFixes: feederFixes.filter((feederFix) => feederFix.airport_id === context.airport.id),
     labelLayouts: labelLayouts.filter((layout) => layout.layout.subdivision === subdivision),
+  };
+}
+
+export async function loadFeederFixesPage(
+  vaccSlug: string,
+  airportIcao: string
+): Promise<{
+  context: AirportRouteContext;
+  feederFixes: FeederFixRecord[];
+}> {
+  await requireAuthenticatedPage(`/admin/${toSlug(vaccSlug)}/${toSlug(airportIcao)}/feeder-fixes`);
+  const context = await getAirportConfigContext(vaccSlug, airportIcao);
+
+  return {
+    context,
+    feederFixes: (await listFeederFixesCached()).filter(
+      (feederFix) => feederFix.airport_id === context.airport.id
+    ),
   };
 }
 

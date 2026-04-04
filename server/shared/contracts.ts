@@ -223,7 +223,12 @@ export interface VaccSummary {
   airport_count: number;
 }
 
-export type AirportRouteSection = 'settings' | 'arrival-routes' | 'timelines' | 'horizons';
+export type AirportRouteSection =
+  | 'settings'
+  | 'arrival-routes'
+  | 'feeder-fixes'
+  | 'timelines'
+  | 'horizons';
 
 export interface AirportRouteNavItem {
   section: AirportRouteSection;

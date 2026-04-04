@@ -5,6 +5,7 @@ import type {
   AirportConfig,
   AirportRecord,
   ArrivalRouteConfig,
+  FeederFixRecord,
   HorizonConfig,
   LabelItemSourceRecord,
   LabelLayoutConfig,
@@ -108,6 +109,23 @@ export function emptyArrivalRoute(): ArrivalRouteConfig {
     },
     expectations: [],
   };
+}
+
+export function emptyFeederFix(airport?: AirportRecord): FeederFixRecord {
+  return {
+    airport_id: airport?.id ?? null,
+    airport_icao: airport?.icao ?? '',
+    identifier: '',
+    created_at: null,
+  };
+}
+
+export function validateFeederFix(draft: FeederFixRecord): string | null {
+  if (!isValidFixName(draft.identifier)) {
+    return 'Feeder fix identifier must use only uppercase letters and numbers, max 5 characters.';
+  }
+
+  return null;
 }
 
 export function validateArrivalRouteConfig(draft: ArrivalRouteConfig): string | null {

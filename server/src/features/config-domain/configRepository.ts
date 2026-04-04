@@ -30,6 +30,8 @@ export interface ConfigRepository {
   deleteArrivalRoute(id: number): Promise<void>;
 
   listFeederFixes(): Promise<FeederFixRecord[]>;
+  saveFeederFix(record: FeederFixRecord): Promise<FeederFixRecord>;
+  deleteFeederFix(airportId: number, identifier: string): Promise<void>;
 
   listLabelLayouts(): Promise<LabelLayoutConfig[]>;
   saveLabelLayout(config: LabelLayoutConfig): Promise<LabelLayoutConfig>;

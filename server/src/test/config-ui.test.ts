@@ -58,6 +58,7 @@ test('buildAirportRouteContext resolves lowercase canonical route data', () => {
     [
       '/admin/enor/engm/settings',
       '/admin/enor/engm/arrival-routes',
+      '/admin/enor/engm/feeder-fixes',
       '/admin/enor/engm/timelines',
       '/admin/enor/engm/horizons',
     ]

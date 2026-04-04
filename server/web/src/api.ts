@@ -3,6 +3,7 @@ import type {
   AirportConfig,
   ArrivalRouteConfig,
   BootstrapData,
+  FeederFixRecord,
   HorizonConfig,
   LabelItemSourceRecord,
   LabelLayoutConfig,
@@ -99,6 +100,32 @@ export const api = {
         }),
   deleteArrivalRoute: (id: number): Promise<void> =>
     apiRequest(`/api/v1/admin/arrival-routes/${id}`, { method: 'DELETE' }),
+
+  saveFeederFix: (
+    record: FeederFixRecord,
+    routeIdentifier?: string | null
+  ): Promise<FeederFixRecord> =>
+    record.airport_id === null
+      ? Promise.reject(new Error('Airport is required before saving a feeder fix.'))
+      : routeIdentifier
+        ? apiRequest(
+            `/api/v1/admin/airports/${record.airport_id}/feeder-fixes/${encodeURIComponent(routeIdentifier)}`,
+            {
+              method: 'PUT',
+              body: JSON.stringify(record),
+            }
+          )
+        : apiRequest(`/api/v1/admin/airports/${record.airport_id}/feeder-fixes`, {
+            method: 'POST',
+            body: JSON.stringify(record),
+          }),
+  deleteFeederFix: (record: FeederFixRecord): Promise<void> =>
+    apiRequest(
+      `/api/v1/admin/airports/${record.airport_id}/feeder-fixes/${encodeURIComponent(record.identifier)}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 
   listLabelLayouts: (): Promise<LabelLayoutConfig[]> => apiRequest('/api/v1/config/label-layouts'),
   saveLabelLayout: (config: LabelLayoutConfig): Promise<LabelLayoutConfig> =>

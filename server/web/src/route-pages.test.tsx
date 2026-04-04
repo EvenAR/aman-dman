@@ -1,13 +1,28 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { AirportArrivalRoutesPageClient, AirportTimelinesPageClient } from './route-pages';
+import {
+  AirportArrivalRoutesPageClient,
+  AirportFeederFixesPageClient,
+  AirportTimelinesPageClient,
+} from './route-pages';
 
-const { push, refresh, saveArrivalRoute, deleteArrivalRoute, saveTimelinePreset, deleteTimelinePreset } = vi.hoisted(() => ({
+const {
+  push,
+  refresh,
+  saveArrivalRoute,
+  deleteArrivalRoute,
+  saveFeederFix,
+  deleteFeederFix,
+  saveTimelinePreset,
+  deleteTimelinePreset,
+} = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
   saveArrivalRoute: vi.fn(),
   deleteArrivalRoute: vi.fn(),
+  saveFeederFix: vi.fn(),
+  deleteFeederFix: vi.fn(),
   saveTimelinePreset: vi.fn(),
   deleteTimelinePreset: vi.fn(),
 }));
@@ -23,6 +38,8 @@ vi.mock('./api', () => ({
   api: {
     saveArrivalRoute,
     deleteArrivalRoute,
+    saveFeederFix,
+    deleteFeederFix,
     saveTimelinePreset,
     deleteTimelinePreset,
   },
@@ -33,6 +50,8 @@ beforeEach(() => {
   refresh.mockReset();
   saveArrivalRoute.mockReset();
   deleteArrivalRoute.mockReset();
+  saveFeederFix.mockReset();
+  deleteFeederFix.mockReset();
   saveTimelinePreset.mockReset();
   deleteTimelinePreset.mockReset();
 });
@@ -366,4 +385,32 @@ test('timeline presets render left and right sides with simple multi-selects and
   expect(screen.queryByLabelText('Group name')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Runways')).toHaveAttribute('multiple');
   expect(screen.getByRole('button', { name: 'Add left side' })).toBeInTheDocument();
+});
+
+test('feeder fixes page uppercases and constrains identifiers while editing', () => {
+  render(
+    <AirportFeederFixesPageClient
+      records={[
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: '',
+          created_at: null,
+        },
+      ]}
+      airport={{
+        id: 1,
+        icao: 'ENGM',
+        latitude: 60.1939,
+        longitude: 11.1004,
+        subdivision: 'VACCSCA',
+      }}
+    />
+  );
+
+  fireEvent.change(screen.getByLabelText('Feeder fix identifier'), {
+    target: { value: 'ab-c12345' },
+  });
+
+  expect(screen.getByLabelText('Feeder fix identifier')).toHaveValue('ABC12');
 });

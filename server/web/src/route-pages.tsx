@@ -22,6 +22,7 @@ import {
   AircraftEditor,
   ArrivalRouteEditor,
   AirportEditor,
+  FeederFixEditor,
   HorizonEditor,
   LabelLayoutEditor,
   LabelSourceEditor,
@@ -34,6 +35,7 @@ import {
   emptyAircraft,
   emptyAirport,
   emptyArrivalRoute,
+  emptyFeederFix,
   emptyHorizon,
   emptyLabelLayout,
   emptyLabelSource,
@@ -43,6 +45,7 @@ import {
   emptyTimelinePreset,
   validateArrivalRouteConfig,
   validateAirportConfig,
+  validateFeederFix,
   validateTimelinePreset,
 } from './lib/config-drafts';
 import { api } from './api';
@@ -406,6 +409,56 @@ export function AirportTimelinesPageClient({
       validate={validateTimelinePreset}
       onSave={(draft) => api.saveTimelinePreset(draft)}
       onDelete={(draft) => api.deleteTimelinePreset(draft)}
+    />
+  );
+}
+
+export function AirportFeederFixesPageClient({
+  records,
+  airport,
+}: {
+  records: FeederFixRecord[];
+  airport: AirportRecord;
+}): React.JSX.Element {
+  return (
+    <EntityEditorPage
+      title="Feeder Fixes"
+      description="Manage feeder fixes available for this airport. Identifiers must use uppercase letters and numbers only, max 5 characters."
+      records={records}
+      createEmpty={() => emptyFeederFix(airport)}
+      getKey={(record) => record.identifier || 'new'}
+      getLabel={(record) => record.identifier || 'New feeder fix'}
+      renderEditor={(draft, onChange) => <FeederFixEditor draft={draft} onChange={onChange} />}
+      validate={validateFeederFix}
+      onSave={async (draft, previousDraft) => {
+        const previousIdentifier = previousDraft.identifier.trim();
+        const nextDraft = {
+          ...draft,
+          airport_id: airport.id,
+          airport_icao: airport.icao,
+        };
+        const saved =
+          previousIdentifier && previousIdentifier === nextDraft.identifier
+            ? await api.saveFeederFix(nextDraft, previousIdentifier)
+            : await api.saveFeederFix(nextDraft);
+
+        if (previousIdentifier && previousIdentifier !== saved.identifier) {
+          await api.deleteFeederFix({
+            ...previousDraft,
+            airport_id: airport.id,
+            airport_icao: airport.icao,
+          });
+        }
+
+        return saved;
+      }}
+      onDelete={(draft) =>
+        api.deleteFeederFix({
+          ...draft,
+          airport_id: airport.id,
+          airport_icao: airport.icao,
+        })
+      }
     />
   );
 }

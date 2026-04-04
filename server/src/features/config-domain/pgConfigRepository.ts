@@ -790,6 +790,41 @@ export class PgConfigRepository implements ConfigRepository {
     return result.rows.map(mapFeederFix);
   }
 
+  async saveFeederFix(record: FeederFixRecord): Promise<FeederFixRecord> {
+    const airport = await resolveAirportById(
+      this.database,
+      requireNumericId(record.airport_id, 'feeder_fix.airport_id')
+    );
+    const identifier = requireFixName(record.identifier, 'identifier');
+
+    await this.database.query(
+      `
+        INSERT INTO public.feeder_fix (airport_id, identifier)
+        VALUES ($1, $2)
+        ON CONFLICT (airport_id, identifier) DO NOTHING
+      `,
+      [airport.id, identifier]
+    );
+
+    const saved = (await this.listFeederFixes()).find(
+      (item) => item.airport_id === airport.id && item.identifier === identifier
+    );
+    if (!saved) {
+      throw new NotFoundError(
+        `Feeder fix '${airport.icao}/${identifier}' was not found after save.`
+      );
+    }
+    return saved;
+  }
+
+  async deleteFeederFix(airportId: number, identifier: string): Promise<void> {
+    await resolveAirportById(this.database, airportId);
+    await this.database.query(
+      'DELETE FROM public.feeder_fix WHERE airport_id = $1 AND identifier = $2',
+      [airportId, requireFixName(identifier, 'identifier')]
+    );
+  }
+
   async listLabelLayouts(): Promise<LabelLayoutConfig[]> {
     const [layouts, arrivalItems, departureItems] = await Promise.all([
       this.database.query<Record<string, unknown>>(

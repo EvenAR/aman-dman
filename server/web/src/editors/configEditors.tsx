@@ -410,6 +410,37 @@ export function ArrivalRouteEditor({
   );
 }
 
+export function FeederFixEditor({
+  draft,
+  onChange,
+}: {
+  draft: FeederFixRecord;
+  onChange: (value: FeederFixRecord) => void;
+}): React.JSX.Element {
+  return (
+    <section className="editor-card">
+      <header className="panel-header">
+        <h3>Feeder fix</h3>
+        <span>{draft.identifier || 'New feeder fix'}</span>
+      </header>
+      <div className="field-grid">
+        <Field label="Identifier" hint="Uppercase letters and numbers only, max 5 characters.">
+          <input
+            aria-label="Feeder fix identifier"
+            value={draft.identifier}
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                identifier: normalizeFixInput(event.target.value),
+              })
+            }
+          />
+        </Field>
+      </div>
+    </section>
+  );
+}
+
 function createEmptyTimelineSideGroup(
   airportId: number | null,
   groupType: TimelineGroupType
