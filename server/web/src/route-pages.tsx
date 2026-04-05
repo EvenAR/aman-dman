@@ -342,7 +342,7 @@ export function AirportArrivalRoutesPageClient({
   return (
     <EntityEditorPage
       title="Arrival Routes"
-      description="Configure one arrival route per runway for this airport. Each route name must match the EuroScope sectorfile exactly."
+      description="Define typical altitudes and airspeed along each STAR for an airport. This will make descent trajectories and estimated landing times more accurate. Make sure the STAR names and fixes match exactly with the ones defined in the EuroScope .ese sector file."
       records={records}
       createEmpty={() => ({
         ...emptyArrivalRoute(),

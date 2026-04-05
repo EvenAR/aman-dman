@@ -75,7 +75,7 @@ afterEach(() => {
   cleanup();
 });
 
-test('arrival routes page explains runway coverage and EuroScope exact naming', () => {
+test('arrival routes page explains STAR usage and EuroScope exact naming', () => {
   render(
     <AirportArrivalRoutesPageClient
       records={[]}
@@ -102,7 +102,7 @@ test('arrival routes page explains runway coverage and EuroScope exact naming', 
 
   expect(
     screen.getByText(
-      'Configure one arrival route per runway for this airport. Each route name must match the EuroScope sectorfile exactly.'
+      'Define typical altitudes and airspeed along each STAR for an airport. This will make descent trajectories and estimated landing times more accurate. Make sure the STAR names and fixes match exactly with the ones defined in the EuroScope .ese sector file.'
     )
   ).toBeInTheDocument();
   expect(
@@ -564,10 +564,10 @@ test('vacc label layouts show source-based preview examples', () => {
         },
       ]}
       arrivalSources={[
-        { name: 'CALLSIGN', description: null, example: 'SAS123', },
-        { name: 'ETA', description: null, example: '1240', },
+        { name: 'CALLSIGN', description: 'Callsign text', example: 'SAS123' },
+        { name: 'ETA', description: 'Estimated landing', example: '1240' },
       ]}
-      departureSources={[{ name: 'SID', description: null, example: 'NILUG', }]}
+      departureSources={[{ name: 'SID', description: 'Departure route', example: 'NILUG' }]}
       alignmentOptions={['left', 'right']}
       subdivision={{ abbreviation: 'VACCSCA', name: 'Scandinavia' }}
     />
@@ -578,6 +578,9 @@ test('vacc label layouts show source-based preview examples', () => {
   expect(screen.getByLabelText('Arrival label preview')).toHaveTextContent('SAS1231240');
   expect(screen.getByLabelText('Departure label preview')).toHaveTextContent('NILUG');
   expect(screen.queryByText('|')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('option', { name: 'Callsign text' }).length).toBeGreaterThan(0);
+  expect(screen.getAllByRole('option', { name: 'Estimated landing' }).length).toBeGreaterThan(0);
+  expect(screen.getByRole('option', { name: 'Departure route' })).toBeInTheDocument();
 });
 
 test('departure label sources also expose an example field', () => {

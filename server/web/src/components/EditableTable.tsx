@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react';
 
+export interface EditableSelectOption {
+  value: string;
+  label: string;
+}
+
 export interface EditableColumn<T> {
   key: Extract<keyof T, string>;
   label: string;
   type?: 'text' | 'number' | 'select';
-  options?: string[];
+  options?: Array<string | EditableSelectOption>;
   placeholder?: string;
   width?: string;
 }
@@ -34,12 +39,16 @@ function renderInput<T extends object>(
   };
 
   if (column.type === 'select') {
+    const options = (column.options ?? []).map((option) =>
+      typeof option === 'string' ? { value: option, label: option } : option
+    );
+
     return (
       <select value={String(value ?? '')} onChange={(event) => update(event.target.value)}>
         <option value="">Select</option>
-        {(column.options ?? []).map((option) => (
-          <option key={option} value={option}>
-            {option}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>

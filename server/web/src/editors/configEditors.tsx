@@ -752,8 +752,14 @@ export function LabelLayoutEditor({
   fixedSubdivision?: string;
   onChange: (value: LabelLayoutConfig) => void;
 }): React.JSX.Element {
-  const arrivalSourceNames = arrivalSources.map((source) => source.name);
-  const departureSourceNames = departureSources.map((source) => source.name);
+  const arrivalSourceOptions = arrivalSources.map((source) => ({
+    value: source.name,
+    label: source.description?.trim() || source.name,
+  }));
+  const departureSourceOptions = departureSources.map((source) => ({
+    value: source.name,
+    label: source.description?.trim() || source.name,
+  }));
   const arrivalPreview = buildLabelPreviewSegments(draft.arrival_items, arrivalSources);
   const departurePreview = buildLabelPreviewSegments(draft.departure_items, departureSources);
 
@@ -818,7 +824,7 @@ export function LabelLayoutEditor({
         rows={draft.arrival_items}
         columns={[
           { key: 'order', label: 'Order', type: 'number' },
-          { key: 'source', label: 'Source', type: 'select', options: arrivalSourceNames },
+          { key: 'source', label: 'Source', type: 'select', options: arrivalSourceOptions },
           { key: 'width', label: 'Width', type: 'number' },
           { key: 'max_length', label: 'Max length', type: 'number' },
           { key: 'alignment', label: 'Alignment', type: 'select', options: alignmentOptions },
@@ -859,7 +865,7 @@ export function LabelLayoutEditor({
         rows={draft.departure_items}
         columns={[
           { key: 'order', label: 'Order', type: 'number' },
-          { key: 'source', label: 'Source', type: 'select', options: departureSourceNames },
+          { key: 'source', label: 'Source', type: 'select', options: departureSourceOptions },
           { key: 'width', label: 'Width', type: 'number' },
           { key: 'max_length', label: 'Max length', type: 'number' },
           { key: 'alignment', label: 'Alignment', type: 'select', options: alignmentOptions },
