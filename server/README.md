@@ -27,8 +27,9 @@ This means the common Next.js + Supabase browser/SSR client setup is intentional
 
 1. Copy `.env.example` to `.env.local`
 2. Set `DATABASE_URL` or `SUPABASE_DB_URL` to your development Supabase/Postgres connection string
-3. Set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `AUTH_SECRET` for the editor login
-4. Install dependencies:
+3. Set `APP_URL`, `AUTH_SECRET`, `VATSIM_CONNECT_CLIENT_ID`, and `VATSIM_CONNECT_CLIENT_SECRET` for the editor login
+4. Optionally set `VATSIM_ADMIN_CIDS` to limit access to specific sandbox accounts
+5. Install dependencies:
 
 ```bash
 npm install
@@ -40,7 +41,7 @@ npm install
 npm run dev
 ```
 
-This starts the Next.js app on `http://localhost:3000` with hot reload for both the frontend and API route handlers.
+This starts the Next.js app on `http://localhost:3001` with hot reload for both the frontend and API route handlers.
 
 ### Useful scripts
 
@@ -69,16 +70,19 @@ Next.js serves the built frontend and route handlers from one app.
 - `DATABASE_POOL_CONNECTION_TIMEOUT_MS`: connection-establishment timeout in milliseconds, defaults to `15000`
 - `NODE_ENV`: `development` or `production`
 - `GITHUB_TOKEN`: optional token used for release/version lookup endpoints
-- `ADMIN_USERNAME`: admin login username for the hosted editor
-- `ADMIN_PASSWORD`: admin login password for the hosted editor
+- `APP_URL`: public base URL for the server, used to build the VATSIM Connect callback URL
 - `AUTH_SECRET`: signing secret for the HTTP-only auth session cookie
+- `VATSIM_CONNECT_BASE_URL`: VATSIM Connect base URL, defaults to the sandbox instance when unset
+- `VATSIM_CONNECT_CLIENT_ID`: VATSIM Connect OAuth client ID
+- `VATSIM_CONNECT_CLIENT_SECRET`: VATSIM Connect OAuth client secret
+- `VATSIM_ADMIN_CIDS`: optional comma-separated allowlist of VATSIM CIDs that may access `/admin`
 - `OPENAIP_API_KEY`: optional openAIP API key used by the server-side tile proxy for the horizon editor map
 
 The browser still does not talk to openAIP directly. It requests tiles from our internal proxy route, and the server forwards them to openAIP with the API key.
 
 ## Authentication
 
-The editor UI now lives under `/admin` and uses a simple username/password login implemented with Next.js server actions, signed HTTP-only cookies, and server-side authorization checks close to the data access layer.
+The editor UI now lives under `/admin` and uses VATSIM Connect OAuth2 with signed HTTP-only cookies and server-side authorization checks close to the data access layer.
 
 Protected surfaces:
 
@@ -95,6 +99,8 @@ Intentionally still public:
 - `/health`
 
 This keeps the admin/editor protected without prematurely blocking the future Swing read API contract.
+
+For sandbox testing, register a client in the VATSIM Connect sandbox and set the callback URL to `/api/auth/vatsim/callback` on your public app domain.
 
 ## Database Pooling
 
@@ -120,7 +126,7 @@ That is a good fit for many apps, but not for this one right now. This project i
 - all database reads and writes behind `/api/v1/*`
 - one stable JSON API surface for both the web editor and the future Swing client
 
-If we later replace the current single-admin login with Supabase Auth, then adding `@supabase/ssr` helpers and middleware would make sense. Until then, the current `pg`-based server integration is the simpler and safer shape.
+If we later replace the current VATSIM-backed admin login with Supabase Auth, then adding `@supabase/ssr` helpers and middleware would make sense. Until then, the current `pg`-based server integration is the simpler and safer shape.
 
 ## API Areas
 

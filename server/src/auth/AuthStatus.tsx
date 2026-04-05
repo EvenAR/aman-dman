@@ -11,7 +11,10 @@ export async function AuthStatus(): Promise<React.JSX.Element | null> {
 
   return (
     <div className="auth-controls">
-      <span className="auth-chip">Signed in as {session.username}</span>
+      <span className="auth-chip">
+        Signed in as {session.displayName}
+        {session.cid ? ` (${session.cid})` : ''}
+      </span>
       <form action={logoutAction}>
         <button type="submit" className="ghost-button">
           Log out

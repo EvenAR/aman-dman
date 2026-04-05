@@ -9,11 +9,14 @@ export interface AppEnv {
   databasePoolIdleTimeoutMillis: number;
   databasePoolConnectionTimeoutMillis: number;
   nodeEnv: string;
+  appUrl: string | null;
   githubToken: string | null;
   openAipApiKey: string | null;
-  adminUsername: string | null;
-  adminPassword: string | null;
   authSecret: string | null;
+  vatsimConnectBaseUrl: string | null;
+  vatsimConnectClientId: string | null;
+  vatsimConnectClientSecret: string | null;
+  vatsimAdminCids: string[];
   webDistPath: string;
 }
 
@@ -63,12 +66,18 @@ export function loadEnv(requireDatabaseUrl: boolean): AppEnv {
       'DATABASE_POOL_CONNECTION_TIMEOUT_MS'
     ),
     nodeEnv: process.env.NODE_ENV ?? 'development',
+    appUrl: process.env.APP_URL?.trim() || null,
     githubToken: process.env.GITHUB_TOKEN?.trim() || null,
     openAipApiKey:
       process.env.OPENAIP_API_KEY?.trim() || process.env.OPENAIP_TILES_CLIENT_ID?.trim() || null,
-    adminUsername: process.env.ADMIN_USERNAME?.trim() || null,
-    adminPassword: process.env.ADMIN_PASSWORD ?? null,
     authSecret: process.env.AUTH_SECRET?.trim() || null,
+    vatsimConnectBaseUrl: process.env.VATSIM_CONNECT_BASE_URL?.trim() || null,
+    vatsimConnectClientId: process.env.VATSIM_CONNECT_CLIENT_ID?.trim() || null,
+    vatsimConnectClientSecret: process.env.VATSIM_CONNECT_CLIENT_SECRET?.trim() || null,
+    vatsimAdminCids: (process.env.VATSIM_ADMIN_CIDS ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
     webDistPath: path.resolve(process.cwd(), '.next'),
   };
 }

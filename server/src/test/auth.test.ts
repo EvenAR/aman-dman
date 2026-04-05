@@ -1,14 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isProtectedPagePath, normalizeNextPath } from '../auth/constants';
+import { buildLoginPath, isProtectedPagePath, normalizeNextPath } from '../auth/constants';
 import { createSignedSessionValue, parseSignedSessionValue } from '../auth/session';
+import { createSignedOauthStateValue, parseSignedOauthStateValue } from '../auth/vatsim';
 
 test('parseSignedSessionValue returns a valid session when the signature matches', () => {
   const now = Date.UTC(2026, 3, 3, 10, 0, 0);
   const cookieValue = createSignedSessionValue(
     {
-      username: 'admin',
+      username: 'VATSIM User',
+      displayName: 'VATSIM User',
+      cid: '10000002',
+      email: '[email protected]',
       expiresAt: now + 60_000,
     },
     'top-secret',
@@ -16,7 +20,10 @@ test('parseSignedSessionValue returns a valid session when the signature matches
   );
 
   assert.deepEqual(parseSignedSessionValue(cookieValue, 'top-secret', now), {
-    username: 'admin',
+    username: 'VATSIM User',
+    displayName: 'VATSIM User',
+    cid: '10000002',
+    email: '[email protected]',
     expiresAt: now + 60_000,
   });
 });
@@ -25,7 +32,10 @@ test('parseSignedSessionValue rejects tampered cookie values', () => {
   const now = Date.UTC(2026, 3, 3, 10, 0, 0);
   const cookieValue = createSignedSessionValue(
     {
-      username: 'admin',
+      username: 'VATSIM User',
+      displayName: 'VATSIM User',
+      cid: '10000002',
+      email: '[email protected]',
       expiresAt: now + 60_000,
     },
     'top-secret',
@@ -42,6 +52,32 @@ test('normalizeNextPath keeps only local paths', () => {
   assert.equal(normalizeNextPath('/vaccsca/enbr/settings?tab=map'), '/vaccsca/enbr/settings?tab=map');
   assert.equal(normalizeNextPath('https://example.com/phish'), '/');
   assert.equal(normalizeNextPath('//evil.example/phish'), '/');
+});
+
+test('buildLoginPath preserves the local next path and optional error', () => {
+  assert.equal(
+    buildLoginPath('/admin/global/aircraft', 'Login failed'),
+    '/admin/login?next=%2Fadmin%2Fglobal%2Faircraft&error=Login+failed'
+  );
+});
+
+test('parseSignedOauthStateValue returns a valid state payload when the signature matches', () => {
+  const now = Date.UTC(2026, 3, 3, 10, 0, 0);
+  const cookieValue = createSignedOauthStateValue(
+    {
+      nextPath: '/admin/global/aircraft',
+      nonce: 'nonce-123',
+      expiresAt: now + 60_000,
+    },
+    'top-secret',
+    now
+  );
+
+  assert.deepEqual(parseSignedOauthStateValue(cookieValue, 'top-secret', now), {
+    nextPath: '/admin/global/aircraft',
+    nonce: 'nonce-123',
+    expiresAt: now + 60_000,
+  });
 });
 
 test('isProtectedPagePath only guards editor pages', () => {

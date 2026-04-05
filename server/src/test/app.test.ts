@@ -33,72 +33,122 @@ test('loadEnv falls back to local defaults when database is not required', () =>
   const originalDatabasePoolIdleTimeoutMs = process.env.DATABASE_POOL_IDLE_TIMEOUT_MS;
   const originalDatabasePoolConnectionTimeoutMs =
     process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS;
+  const originalAppUrl = process.env.APP_URL;
   const originalOpenAipApiKey = process.env.OPENAIP_API_KEY;
   const originalOpenAipTilesClientId = process.env.OPENAIP_TILES_CLIENT_ID;
+  const originalVatsimConnectBaseUrl = process.env.VATSIM_CONNECT_BASE_URL;
+  const originalVatsimConnectClientId = process.env.VATSIM_CONNECT_CLIENT_ID;
+  const originalVatsimConnectClientSecret = process.env.VATSIM_CONNECT_CLIENT_SECRET;
+  const originalVatsimAdminCids = process.env.VATSIM_ADMIN_CIDS;
+  const originalCwd = process.cwd();
+  const tempDir = mkdtempSync(path.join(tmpdir(), 'aman-dman-env-defaults-test-'));
 
-  delete process.env.PORT;
-  delete process.env.DATABASE_URL;
-  delete process.env.SUPABASE_DB_URL;
-  delete process.env.DATABASE_POOL_MAX;
-  delete process.env.DATABASE_POOL_IDLE_TIMEOUT_MS;
-  delete process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS;
-  delete process.env.OPENAIP_API_KEY;
-  delete process.env.OPENAIP_TILES_CLIENT_ID;
-
-  const env = loadEnv(false);
-
-  assert.equal(typeof env.port, 'number');
-  assert.equal(typeof env.databaseUrl, 'string');
-  assert.equal(env.databasePoolMax, 5);
-  assert.equal(env.databasePoolIdleTimeoutMillis, 30000);
-  assert.equal(env.databasePoolConnectionTimeoutMillis, 15000);
-
-  if (originalPort === undefined) {
+  try {
     delete process.env.PORT;
-  } else {
-    process.env.PORT = originalPort;
-  }
-
-  if (originalDatabaseUrl === undefined) {
     delete process.env.DATABASE_URL;
-  } else {
-    process.env.DATABASE_URL = originalDatabaseUrl;
-  }
-
-  if (originalSupabaseDbUrl === undefined) {
     delete process.env.SUPABASE_DB_URL;
-  } else {
-    process.env.SUPABASE_DB_URL = originalSupabaseDbUrl;
-  }
-
-  if (originalDatabasePoolMax === undefined) {
     delete process.env.DATABASE_POOL_MAX;
-  } else {
-    process.env.DATABASE_POOL_MAX = originalDatabasePoolMax;
-  }
-
-  if (originalDatabasePoolIdleTimeoutMs === undefined) {
     delete process.env.DATABASE_POOL_IDLE_TIMEOUT_MS;
-  } else {
-    process.env.DATABASE_POOL_IDLE_TIMEOUT_MS = originalDatabasePoolIdleTimeoutMs;
-  }
-
-  if (originalDatabasePoolConnectionTimeoutMs === undefined) {
     delete process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS;
-  } else {
-    process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS = originalDatabasePoolConnectionTimeoutMs;
-  }
-
-  if (originalOpenAipApiKey === undefined) {
+    delete process.env.APP_URL;
     delete process.env.OPENAIP_API_KEY;
-  } else {
-    process.env.OPENAIP_API_KEY = originalOpenAipApiKey;
-  }
-
-  if (originalOpenAipTilesClientId === undefined) {
     delete process.env.OPENAIP_TILES_CLIENT_ID;
-  } else {
-    process.env.OPENAIP_TILES_CLIENT_ID = originalOpenAipTilesClientId;
+    delete process.env.VATSIM_CONNECT_BASE_URL;
+    delete process.env.VATSIM_CONNECT_CLIENT_ID;
+    delete process.env.VATSIM_CONNECT_CLIENT_SECRET;
+    delete process.env.VATSIM_ADMIN_CIDS;
+    process.chdir(tempDir);
+
+    const env = loadEnv(false);
+
+    assert.equal(typeof env.port, 'number');
+    assert.equal(typeof env.databaseUrl, 'string');
+    assert.equal(env.databasePoolMax, 5);
+    assert.equal(env.databasePoolIdleTimeoutMillis, 30000);
+    assert.equal(env.databasePoolConnectionTimeoutMillis, 15000);
+    assert.equal(env.appUrl, null);
+    assert.deepEqual(env.vatsimAdminCids, []);
+  } finally {
+    process.chdir(originalCwd);
+    rmSync(tempDir, { recursive: true, force: true });
+
+    if (originalPort === undefined) {
+      delete process.env.PORT;
+    } else {
+      process.env.PORT = originalPort;
+    }
+
+    if (originalDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+
+    if (originalSupabaseDbUrl === undefined) {
+      delete process.env.SUPABASE_DB_URL;
+    } else {
+      process.env.SUPABASE_DB_URL = originalSupabaseDbUrl;
+    }
+
+    if (originalDatabasePoolMax === undefined) {
+      delete process.env.DATABASE_POOL_MAX;
+    } else {
+      process.env.DATABASE_POOL_MAX = originalDatabasePoolMax;
+    }
+
+    if (originalDatabasePoolIdleTimeoutMs === undefined) {
+      delete process.env.DATABASE_POOL_IDLE_TIMEOUT_MS;
+    } else {
+      process.env.DATABASE_POOL_IDLE_TIMEOUT_MS = originalDatabasePoolIdleTimeoutMs;
+    }
+
+    if (originalDatabasePoolConnectionTimeoutMs === undefined) {
+      delete process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS;
+    } else {
+      process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS = originalDatabasePoolConnectionTimeoutMs;
+    }
+
+    if (originalAppUrl === undefined) {
+      delete process.env.APP_URL;
+    } else {
+      process.env.APP_URL = originalAppUrl;
+    }
+
+    if (originalOpenAipApiKey === undefined) {
+      delete process.env.OPENAIP_API_KEY;
+    } else {
+      process.env.OPENAIP_API_KEY = originalOpenAipApiKey;
+    }
+
+    if (originalOpenAipTilesClientId === undefined) {
+      delete process.env.OPENAIP_TILES_CLIENT_ID;
+    } else {
+      process.env.OPENAIP_TILES_CLIENT_ID = originalOpenAipTilesClientId;
+    }
+
+    if (originalVatsimConnectBaseUrl === undefined) {
+      delete process.env.VATSIM_CONNECT_BASE_URL;
+    } else {
+      process.env.VATSIM_CONNECT_BASE_URL = originalVatsimConnectBaseUrl;
+    }
+
+    if (originalVatsimConnectClientId === undefined) {
+      delete process.env.VATSIM_CONNECT_CLIENT_ID;
+    } else {
+      process.env.VATSIM_CONNECT_CLIENT_ID = originalVatsimConnectClientId;
+    }
+
+    if (originalVatsimConnectClientSecret === undefined) {
+      delete process.env.VATSIM_CONNECT_CLIENT_SECRET;
+    } else {
+      process.env.VATSIM_CONNECT_CLIENT_SECRET = originalVatsimConnectClientSecret;
+    }
+
+    if (originalVatsimAdminCids === undefined) {
+      delete process.env.VATSIM_ADMIN_CIDS;
+    } else {
+      process.env.VATSIM_ADMIN_CIDS = originalVatsimAdminCids;
+    }
   }
 });
 
@@ -199,6 +249,66 @@ test('loadEnv prefers OPENAIP_API_KEY and keeps OPENAIP_TILES_CLIENT_ID as a fal
       delete process.env.OPENAIP_TILES_CLIENT_ID;
     } else {
       process.env.OPENAIP_TILES_CLIENT_ID = originalOpenAipTilesClientId;
+    }
+  }
+});
+
+test('loadEnv accepts VATSIM Connect settings', () => {
+  const originalAppUrl = process.env.APP_URL;
+  const originalVatsimConnectBaseUrl = process.env.VATSIM_CONNECT_BASE_URL;
+  const originalVatsimConnectClientId = process.env.VATSIM_CONNECT_CLIENT_ID;
+  const originalVatsimConnectClientSecret = process.env.VATSIM_CONNECT_CLIENT_SECRET;
+  const originalVatsimAdminCids = process.env.VATSIM_ADMIN_CIDS;
+  const originalCwd = process.cwd();
+  const tempDir = mkdtempSync(path.join(tmpdir(), 'aman-dman-vatsim-env-test-'));
+
+  try {
+    process.env.APP_URL = 'https://aman.evenar.no';
+    process.env.VATSIM_CONNECT_BASE_URL = 'https://auth-dev.vatsim.net';
+    process.env.VATSIM_CONNECT_CLIENT_ID = 'client-id';
+    process.env.VATSIM_CONNECT_CLIENT_SECRET = 'client-secret';
+    process.env.VATSIM_ADMIN_CIDS = '10000002,10000010';
+    process.chdir(tempDir);
+
+    const env = loadEnv(false);
+
+    assert.equal(env.appUrl, 'https://aman.evenar.no');
+    assert.equal(env.vatsimConnectBaseUrl, 'https://auth-dev.vatsim.net');
+    assert.equal(env.vatsimConnectClientId, 'client-id');
+    assert.equal(env.vatsimConnectClientSecret, 'client-secret');
+    assert.deepEqual(env.vatsimAdminCids, ['10000002', '10000010']);
+  } finally {
+    process.chdir(originalCwd);
+    rmSync(tempDir, { recursive: true, force: true });
+
+    if (originalAppUrl === undefined) {
+      delete process.env.APP_URL;
+    } else {
+      process.env.APP_URL = originalAppUrl;
+    }
+
+    if (originalVatsimConnectBaseUrl === undefined) {
+      delete process.env.VATSIM_CONNECT_BASE_URL;
+    } else {
+      process.env.VATSIM_CONNECT_BASE_URL = originalVatsimConnectBaseUrl;
+    }
+
+    if (originalVatsimConnectClientId === undefined) {
+      delete process.env.VATSIM_CONNECT_CLIENT_ID;
+    } else {
+      process.env.VATSIM_CONNECT_CLIENT_ID = originalVatsimConnectClientId;
+    }
+
+    if (originalVatsimConnectClientSecret === undefined) {
+      delete process.env.VATSIM_CONNECT_CLIENT_SECRET;
+    } else {
+      process.env.VATSIM_CONNECT_CLIENT_SECRET = originalVatsimConnectClientSecret;
+    }
+
+    if (originalVatsimAdminCids === undefined) {
+      delete process.env.VATSIM_ADMIN_CIDS;
+    } else {
+      process.env.VATSIM_ADMIN_CIDS = originalVatsimAdminCids;
     }
   }
 });

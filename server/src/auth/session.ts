@@ -11,12 +11,13 @@ const SESSION_TTL_SECONDS = 60 * 60 * 12;
 
 export interface AuthSession {
   username: string;
+  displayName: string;
+  cid: string | null;
+  email: string | null;
   expiresAt: number;
 }
 
 interface AuthConfig {
-  adminUsername: string;
-  adminPassword: string;
   authSecret: string;
   secureCookies: boolean;
 }
@@ -42,16 +43,11 @@ function constantTimeEqual(left: string, right: string): boolean {
 function getAuthConfig(): AuthConfig {
   const env = loadEnv(false);
 
-  if (!env.adminUsername || !env.adminPassword || !env.authSecret) {
-    throw new HttpError(
-      'Authentication is not configured. Set ADMIN_USERNAME, ADMIN_PASSWORD, and AUTH_SECRET.',
-      500
-    );
+  if (!env.authSecret) {
+    throw new HttpError('Authentication is not configured. Set AUTH_SECRET.', 500);
   }
 
   return {
-    adminUsername: env.adminUsername,
-    adminPassword: env.adminPassword,
     authSecret: env.authSecret,
     secureCookies: env.nodeEnv === 'production',
   };
@@ -64,6 +60,9 @@ export function createSignedSessionValue(
 ): string {
   const payload = {
     username: session.username,
+    displayName: session.displayName,
+    cid: session.cid,
+    email: session.email,
     expiresAt: session.expiresAt,
     issuedAt: nowMs,
   };
@@ -103,19 +102,17 @@ export function parseSignedSessionValue(
 
     return {
       username: parsedPayload.username,
+      displayName:
+        typeof parsedPayload.displayName === 'string'
+          ? parsedPayload.displayName
+          : parsedPayload.username,
+      cid: typeof parsedPayload.cid === 'string' ? parsedPayload.cid : null,
+      email: typeof parsedPayload.email === 'string' ? parsedPayload.email : null,
       expiresAt: parsedPayload.expiresAt,
     };
   } catch {
     return null;
   }
-}
-
-export function credentialsMatch(username: string, password: string): boolean {
-  const authConfig = getAuthConfig();
-  return (
-    constantTimeEqual(username, authConfig.adminUsername) &&
-    constantTimeEqual(password, authConfig.adminPassword)
-  );
 }
 
 export async function readSession(): Promise<AuthSession | null> {
@@ -127,14 +124,28 @@ export async function readSession(): Promise<AuthSession | null> {
   );
 }
 
-export async function startSession(username: string): Promise<void> {
+export async function startSession(session: {
+  username: string;
+  displayName?: string;
+  cid?: string | null;
+  email?: string | null;
+}): Promise<void> {
   const authConfig = getAuthConfig();
   const cookieStore = await cookies();
   const expiresAt = Date.now() + SESSION_TTL_SECONDS * 1000;
 
   cookieStore.set(
     AUTH_SESSION_COOKIE_NAME,
-    createSignedSessionValue({ username, expiresAt }, authConfig.authSecret),
+    createSignedSessionValue(
+      {
+        username: session.username,
+        displayName: session.displayName ?? session.username,
+        cid: session.cid ?? null,
+        email: session.email ?? null,
+        expiresAt,
+      },
+      authConfig.authSecret
+    ),
     {
       httpOnly: true,
       sameSite: 'lax',
