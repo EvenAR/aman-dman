@@ -8,6 +8,7 @@ import type {
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
+  IndependentRunwaySystemRecord,
   LabelItemSourceRecord,
   LabelLayoutConfig,
   RoleAssignmentRecord,
@@ -256,6 +257,13 @@ function createRepositoryFixture(): ConfigRepository {
       airportId: number,
       identifier: string
     ) => Promise<void>,
+    listIndependentRunwaySystems: notImplemented as unknown as () => Promise<
+      IndependentRunwaySystemRecord[]
+    >,
+    replaceIndependentRunwaySystems: notImplemented as unknown as (
+      airportId: number,
+      records: IndependentRunwaySystemRecord[]
+    ) => Promise<IndependentRunwaySystemRecord[]>,
     listLabelLayouts: async () => labelLayouts,
     saveLabelLayout: notImplemented as unknown as (
       config: LabelLayoutConfig

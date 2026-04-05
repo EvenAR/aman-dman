@@ -12,6 +12,7 @@ import type {
   Geometry,
   HorizonConfig,
   HorizonRecord,
+  IndependentRunwaySystemRecord,
   LabelItemSourceRecord,
   LabelLayoutArrRecord,
   LabelLayoutConfig,
@@ -119,6 +120,15 @@ function mapFeederFix(row: Record<string, unknown>): FeederFixRecord {
     airport_icao: String(row.airport_icao),
     identifier: String(row.identifier),
     created_at: asIsoTimestamp(row.created_at),
+  };
+}
+
+function mapIndependentRunwaySystem(row: Record<string, unknown>): IndependentRunwaySystemRecord {
+  return {
+    id: asNumber(row.id),
+    airport_id: asNumber(row.airport_id),
+    airport_icao: String(row.airport_icao),
+    runways: [],
   };
 }
 
@@ -822,6 +832,137 @@ export class PgConfigRepository implements ConfigRepository {
     await this.database.query(
       'DELETE FROM public.feeder_fix WHERE airport_id = $1 AND identifier = $2',
       [airportId, requireFixName(identifier, 'identifier')]
+    );
+  }
+
+  async listIndependentRunwaySystems(): Promise<IndependentRunwaySystemRecord[]> {
+    const result = await this.database.query<Record<string, unknown>>(
+      `
+        SELECT
+          s.id,
+          s.airport_id,
+          a.icao AS airport_icao,
+          m.threshold_identifier
+        FROM public.independent_runway_system s
+        JOIN public.airport a ON a.id = s.airport_id
+        LEFT JOIN public.independent_runway_system_member m ON m.runway_system_id = s.id
+        ORDER BY a.icao, s.id, m.threshold_identifier
+      `
+    );
+
+    const systems = new Map<number, IndependentRunwaySystemRecord>();
+    for (const row of result.rows) {
+      const systemId = requireNumericId(row.id, 'independent_runway_system.id');
+      const existing = systems.get(systemId) ?? mapIndependentRunwaySystem(row);
+      if (typeof row.threshold_identifier === 'string') {
+        existing.runways.push(String(row.threshold_identifier));
+      }
+      systems.set(systemId, existing);
+    }
+
+    return Array.from(systems.values()).map((system) => ({
+      ...system,
+      runways: Array.from(new Set(system.runways)).sort((left, right) => left.localeCompare(right)),
+    }));
+  }
+
+  async replaceIndependentRunwaySystems(
+    airportId: number,
+    records: IndependentRunwaySystemRecord[]
+  ): Promise<IndependentRunwaySystemRecord[]> {
+    const airport = await resolveAirportById(this.database, airportId);
+
+    const normalizedRecords = records.map((record, index) => {
+      const normalizedRunways = Array.from(
+        new Set(record.runways.map((runway) => requireNonEmpty(runway, 'runways').toUpperCase()))
+      ).sort((left, right) => left.localeCompare(right));
+
+      if (normalizedRunways.length === 0) {
+        throw new ValidationError(`Runway system ${index + 1} must contain at least one runway.`, {
+          field: 'runways',
+          index,
+        });
+      }
+
+      return {
+        id: record.id,
+        airport_id: airport.id,
+        airport_icao: airport.icao,
+        runways: normalizedRunways,
+      };
+    });
+
+    const seenRunways = new Set<string>();
+    for (const record of normalizedRecords) {
+      for (const runway of record.runways) {
+        if (seenRunways.has(runway)) {
+          throw new ValidationError(`Runway '${runway}' cannot belong to multiple systems.`, {
+            field: 'runways',
+            runway,
+          });
+        }
+        seenRunways.add(runway);
+      }
+    }
+
+    await this.database.withTransaction(async (client) => {
+      if (seenRunways.size > 0) {
+        const thresholds = await client.query<Record<string, unknown>>(
+          `
+            SELECT identifier
+            FROM public.threshold
+            WHERE airport_id = $1
+              AND identifier = ANY($2::text[])
+          `,
+          [airport.id, Array.from(seenRunways)]
+        );
+
+        if (thresholds.rows.length !== seenRunways.size) {
+          throw new ValidationError('All selected runways must belong to the requested airport.', {
+            field: 'runways',
+          });
+        }
+      }
+
+      await client.query(
+        'DELETE FROM public.independent_runway_system_member WHERE airport_id = $1',
+        [airport.id]
+      );
+      await client.query('DELETE FROM public.independent_runway_system WHERE airport_id = $1', [
+        airport.id,
+      ]);
+
+      for (const record of normalizedRecords) {
+        const insertedSystem = await client.query<{ id: number }>(
+          `
+            INSERT INTO public.independent_runway_system (airport_id)
+            VALUES ($1)
+            RETURNING id
+          `,
+          [airport.id]
+        );
+        const systemId = requireNumericId(
+          insertedSystem.rows[0]?.id,
+          'independent_runway_system.id'
+        );
+
+        for (const runway of record.runways) {
+          const insert = buildInsertStatement(
+            'public.independent_runway_system_member',
+            {
+              runway_system_id: systemId,
+              airport_id: airport.id,
+              threshold_identifier: runway,
+            },
+            '*'
+          );
+          await client.query(insert.text, insert.params);
+        }
+      }
+    });
+
+    return (await this.listIndependentRunwaySystems()).filter(
+      (record) => record.airport_id === airport.id
     );
   }
 

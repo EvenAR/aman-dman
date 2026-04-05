@@ -1,5 +1,6 @@
 'use client';
 
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type {
@@ -10,6 +11,7 @@ import type {
   FeederFixRecord,
   GeometryType,
   HorizonConfig,
+  IndependentRunwaySystemRecord,
   LabelItemSourceRecord,
   LabelLayoutConfig,
   RoleAssignmentRecord,
@@ -48,6 +50,7 @@ import {
 } from './lib/config-drafts';
 import { api } from './api';
 import { EntityEditorPage } from './components/EntityEditorPage';
+import { cloneValue, isEqual, useBeforeUnload } from './lib/editor-state';
 
 function getAircraftLabel(record: AircraftConfig): string {
   return record.performance.aircraft_type || 'New aircraft';
@@ -454,6 +457,235 @@ export function AirportFeederFixesPageClient({
         })
       }
     />
+  );
+}
+
+function sortRunwaySystemRunways(runways: string[]): string[] {
+  return [...runways].sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeIndependentRunwaySystems(
+  records: IndependentRunwaySystemRecord[],
+  airport: AirportRecord
+): IndependentRunwaySystemRecord[] {
+  return records.map((record) => ({
+    ...record,
+    airport_id: airport.id,
+    airport_icao: airport.icao,
+    runways: sortRunwaySystemRunways(Array.from(new Set(record.runways))),
+  }));
+}
+
+function validateIndependentRunwaySystems(records: IndependentRunwaySystemRecord[]): string | null {
+  const seenRunways = new Set<string>();
+
+  for (const [index, record] of records.entries()) {
+    if (record.runways.length === 0) {
+      return `Group ${index + 1} must contain at least one runway before saving.`;
+    }
+
+    for (const runway of record.runways) {
+      if (seenRunways.has(runway)) {
+        return `Runway ${runway} cannot belong to multiple groups.`;
+      }
+      seenRunways.add(runway);
+    }
+  }
+
+  return null;
+}
+
+export function AirportIndependentRunwaySystemsPageClient({
+  records,
+  airport,
+  thresholds,
+}: {
+  records: IndependentRunwaySystemRecord[];
+  airport: AirportRecord;
+  thresholds: ThresholdRecord[];
+}): React.JSX.Element {
+  const router = useRouter();
+  const [draft, setDraft] = useState<IndependentRunwaySystemRecord[]>(
+    normalizeIndependentRunwaySystems(records, airport)
+  );
+  const [originalDraft, setOriginalDraft] = useState<IndependentRunwaySystemRecord[]>(
+    normalizeIndependentRunwaySystems(records, airport)
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const normalizedRecords = normalizeIndependentRunwaySystems(records, airport);
+    setDraft(normalizedRecords);
+    setOriginalDraft(cloneValue(normalizedRecords));
+  }, [airport, records]);
+
+  const dirty = !isEqual(draft, originalDraft);
+  const validationError = validateIndependentRunwaySystems(draft);
+  const runwayOptions = useMemo(
+    () =>
+      thresholds
+        .map((threshold) => threshold.identifier)
+        .slice()
+        .sort((left, right) => left.localeCompare(right)),
+    [thresholds]
+  );
+
+  useBeforeUnload(dirty);
+
+  function addGroup(): void {
+    setDraft((current) => [
+      ...current,
+      {
+        id: null,
+        airport_id: airport.id,
+        airport_icao: airport.icao,
+        runways: [],
+      },
+    ]);
+    setError(null);
+    setNotice(null);
+  }
+
+  function removeGroup(index: number): void {
+    setDraft((current) => current.filter((_, candidateIndex) => candidateIndex !== index));
+    setError(null);
+    setNotice(null);
+  }
+
+  function toggleRunway(groupIndex: number, runway: string): void {
+    setDraft((current) => {
+      const currentGroup = current[groupIndex];
+      if (!currentGroup) {
+        return current;
+      }
+
+      const isSelectedInCurrentGroup = currentGroup.runways.includes(runway);
+
+      return current.map((group, candidateIndex) => {
+        const withoutRunway = group.runways.filter((candidate) => candidate !== runway);
+
+        if (candidateIndex !== groupIndex) {
+          return {
+            ...group,
+            runways: withoutRunway,
+          };
+        }
+
+        return {
+          ...group,
+          runways: isSelectedInCurrentGroup
+            ? withoutRunway
+            : sortRunwaySystemRunways([...withoutRunway, runway]),
+        };
+      });
+    });
+    setError(null);
+    setNotice(null);
+  }
+
+  async function handleSave(): Promise<void> {
+    if (!airport.id) {
+      setError('Airport must exist before saving runway systems.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const normalizedDraft = normalizeIndependentRunwaySystems(draft, airport);
+      const saved = await api.replaceIndependentRunwaySystems(airport.id, normalizedDraft);
+      const normalizedSaved = normalizeIndependentRunwaySystems(saved, airport);
+      setDraft(normalizedSaved);
+      setOriginalDraft(cloneValue(normalizedSaved));
+      setNotice('Independent runway systems saved.');
+      startTransition(() => router.refresh());
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="route-page">
+      <header className="workspace__header">
+        <div>
+          <span className="eyebrow">Editor</span>
+          <h2>Independent Runway Systems</h2>
+          <p>
+            Add a group, then click runways to assign them. Clicking a runway in another group moves
+            it here.
+          </p>
+        </div>
+        <div className="workspace__actions">
+          <button type="button" className="ghost-button" onClick={addGroup}>
+            Add group
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => void handleSave()}
+            disabled={saving || validationError !== null}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </header>
+
+      {error ? <div className="banner banner--error">{error}</div> : null}
+      {!error && validationError ? (
+        <div className="banner banner--error">{validationError}</div>
+      ) : null}
+      {notice ? <div className="banner banner--success">{notice}</div> : null}
+
+      {runwayOptions.length === 0 ? (
+        <section className="editor-card empty-state">
+          No runway thresholds exist yet. Add thresholds on the settings page first.
+        </section>
+      ) : (
+        <div className="runway-system-grid">
+          {draft.length === 0 ? (
+            <section className="editor-card empty-state">
+              Add a group to start configuring independent runway systems.
+            </section>
+          ) : (
+            draft.map((record, index) => (
+              <section key={record.id ?? `new-${index}`} className="editor-card runway-system-card">
+                <header className="panel-header">
+                  <h3>Group {index + 1}</h3>
+                  <button type="button" className="danger-link" onClick={() => removeGroup(index)}>
+                    Remove group
+                  </button>
+                </header>
+                <div className="runway-system-selection">
+                  {runwayOptions.map((runway) => {
+                    const selected = record.runways.includes(runway);
+                    return (
+                      <button
+                        key={runway}
+                        type="button"
+                        className={
+                          selected
+                            ? 'runway-system-chip runway-system-chip--active'
+                            : 'runway-system-chip'
+                        }
+                        onClick={() => toggleRunway(index, runway)}
+                      >
+                        {runway}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

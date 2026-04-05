@@ -10,6 +10,7 @@ import type {
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
+  IndependentRunwaySystemRecord,
   LabelLayoutConfig,
   ThresholdRecord,
   TimelinePresetRecord,
@@ -20,6 +21,7 @@ const airportRouteSections: Array<{ section: AirportRouteNavItem['section']; lab
   { section: 'settings', label: 'Settings' },
   { section: 'arrival-routes', label: 'Arrival Routes' },
   { section: 'feeder-fixes', label: 'Feeder Fixes' },
+  { section: 'independent-runway-systems', label: 'Runway Systems' },
   { section: 'timelines', label: 'Timelines' },
   { section: 'horizons', label: 'Horizons' },
 ];
@@ -46,6 +48,10 @@ async function listLabelLayoutsCached(): Promise<LabelLayoutConfig[]> {
 
 async function listTimelinePresetsCached(): Promise<TimelinePresetRecord[]> {
   return getConfigRepository().listTimelinePresets();
+}
+
+async function listIndependentRunwaySystemsCached(): Promise<IndependentRunwaySystemRecord[]> {
+  return getConfigRepository().listIndependentRunwaySystems();
 }
 
 async function listHorizonsCached(): Promise<HorizonConfig[]> {
@@ -277,6 +283,31 @@ export async function loadFeederFixesPage(
     context,
     feederFixes: (await listFeederFixesCached()).filter(
       (feederFix) => feederFix.airport_id === context.airport.id
+    ),
+  };
+}
+
+export async function loadIndependentRunwaySystemsPage(
+  vaccSlug: string,
+  airportIcao: string
+): Promise<{
+  context: AirportRouteContext;
+  systems: IndependentRunwaySystemRecord[];
+  thresholds: ThresholdRecord[];
+}> {
+  await requireAuthenticatedPage(
+    `/admin/${toSlug(vaccSlug)}/${toSlug(airportIcao)}/independent-runway-systems`
+  );
+  const context = await getAirportConfigContext(vaccSlug, airportIcao);
+  const bootstrap = await getBootstrapCached();
+
+  return {
+    context,
+    systems: (await listIndependentRunwaySystemsCached()).filter(
+      (system) => system.airport_id === context.airport.id
+    ),
+    thresholds: bootstrap.thresholds.filter(
+      (threshold) => threshold.airport_id === context.airport.id
     ),
   };
 }

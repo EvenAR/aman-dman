@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
   AirportArrivalRoutesPageClient,
   AirportFeederFixesPageClient,
+  AirportIndependentRunwaySystemsPageClient,
   AirportTimelinesPageClient,
   GlobalLabelItemSourcesPageClient,
   VaccLabelLayoutsPageClient,
@@ -16,6 +17,7 @@ const {
   deleteArrivalRoute,
   saveFeederFix,
   deleteFeederFix,
+  replaceIndependentRunwaySystems,
   saveLabelLayout,
   deleteLabelLayout,
   saveTimelinePreset,
@@ -27,6 +29,7 @@ const {
   deleteArrivalRoute: vi.fn(),
   saveFeederFix: vi.fn(),
   deleteFeederFix: vi.fn(),
+  replaceIndependentRunwaySystems: vi.fn(),
   saveLabelLayout: vi.fn(),
   deleteLabelLayout: vi.fn(),
   saveTimelinePreset: vi.fn(),
@@ -46,6 +49,7 @@ vi.mock('./api', () => ({
     deleteArrivalRoute,
     saveFeederFix,
     deleteFeederFix,
+    replaceIndependentRunwaySystems,
     saveLabelLayout,
     deleteLabelLayout,
     saveTimelinePreset,
@@ -60,6 +64,7 @@ beforeEach(() => {
   deleteArrivalRoute.mockReset();
   saveFeederFix.mockReset();
   deleteFeederFix.mockReset();
+  replaceIndependentRunwaySystems.mockReset();
   saveLabelLayout.mockReset();
   deleteLabelLayout.mockReset();
   saveTimelinePreset.mockReset();
@@ -264,6 +269,97 @@ test('uppercases intermediate and initial approach fixes while editing', () => {
 
   expect(screen.getByLabelText('Intermediate fix')).toHaveValue('NILUG');
   expect(screen.getByLabelText('Initial approach fix')).toHaveValue('MIRPU');
+});
+
+test('independent runway systems save as compact airport-scoped groups', async () => {
+  replaceIndependentRunwaySystems.mockResolvedValue([
+    {
+      id: 31,
+      airport_id: 1,
+      airport_icao: 'ESSA',
+      runways: ['07C', '07R'],
+    },
+    {
+      id: 32,
+      airport_id: 1,
+      airport_icao: 'ESSA',
+      runways: ['25L'],
+    },
+  ]);
+
+  render(
+    <AirportIndependentRunwaySystemsPageClient
+      airport={{
+        id: 1,
+        icao: 'ESSA',
+        latitude: 59.6519,
+        longitude: 17.9186,
+        subdivision: 'VACCSCA',
+      }}
+      records={[
+        {
+          id: 11,
+          airport_id: 1,
+          airport_icao: 'ESSA',
+          runways: ['07C'],
+        },
+      ]}
+      thresholds={[
+        {
+          airport_id: 1,
+          airport_icao: 'ESSA',
+          identifier: '07C',
+          runway_true_bearing: 70,
+          latitude: 59.6519,
+          longitude: 17.9186,
+          elevation_feet: 95,
+        },
+        {
+          airport_id: 1,
+          airport_icao: 'ESSA',
+          identifier: '07R',
+          runway_true_bearing: 70,
+          latitude: 59.6519,
+          longitude: 17.9186,
+          elevation_feet: 95,
+        },
+        {
+          airport_id: 1,
+          airport_icao: 'ESSA',
+          identifier: '25L',
+          runway_true_bearing: 250,
+          latitude: 59.6519,
+          longitude: 17.9186,
+          elevation_feet: 95,
+        },
+      ]}
+    />
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Add group' }));
+  fireEvent.click(screen.getAllByRole('button', { name: '07R' })[0]);
+  fireEvent.click(screen.getAllByRole('button', { name: '25L' })[1]);
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+  await waitFor(() =>
+    expect(replaceIndependentRunwaySystems).toHaveBeenCalledWith(1, [
+      {
+        id: 11,
+        airport_id: 1,
+        airport_icao: 'ESSA',
+        runways: ['07C', '07R'],
+      },
+      {
+        id: null,
+        airport_id: 1,
+        airport_icao: 'ESSA',
+        runways: ['25L'],
+      },
+    ])
+  );
+
+  expect(screen.queryByText('Current Groups')).not.toBeInTheDocument();
+  expect(screen.getByText('Group 1')).toBeInTheDocument();
 });
 
 test('uppercases and constrains expectation fix names while editing', () => {

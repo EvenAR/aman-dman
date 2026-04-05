@@ -5,6 +5,7 @@ import type {
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
+  IndependentRunwaySystemRecord,
   LabelItemSourceRecord,
   LabelLayoutConfig,
   OpenAipAirportLookupResult,
@@ -126,6 +127,15 @@ export const api = {
         method: 'DELETE',
       }
     ),
+
+  replaceIndependentRunwaySystems: (
+    airportId: number,
+    records: IndependentRunwaySystemRecord[]
+  ): Promise<IndependentRunwaySystemRecord[]> =>
+    apiRequest(`/api/v1/admin/airports/${airportId}/independent-runway-systems`, {
+      method: 'PUT',
+      body: JSON.stringify(records),
+    }),
 
   listLabelLayouts: (): Promise<LabelLayoutConfig[]> => apiRequest('/api/v1/config/label-layouts'),
   saveLabelLayout: (config: LabelLayoutConfig): Promise<LabelLayoutConfig> =>

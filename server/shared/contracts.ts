@@ -36,6 +36,13 @@ export interface FeederFixRecord {
   created_at: string | null;
 }
 
+export interface IndependentRunwaySystemRecord {
+  id: number | null;
+  airport_id: number | null;
+  airport_icao: string;
+  runways: string[];
+}
+
 export interface AircraftPerformanceRecord {
   aircraft_type: string;
   approach_ias: number | null;
@@ -227,6 +234,7 @@ export type AirportRouteSection =
   | 'settings'
   | 'arrival-routes'
   | 'feeder-fixes'
+  | 'independent-runway-systems'
   | 'timelines'
   | 'horizons';
 

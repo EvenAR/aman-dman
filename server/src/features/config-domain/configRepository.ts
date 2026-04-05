@@ -5,6 +5,7 @@ import type {
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
+  IndependentRunwaySystemRecord,
   LabelItemSourceRecord,
   LabelLayoutConfig,
   RoleAssignmentRecord,
@@ -32,6 +33,12 @@ export interface ConfigRepository {
   listFeederFixes(): Promise<FeederFixRecord[]>;
   saveFeederFix(record: FeederFixRecord): Promise<FeederFixRecord>;
   deleteFeederFix(airportId: number, identifier: string): Promise<void>;
+
+  listIndependentRunwaySystems(): Promise<IndependentRunwaySystemRecord[]>;
+  replaceIndependentRunwaySystems(
+    airportId: number,
+    records: IndependentRunwaySystemRecord[]
+  ): Promise<IndependentRunwaySystemRecord[]>;
 
   listLabelLayouts(): Promise<LabelLayoutConfig[]>;
   saveLabelLayout(config: LabelLayoutConfig): Promise<LabelLayoutConfig>;
