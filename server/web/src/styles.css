@@ -439,6 +439,14 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.editor-table__hint {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
 .primary-button,
 .ghost-button,
 .danger-button {
@@ -559,6 +567,66 @@ textarea {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+}
+
+.arrival-fix-card__intro {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.arrival-fix-matrix {
+  min-width: 56rem;
+}
+
+.arrival-fix-matrix__runway-header,
+.arrival-fix-matrix__runway-cell {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.arrival-fix-matrix__runway-toggle {
+  width: 2.4rem;
+  min-width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.arrival-fix-matrix__runway-toggle--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.arrival-fix-row-actions {
+  width: 14rem;
+  text-align: right;
+}
+
+.arrival-fix-row-actions .ghost-button {
+  margin-bottom: 0.6rem;
+}
+
+.arrival-fix-preview__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.arrival-fix-preview__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(22, 61, 87, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .threshold-map__marker-icon-wrapper {

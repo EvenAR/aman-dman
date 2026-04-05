@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 
 import type {
   AircraftConfig,
+  ArrivalFixExpectation,
+  ArrivalFixExpectationSet,
+  ArrivalFixRole,
   AirportConfig,
   AirportRecord,
-  ArrivalRouteConfig,
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
@@ -24,7 +26,7 @@ import type {
 import { EditableTable } from '../components/EditableTable';
 import { Field } from '../components/Field';
 import { inputValue, parseNullableNumber } from '../lib/editor-state';
-import { normalizeFixInput } from '../lib/config-drafts';
+import { emptyArrivalFixExpectation, normalizeFixInput } from '../lib/config-drafts';
 
 const HorizonMapEditor = dynamic(
   () => import('../components/HorizonMapEditor').then((module) => module.HorizonMapEditor),
@@ -302,158 +304,337 @@ export function AirportEditor({
   );
 }
 
-export function ArrivalRouteEditor({
+const arrivalFixRoleOptions: Array<{ label: string; value: ArrivalFixRole }> = [
+  { label: 'Intermediate', value: 'INTERMEDIATE' },
+  { label: 'Initial approach', value: 'INITIAL_APPROACH' },
+];
+
+function getArrivalFixRoleLabel(role: ArrivalFixRole | null): string {
+  if (role === 'INTERMEDIATE') {
+    return 'Intermediate';
+  }
+
+  if (role === 'INITIAL_APPROACH') {
+    return 'Initial approach';
+  }
+
+  return 'None';
+}
+
+function sortRunwayIdentifiers(runways: string[]): string[] {
+  return [...runways].sort((left, right) => left.localeCompare(right));
+}
+
+export function ArrivalFixExpectationSetEditor({
   draft,
-  airports,
   thresholds,
-  fixedAirport,
   onChange,
 }: {
-  draft: ArrivalRouteConfig;
-  airports: AirportRecord[];
+  draft: ArrivalFixExpectationSet;
   thresholds: BootstrapData['thresholds'];
-  fixedAirport?: AirportRecord;
-  onChange: (value: ArrivalRouteConfig) => void;
+  onChange: (value: ArrivalFixExpectationSet) => void;
 }): React.JSX.Element {
-  const thresholdOptions = thresholds
-    .filter((threshold) => threshold.airport_id === draft.route.airport_id)
-    .map((threshold) => threshold.identifier);
+  const runwayOptions = useMemo(
+    () =>
+      thresholds
+        .filter((threshold) => threshold.airport_id === draft.airportId)
+        .map((threshold) => threshold.identifier)
+        .sort(),
+    [draft.airportId, thresholds]
+  );
+  const [selectedRunway, setSelectedRunway] = useState<string>('ALL');
+  const activeRunway =
+    selectedRunway !== 'ALL' && !runwayOptions.includes(selectedRunway) ? 'ALL' : selectedRunway;
+
+  const visibleExpectations = draft.expectations.map((expectation, index) => ({
+    expectation,
+    index,
+  }));
+
+  const previewExpectations =
+    activeRunway === 'ALL'
+      ? []
+      : draft.expectations
+          .filter((expectation) => expectation.runwayIdentifiers.includes(activeRunway))
+          .slice()
+          .sort((left, right) => left.fixName.localeCompare(right.fixName));
+
+  function updateExpectation(index: number, nextExpectation: ArrivalFixExpectation): void {
+    onChange({
+      ...draft,
+      expectations: draft.expectations.map((expectation, expectationIndex) =>
+        expectationIndex === index ? nextExpectation : expectation
+      ),
+    });
+  }
+
+  function toggleRunway(index: number, runwayIdentifier: string): void {
+    const expectation = draft.expectations[index];
+    const nextRunways = expectation.runwayIdentifiers.includes(runwayIdentifier)
+      ? expectation.runwayIdentifiers.filter((runway) => runway !== runwayIdentifier)
+      : [...expectation.runwayIdentifiers, runwayIdentifier];
+
+    updateExpectation(index, {
+      ...expectation,
+      runwayIdentifiers: sortRunwayIdentifiers(nextRunways),
+    });
+  }
+
+  function addExpectation(): void {
+    onChange({
+      ...draft,
+      expectations: [
+        ...draft.expectations,
+        emptyArrivalFixExpectation(activeRunway === 'ALL' ? null : activeRunway),
+      ],
+    });
+  }
+
+  function duplicateAndSplit(index: number): void {
+    const expectation = draft.expectations[index];
+    const duplicatedExpectation: ArrivalFixExpectation = {
+      ...expectation,
+      id: null,
+      runwayIdentifiers: [...expectation.runwayIdentifiers],
+    };
+
+    onChange({
+      ...draft,
+      expectations: [
+        ...draft.expectations.slice(0, index + 1),
+        duplicatedExpectation,
+        ...draft.expectations.slice(index + 1),
+      ],
+    });
+  }
+
+  function removeExpectation(index: number): void {
+    onChange({
+      ...draft,
+      expectations: draft.expectations.filter((_, expectationIndex) => expectationIndex !== index),
+    });
+  }
 
   return (
     <>
-      <section className="editor-card">
+      <section className="editor-card arrival-fix-card">
         <header className="panel-header">
-          <h3>Arrival route</h3>
-          <span>{draft.route.name || 'New route'}</span>
+          <div>
+            <h3>Arrival fixes</h3>
+            <span>{draft.airportIcao || 'Airport-wide'} expectations</span>
+          </div>
+          <button type="button" className="ghost-button" onClick={addExpectation}>
+            Add expectation
+          </button>
         </header>
-        <div className="field-grid">
-          {fixedAirport ? null : (
-            <Field label="Airport">
-              <select
-                value={draft.route.airport_id ?? ''}
-                onChange={(event) => {
-                  const airport =
-                    airports.find((candidate) => String(candidate.id) === event.target.value) ??
-                    null;
-                  onChange({
-                    ...draft,
-                    route: {
-                      ...draft.route,
-                      airport_id: airport?.id ?? null,
-                      airport_icao: airport?.icao ?? '',
-                      runway_identifier: '',
-                    },
-                  });
-                }}
-              >
-                <option value="">Select airport</option>
-                {airports.map((airport) => (
-                  <option key={airport.id ?? airport.icao} value={airport.id ?? ''}>
-                    {airport.subdivision
-                      ? `${airport.subdivision} / ${airport.icao}`
-                      : airport.icao}
-                  </option>
+        <p className="arrival-fix-card__intro">
+          Set the usual altitude, speed, and role for each fix. Use one row for multiple runways
+          when they share the same expectation.
+        </p>
+      </section>
+
+      <section className="editor-table">
+        <header className="editor-table__header">
+          <div>
+            <h3>Runway matrix</h3>
+            <span className="editor-table__hint">
+              Toggle the runway cells to show where each expectation applies.
+            </span>
+          </div>
+          <span>{visibleExpectations.length} rows</span>
+        </header>
+        <div className="editor-table__scroll">
+          <table className="arrival-fix-matrix">
+            <thead>
+              <tr>
+                <th>Fix</th>
+                <th>Type</th>
+                <th>Typical altitude</th>
+                <th>Typical airspeed</th>
+                {runwayOptions.map((runwayIdentifier) => (
+                  <th key={runwayIdentifier} className="arrival-fix-matrix__runway-header">
+                    {runwayIdentifier}
+                  </th>
                 ))}
-              </select>
-            </Field>
-          )}
-          <Field
-            label="Runway identifier"
-            hint="Configure a separate arrival route for each runway used at this airport."
-          >
-            <select
-              value={draft.route.runway_identifier}
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  route: { ...draft.route, runway_identifier: event.target.value },
-                })
-              }
-            >
-              <option value="">Select runway</option>
-              {thresholdOptions.map((threshold) => (
-                <option key={threshold} value={threshold}>
-                  {threshold}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field
-            label="Route name"
-            hint="Must match the arrival route name in the EuroScope sectorfile exactly."
-          >
-            <input
-              value={draft.route.name}
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  route: { ...draft.route, name: event.target.value },
-                })
-              }
-            />
-          </Field>
-          <Field
-            label="Intermediate fix"
-            hint="Optional fix name before the initial approach segment."
-          >
-            <input
-              aria-label="Intermediate fix"
-              value={draft.route.intermediate_fix ?? ''}
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  route: {
-                    ...draft.route,
-                    intermediate_fix: normalizeFixInput(event.target.value) || null,
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field
-            label="Initial approach fix"
-            hint="Optional fix name for the initial approach segment."
-          >
-            <input
-              aria-label="Initial approach fix"
-              value={draft.route.initial_approach_fix ?? ''}
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  route: {
-                    ...draft.route,
-                    initial_approach_fix: normalizeFixInput(event.target.value) || null,
-                  },
-                })
-              }
-            />
-          </Field>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {visibleExpectations.length === 0 ? (
+                <tr>
+                  <td colSpan={runwayOptions.length + 5} className="empty-state">
+                    No expectations yet.
+                  </td>
+                </tr>
+              ) : (
+                visibleExpectations.map(({ expectation, index }) => (
+                  <tr key={`${expectation.id ?? 'new'}-${index}`}>
+                    <td>
+                      <input
+                        aria-label={`Fix ${index + 1}`}
+                        value={expectation.fixName}
+                        onChange={(event) =>
+                          updateExpectation(index, {
+                            ...expectation,
+                            fixName: normalizeFixInput(event.target.value),
+                          })
+                        }
+                      />
+                    </td>
+                    <td>
+                      <select
+                        aria-label={`Type ${index + 1}`}
+                        value={expectation.role ?? ''}
+                        onChange={(event) =>
+                          updateExpectation(index, {
+                            ...expectation,
+                            role: (event.target.value || null) as ArrivalFixRole | null,
+                          })
+                        }
+                      >
+                        <option value="">None</option>
+                        {arrivalFixRoleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        aria-label={`Typical altitude ${index + 1}`}
+                        value={inputValue(expectation.typicalAltitude)}
+                        onChange={(event) =>
+                          updateExpectation(index, {
+                            ...expectation,
+                            typicalAltitude: parseNullableNumber(event.target.value),
+                          })
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        aria-label={`Typical airspeed ${index + 1}`}
+                        value={inputValue(expectation.typicalAirspeed)}
+                        onChange={(event) =>
+                          updateExpectation(index, {
+                            ...expectation,
+                            typicalAirspeed: parseNullableNumber(event.target.value),
+                          })
+                        }
+                      />
+                    </td>
+                    {runwayOptions.map((runwayIdentifier) => {
+                      const appliesToRunway =
+                        expectation.runwayIdentifiers.includes(runwayIdentifier);
+
+                      return (
+                        <td key={runwayIdentifier} className="arrival-fix-matrix__runway-cell">
+                          <button
+                            type="button"
+                            className={
+                              appliesToRunway
+                                ? 'arrival-fix-matrix__runway-toggle arrival-fix-matrix__runway-toggle--active'
+                                : 'arrival-fix-matrix__runway-toggle'
+                            }
+                            onClick={() => toggleRunway(index, runwayIdentifier)}
+                            aria-pressed={appliesToRunway}
+                            aria-label={`Expectation ${index + 1} runway ${runwayIdentifier}`}
+                            title={runwayIdentifier}
+                          >
+                            {appliesToRunway ? '✓' : ''}
+                          </button>
+                        </td>
+                      );
+                    })}
+                    <td className="row-actions arrival-fix-row-actions">
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => duplicateAndSplit(index)}
+                      >
+                        Duplicate and split
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-link"
+                        onClick={() => removeExpectation(index)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
-      <EditableTable
-        title="Route expectations"
-        rows={draft.expectations}
-        columns={[
-          { key: 'fix_name', label: 'Fix name' },
-          { key: 'typical_altitude', label: 'Typical altitude', type: 'number' },
-          { key: 'typical_airspeed', label: 'Typical airspeed', type: 'number' },
-        ]}
-        createRow={() => ({
-          arrival_route_id: draft.route.id,
-          fix_name: '',
-          typical_altitude: null,
-          typical_airspeed: null,
-        })}
-        onChange={(expectations) =>
-          onChange({
-            ...draft,
-            expectations: expectations.map((expectation) => ({
-              ...expectation,
-              fix_name: normalizeFixInput(expectation.fix_name),
-            })),
-          })
-        }
-      />
+
+      <section className="editor-card arrival-fix-preview">
+        <header className="panel-header">
+          <h3>Applies to</h3>
+          <span>
+            {activeRunway === 'ALL' ? 'Choose a runway' : `${previewExpectations.length} rows`}
+          </span>
+        </header>
+        <div className="runway-system-selection" aria-label="Applies to runway">
+          <button
+            type="button"
+            className={
+              activeRunway === 'ALL'
+                ? 'runway-system-chip runway-system-chip--active'
+                : 'runway-system-chip'
+            }
+            onClick={() => setSelectedRunway('ALL')}
+          >
+            All
+          </button>
+          {runwayOptions.map((runwayIdentifier) => (
+            <button
+              key={runwayIdentifier}
+              type="button"
+              className={
+                activeRunway === runwayIdentifier
+                  ? 'runway-system-chip runway-system-chip--active'
+                  : 'runway-system-chip'
+              }
+              onClick={() => setSelectedRunway(runwayIdentifier)}
+            >
+              {runwayIdentifier}
+            </button>
+          ))}
+        </div>
+        {activeRunway === 'ALL' ? (
+          <div className="empty-state">
+            Select a runway to preview the expectations for that runway.
+          </div>
+        ) : previewExpectations.length === 0 ? (
+          <div className="empty-state">No expectations apply to {activeRunway}.</div>
+        ) : (
+          <div className="arrival-fix-preview__list">
+            {previewExpectations.map((expectation) => (
+              <article
+                key={`${activeRunway}:${expectation.id ?? expectation.fixName}:${expectation.role ?? 'none'}`}
+                className="arrival-fix-preview__item"
+              >
+                <strong>{expectation.fixName}</strong>
+                <span>Type: {getArrivalFixRoleLabel(expectation.role)}</span>
+                <span>
+                  Altitude:{' '}
+                  {expectation.typicalAltitude === null ? 'None' : expectation.typicalAltitude}
+                </span>
+                <span>
+                  Airspeed:{' '}
+                  {expectation.typicalAirspeed === null ? 'None' : expectation.typicalAirspeed}
+                </span>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }

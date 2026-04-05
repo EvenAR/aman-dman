@@ -1,4 +1,4 @@
-import { listConfigAirportArrivalRoutes } from '@/src/features/config-read/service';
+import { listConfigAirportArrivalFixes } from '@/src/features/config-read/service';
 import { getConfigRepository } from '@/src/next/runtime';
 import { jsonResponse } from '@/src/next/routeUtils';
 import { withErrorHandling } from '@/src/next/routeHandlers';
@@ -13,7 +13,7 @@ export const GET = withErrorHandling(
   ): Promise<Response> => {
     const { subdivision, icao } = await context.params;
     return jsonResponse(
-      await listConfigAirportArrivalRoutes(getConfigRepository(), subdivision, icao)
+      await listConfigAirportArrivalFixes(getConfigRepository(), subdivision, icao)
     );
   }
 );

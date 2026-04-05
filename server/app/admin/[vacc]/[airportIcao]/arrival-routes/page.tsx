@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 
-import { loadArrivalRoutesPage } from '@/src/features/config-ui/data';
-import { AirportArrivalRoutesPageClient } from '@/web/src/route-pages';
+import { loadArrivalFixesPage } from '@/src/features/config-ui/data';
+import { AirportArrivalFixesPageClient } from '@/web/src/route-pages';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export default async function AdminAirportArrivalRoutesRoute({
   let data;
 
   try {
-    data = await loadArrivalRoutesPage(vacc, airportIcao);
+    data = await loadArrivalFixesPage(vacc, airportIcao);
   } catch (error) {
     if (error instanceof Error && error.name === 'NotFoundError') {
       notFound();
@@ -32,8 +32,8 @@ export default async function AdminAirportArrivalRoutesRoute({
   }
 
   return (
-    <AirportArrivalRoutesPageClient
-      records={data.routes}
+    <AirportArrivalFixesPageClient
+      arrivalFixes={data.arrivalFixes}
       airport={data.context.airport}
       thresholds={data.thresholds}
     />

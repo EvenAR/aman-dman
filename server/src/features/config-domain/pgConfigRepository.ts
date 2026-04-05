@@ -4,9 +4,9 @@ import type {
   AircraftPerformanceRecord,
   AirportConfig,
   AirportRecord,
-  ArrivalRouteConfig,
-  ArrivalRouteExpectationRecord,
-  ArrivalRouteRecord,
+  ArrivalFixExpectation,
+  ArrivalFixExpectationSet,
+  ArrivalFixRole,
   BootstrapData,
   FeederFixRecord,
   Geometry,
@@ -44,27 +44,26 @@ function normalizeIcao(icao: string): string {
   return requireNonEmpty(icao, 'icao').toUpperCase();
 }
 
-function normalizeOptionalText(value: string | null | undefined): string | null {
+function normalizeRunwayIdentifier(value: string, fieldName: string): string {
+  return requireNonEmpty(value, fieldName).toUpperCase();
+}
+
+function normalizeArrivalFixRole(
+  value: ArrivalFixRole | null | undefined,
+  fieldName: string
+): ArrivalFixRole | null {
   if (value === null || value === undefined) {
     return null;
   }
 
-  const normalized = value.trim();
-  return normalized ? normalized : null;
-}
+  if (value === 'INTERMEDIATE' || value === 'INITIAL_APPROACH') {
+    return value;
+  }
 
-function normalizeOptionalFixName(value: string | null | undefined): string | null {
-  const normalized = normalizeOptionalText(value);
-  if (normalized === null) {
-    return null;
-  }
-  const uppercased = normalized.toUpperCase();
-  if (!/^[A-Z0-9]{1,5}$/.test(uppercased)) {
-    throw new ValidationError(
-      'Fix names must use only uppercase letters and numbers, max 5 characters.'
-    );
-  }
-  return uppercased;
+  throw new ValidationError(`Unsupported ${fieldName} '${value}'.`, {
+    field: fieldName,
+    value,
+  });
 }
 
 function requireFixName(value: string, fieldName: string): string {
@@ -173,24 +172,14 @@ function mapAircraftEquivalent(row: Record<string, unknown>): AircraftEquivalent
   };
 }
 
-function mapArrivalRoute(row: Record<string, unknown>): ArrivalRouteRecord {
+function mapArrivalFixExpectation(row: Record<string, unknown>): ArrivalFixExpectation {
   return {
-    id: Number(row.id),
-    airport_id: asNumber(row.airport_id),
-    airport_icao: String(row.airport_icao),
-    runway_identifier: String(row.runway_identifier),
-    name: String(row.name),
-    intermediate_fix: (row.intermediate_fix as string | null) ?? null,
-    initial_approach_fix: (row.initial_approach_fix as string | null) ?? null,
-  };
-}
-
-function mapArrivalRouteExpectation(row: Record<string, unknown>): ArrivalRouteExpectationRecord {
-  return {
-    arrival_route_id: Number(row.arrival_route_id),
-    fix_name: String(row.fix_name),
-    typical_altitude: asNumber(row.typical_altitude),
-    typical_airspeed: asNumber(row.typical_airspeed),
+    id: asNumber(row.id),
+    fixName: String(row.fix_name),
+    runwayIdentifiers: [],
+    role: normalizeArrivalFixRole((row.role as ArrivalFixRole | null) ?? null, 'role'),
+    typicalAltitude: asNumber(row.typical_altitude),
+    typicalAirspeed: asNumber(row.typical_airspeed),
   };
 }
 
@@ -325,6 +314,134 @@ async function resolveLabelLayoutById(
     id: requireNumericId(row.id, 'label_layout.id'),
     subdivision: String(row.subdivision),
   };
+}
+
+async function listAirportThresholdIdentifiers(
+  queryable: DatabaseClient,
+  airportId: number
+): Promise<Set<string>> {
+  const result = await queryable.query<Record<string, unknown>>(
+    'SELECT identifier FROM public.threshold WHERE airport_id = $1 ORDER BY identifier',
+    [airportId]
+  );
+
+  return new Set(
+    result.rows.map((row) => normalizeRunwayIdentifier(String(row.identifier), 'runway_identifier'))
+  );
+}
+
+function roleLabel(role: ArrivalFixRole): string {
+  return role === 'INTERMEDIATE' ? 'intermediate' : 'initial approach';
+}
+
+function normalizePositiveNumber(
+  value: number | null | undefined,
+  fieldName: string
+): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new ValidationError(`${fieldName} must be a positive number.`, {
+      field: fieldName,
+      value,
+    });
+  }
+
+  return value;
+}
+
+function normalizeArrivalFixExpectationSet(
+  expectations: ArrivalFixExpectation[],
+  validRunways: Set<string>
+): ArrivalFixExpectation[] {
+  const seenFixRunways = new Map<string, number>();
+  const seenRunwayRoles = new Map<string, number>();
+
+  return expectations.map((expectation, index) => {
+    const rowPrefix = `expectations[${index}]`;
+    const fixName = requireFixName(expectation.fixName, `${rowPrefix}.fixName`);
+    const role = normalizeArrivalFixRole(expectation.role, `${rowPrefix}.role`);
+    const typicalAltitude = normalizePositiveNumber(
+      expectation.typicalAltitude,
+      `${rowPrefix}.typicalAltitude`
+    );
+    const typicalAirspeed = normalizePositiveNumber(
+      expectation.typicalAirspeed,
+      `${rowPrefix}.typicalAirspeed`
+    );
+
+    if (role === null && typicalAltitude === null && typicalAirspeed === null) {
+      throw new ValidationError(
+        'Each arrival-fix expectation must define a role, typical altitude, or typical airspeed.',
+        { field: rowPrefix }
+      );
+    }
+
+    if (expectation.runwayIdentifiers.length === 0) {
+      throw new ValidationError('Each arrival-fix expectation must include at least one runway.', {
+        field: `${rowPrefix}.runwayIdentifiers`,
+      });
+    }
+
+    const normalizedRunways = expectation.runwayIdentifiers.map((runway, runwayIndex) =>
+      normalizeRunwayIdentifier(runway, `${rowPrefix}.runwayIdentifiers[${runwayIndex}]`)
+    );
+
+    if (new Set(normalizedRunways).size !== normalizedRunways.length) {
+      throw new ValidationError('Each arrival-fix expectation can only include a runway once.', {
+        field: `${rowPrefix}.runwayIdentifiers`,
+      });
+    }
+
+    normalizedRunways.sort();
+
+    for (const runway of normalizedRunways) {
+      if (!validRunways.has(runway)) {
+        throw new ValidationError(`Runway '${runway}' is not defined for this airport.`, {
+          field: `${rowPrefix}.runwayIdentifiers`,
+          value: runway,
+        });
+      }
+
+      const fixRunwayKey = `${fixName}:${runway}`;
+      const existingFixIndex = seenFixRunways.get(fixRunwayKey);
+      if (existingFixIndex !== undefined) {
+        throw new ValidationError(`${fixName} is already defined for ${runway}.`, {
+          field: `${rowPrefix}.runwayIdentifiers`,
+          value: runway,
+          conflictIndex: existingFixIndex,
+        });
+      }
+      seenFixRunways.set(fixRunwayKey, index);
+
+      if (role !== null) {
+        const runwayRoleKey = `${runway}:${role}`;
+        const existingRoleIndex = seenRunwayRoles.get(runwayRoleKey);
+        if (existingRoleIndex !== undefined) {
+          throw new ValidationError(
+            `Runway ${runway} already has an ${roleLabel(role)} fix defined.`,
+            {
+              field: `${rowPrefix}.role`,
+              value: role,
+              conflictIndex: existingRoleIndex,
+            }
+          );
+        }
+        seenRunwayRoles.set(runwayRoleKey, index);
+      }
+    }
+
+    return {
+      id: expectation.id,
+      fixName,
+      runwayIdentifiers: normalizedRunways,
+      role,
+      typicalAltitude,
+      typicalAirspeed,
+    };
+  });
 }
 
 function mapHorizon(row: Record<string, unknown>): HorizonRecord {
@@ -684,103 +801,97 @@ export class PgConfigRepository implements ConfigRepository {
     await this.database.query('DELETE FROM public.airport WHERE id = $1', [airport.id]);
   }
 
-  async listArrivalRoutes(): Promise<ArrivalRouteConfig[]> {
-    const [routes, expectations] = await Promise.all([
-      this.database.query<Record<string, unknown>>(
-        `
-          SELECT
-            r.id,
-            r.airport_id,
-            a.icao AS airport_icao,
-            r.runway_identifier,
-            r.name,
-            r.intermediate_fix,
-            r.initial_approach_fix
-          FROM public.arrival_route r
-          JOIN public.airport a ON a.id = r.airport_id
-          ORDER BY a.icao, r.name, r.runway_identifier, r.id
-        `
-      ),
-      this.database.query<Record<string, unknown>>(
-        'SELECT arrival_route_id, fix_name, typical_altitude, typical_airspeed FROM public.arrival_route_expectation ORDER BY arrival_route_id, fix_name'
-      ),
-    ]);
+  async getArrivalFixes(airportId: number): Promise<ArrivalFixExpectationSet> {
+    const airport = await resolveAirportById(this.database, airportId);
+    const result = await this.database.query<Record<string, unknown>>(
+      `
+        SELECT
+          e.id,
+          e.airport_id,
+          e.fix_name,
+          e.role,
+          e.typical_altitude,
+          e.typical_airspeed,
+          r.runway_identifier
+        FROM public.arrival_fix_expectation e
+        LEFT JOIN public.arrival_fix_expectation_runway r ON r.expectation_id = e.id
+        WHERE e.airport_id = $1
+        ORDER BY e.fix_name, e.id, r.runway_identifier
+      `,
+      [airport.id]
+    );
 
-    const expectationMap = new Map<number, ArrivalRouteExpectationRecord[]>();
-    for (const row of expectations.rows) {
-      const expectation = mapArrivalRouteExpectation(row);
-      const collection = expectationMap.get(expectation.arrival_route_id ?? 0) ?? [];
-      collection.push(expectation);
-      expectationMap.set(expectation.arrival_route_id ?? 0, collection);
+    const expectationMap = new Map<number, ArrivalFixExpectation>();
+    for (const row of result.rows) {
+      const expectationId = requireNumericId(row.id, 'arrival_fix_expectation.id');
+      const existing = expectationMap.get(expectationId) ?? mapArrivalFixExpectation(row);
+
+      const runwayIdentifier = row.runway_identifier as string | null;
+      if (runwayIdentifier) {
+        existing.runwayIdentifiers.push(
+          normalizeRunwayIdentifier(runwayIdentifier, 'runway_identifier')
+        );
+      }
+
+      expectationMap.set(expectationId, existing);
     }
 
-    return routes.rows.map((row) => {
-      const route = mapArrivalRoute(row);
-      return {
-        route,
-        expectations: expectationMap.get(route.id ?? 0) ?? [],
-      };
-    });
+    return {
+      airportId: airport.id,
+      airportIcao: airport.icao,
+      expectations: Array.from(expectationMap.values()),
+    };
   }
 
-  async saveArrivalRoute(config: ArrivalRouteConfig): Promise<ArrivalRouteConfig> {
+  async replaceArrivalFixes(config: ArrivalFixExpectationSet): Promise<ArrivalFixExpectationSet> {
     const airport = await resolveAirportById(
       this.database,
-      requireNumericId(config.route.airport_id, 'arrival_route.airport_id')
+      requireNumericId(config.airportId, 'arrivalFixes.airportId')
     );
-    const route = {
-      airport_id: airport.id,
-      runway_identifier: requireNonEmpty(config.route.runway_identifier, 'runway_identifier'),
-      name: requireNonEmpty(config.route.name, 'name'),
-      intermediate_fix: normalizeOptionalFixName(config.route.intermediate_fix),
-      initial_approach_fix: normalizeOptionalFixName(config.route.initial_approach_fix),
-    };
 
-    const routeId = await this.database.withTransaction(async (client) => {
-      let currentId = config.route.id ?? null;
-
-      if (currentId === null) {
-        const insert = buildInsertStatement('public.arrival_route', route, 'id');
-        const inserted = await client.query<{ id: number }>(insert.text, insert.params);
-        currentId = requireNumericId(inserted.rows[0]?.id, 'arrival_route.id');
-      } else {
-        const upsert = buildUpsertStatement('public.arrival_route', { id: currentId, ...route }, [
-          'id',
-        ]);
-        await client.query(upsert.text, upsert.params);
-      }
-
-      await client.query(
-        'DELETE FROM public.arrival_route_expectation WHERE arrival_route_id = $1',
-        [currentId]
+    await this.database.withTransaction(async (client) => {
+      const validRunways = await listAirportThresholdIdentifiers(client, airport.id);
+      const normalizedExpectations = normalizeArrivalFixExpectationSet(
+        config.expectations,
+        validRunways
       );
 
-      for (const expectation of config.expectations) {
-        const insert = buildInsertStatement(
-          'public.arrival_route_expectation',
-          {
-            arrival_route_id: currentId,
-            fix_name: requireFixName(expectation.fix_name, 'fix_name'),
-            typical_altitude: expectation.typical_altitude,
-            typical_airspeed: expectation.typical_airspeed,
-          },
-          '*'
-        );
-        await client.query(insert.text, insert.params);
-      }
+      await client.query('DELETE FROM public.arrival_fix_expectation WHERE airport_id = $1', [
+        airport.id,
+      ]);
 
-      return currentId;
+      for (const expectation of normalizedExpectations) {
+        const insert = buildInsertStatement(
+          'public.arrival_fix_expectation',
+          {
+            airport_id: airport.id,
+            fix_name: expectation.fixName,
+            role: expectation.role,
+            typical_altitude: expectation.typicalAltitude,
+            typical_airspeed: expectation.typicalAirspeed,
+          },
+          'id'
+        );
+        const inserted = await client.query<{ id: number }>(insert.text, insert.params);
+        const expectationId = requireNumericId(inserted.rows[0]?.id, 'arrival_fix_expectation.id');
+
+        for (const runwayIdentifier of expectation.runwayIdentifiers) {
+          const runwayInsert = buildInsertStatement(
+            'public.arrival_fix_expectation_runway',
+            {
+              expectation_id: expectationId,
+              airport_id: airport.id,
+              fix_name: expectation.fixName,
+              runway_identifier: runwayIdentifier,
+            },
+            'expectation_id'
+          );
+          await client.query(runwayInsert.text, runwayInsert.params);
+        }
+      }
     });
 
-    const saved = (await this.listArrivalRoutes()).find((item) => item.route.id === routeId);
-    if (!saved) {
-      throw new NotFoundError(`Arrival route '${routeId}' was not found after save.`);
-    }
-    return saved;
-  }
-
-  async deleteArrivalRoute(id: number): Promise<void> {
-    await this.database.query('DELETE FROM public.arrival_route WHERE id = $1', [id]);
+    return this.getArrivalFixes(airport.id);
   }
 
   async listFeederFixes(): Promise<FeederFixRecord[]> {

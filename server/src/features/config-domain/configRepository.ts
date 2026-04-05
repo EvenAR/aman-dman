@@ -1,7 +1,7 @@
 import type {
   AircraftConfig,
   AirportConfig,
-  ArrivalRouteConfig,
+  ArrivalFixExpectationSet,
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
@@ -26,9 +26,8 @@ export interface ConfigRepository {
   saveAirport(config: AirportConfig): Promise<AirportConfig>;
   deleteAirport(id: number): Promise<void>;
 
-  listArrivalRoutes(): Promise<ArrivalRouteConfig[]>;
-  saveArrivalRoute(config: ArrivalRouteConfig): Promise<ArrivalRouteConfig>;
-  deleteArrivalRoute(id: number): Promise<void>;
+  getArrivalFixes(airportId: number): Promise<ArrivalFixExpectationSet>;
+  replaceArrivalFixes(config: ArrivalFixExpectationSet): Promise<ArrivalFixExpectationSet>;
 
   listFeederFixes(): Promise<FeederFixRecord[]>;
   saveFeederFix(record: FeederFixRecord): Promise<FeederFixRecord>;

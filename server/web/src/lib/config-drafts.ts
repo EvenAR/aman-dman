@@ -2,9 +2,11 @@
 
 import type {
   AircraftConfig,
+  ArrivalFixExpectation,
+  ArrivalFixExpectationSet,
+  ArrivalFixRole,
   AirportConfig,
   AirportRecord,
-  ArrivalRouteConfig,
   FeederFixRecord,
   HorizonConfig,
   LabelItemSourceRecord,
@@ -96,18 +98,14 @@ export function validateAirportConfig(draft: AirportConfig): string | null {
   return `${thresholdLabel} must have an identifier, true bearing, and elevation before saving.`;
 }
 
-export function emptyArrivalRoute(): ArrivalRouteConfig {
+export function emptyArrivalFixExpectation(selectedRunway?: string | null): ArrivalFixExpectation {
   return {
-    route: {
-      id: null,
-      airport_id: null,
-      airport_icao: '',
-      runway_identifier: '',
-      name: '',
-      intermediate_fix: null,
-      initial_approach_fix: null,
-    },
-    expectations: [],
+    id: null,
+    fixName: '',
+    runwayIdentifiers: selectedRunway ? [selectedRunway] : [],
+    role: null,
+    typicalAltitude: null,
+    typicalAirspeed: null,
   };
 }
 
@@ -128,23 +126,86 @@ export function validateFeederFix(draft: FeederFixRecord): string | null {
   return null;
 }
 
-export function validateArrivalRouteConfig(draft: ArrivalRouteConfig): string | null {
-  const optionalFixes = [
-    { label: 'Intermediate fix', value: draft.route.intermediate_fix },
-    { label: 'Initial approach fix', value: draft.route.initial_approach_fix },
-  ];
+export function emptyArrivalFixExpectationSet(airport?: AirportRecord): ArrivalFixExpectationSet {
+  return {
+    airportId: airport?.id ?? null,
+    airportIcao: airport?.icao ?? '',
+    expectations: [],
+  };
+}
 
-  for (const fix of optionalFixes) {
-    if (fix.value !== null && !isValidFixName(fix.value)) {
-      return `${fix.label} must use only uppercase letters and numbers, max 5 characters.`;
+function isValidArrivalFixRole(value: ArrivalFixRole | null): boolean {
+  return value === null || value === 'INTERMEDIATE' || value === 'INITIAL_APPROACH';
+}
+
+export function validateArrivalFixExpectationSet(draft: ArrivalFixExpectationSet): string | null {
+  const seenFixRunways = new Set<string>();
+  const seenRunwayRoles = new Set<string>();
+
+  for (const expectation of draft.expectations) {
+    if (!isValidFixName(expectation.fixName)) {
+      return 'Expectation fix names must use only uppercase letters and numbers, max 5 characters.';
     }
-  }
 
-  const invalidExpectation = draft.expectations.find(
-    (expectation) => !isValidFixName(expectation.fix_name)
-  );
-  if (invalidExpectation) {
-    return 'Expectation fix names must use only uppercase letters and numbers, max 5 characters.';
+    if (expectation.runwayIdentifiers.length === 0) {
+      return 'Each expectation must include at least one runway.';
+    }
+
+    const normalizedRunways = expectation.runwayIdentifiers.map((runway) =>
+      runway.trim().toUpperCase()
+    );
+
+    if (normalizedRunways.some((runway) => runway.length === 0)) {
+      return 'Each expectation runway must be a non-empty runway identifier.';
+    }
+
+    if (new Set(normalizedRunways).size !== normalizedRunways.length) {
+      return 'Each expectation can only include a runway once.';
+    }
+
+    if (!isValidArrivalFixRole(expectation.role)) {
+      return 'Expectation type must be blank, Intermediate, or Initial approach.';
+    }
+
+    if (
+      expectation.role === null &&
+      expectation.typicalAltitude === null &&
+      expectation.typicalAirspeed === null
+    ) {
+      return 'Each expectation must define a type, typical altitude, or typical airspeed.';
+    }
+
+    if (
+      expectation.typicalAltitude !== null &&
+      (!Number.isFinite(expectation.typicalAltitude) || expectation.typicalAltitude <= 0)
+    ) {
+      return 'Typical altitude must be a positive number when provided.';
+    }
+
+    if (
+      expectation.typicalAirspeed !== null &&
+      (!Number.isFinite(expectation.typicalAirspeed) || expectation.typicalAirspeed <= 0)
+    ) {
+      return 'Typical airspeed must be a positive number when provided.';
+    }
+
+    for (const runway of normalizedRunways) {
+      const fixRunwayKey = `${expectation.fixName}:${runway}`;
+      if (seenFixRunways.has(fixRunwayKey)) {
+        return `${expectation.fixName} is already defined for ${runway}.`;
+      }
+      seenFixRunways.add(fixRunwayKey);
+
+      if (expectation.role !== null) {
+        const runwayRoleKey = `${runway}:${expectation.role}`;
+        if (seenRunwayRoles.has(runwayRoleKey)) {
+          return `Runway ${runway} already has an ${
+            expectation.role === 'INTERMEDIATE' ? 'intermediate' : 'initial approach'
+          } fix.`;
+        }
+        seenRunwayRoles.add(runwayRoleKey);
+      }
+    }
   }
 
   return null;

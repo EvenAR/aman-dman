@@ -1,7 +1,7 @@
 import type {
   AircraftConfig,
+  ArrivalFixExpectationSet,
   AirportConfig,
-  ArrivalRouteConfig,
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
@@ -87,20 +87,16 @@ export const api = {
   deleteAirport: (id: number): Promise<void> =>
     apiRequest(`/api/v1/admin/airports/${id}`, { method: 'DELETE' }),
 
-  listArrivalRoutes: (): Promise<ArrivalRouteConfig[]> =>
-    apiRequest('/api/v1/config/arrival-routes'),
-  saveArrivalRoute: (config: ArrivalRouteConfig): Promise<ArrivalRouteConfig> =>
-    config.route.id === null
-      ? apiRequest('/api/v1/admin/arrival-routes', {
-          method: 'POST',
-          body: JSON.stringify(config),
-        })
-      : apiRequest(`/api/v1/admin/arrival-routes/${config.route.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(config),
-        }),
-  deleteArrivalRoute: (id: number): Promise<void> =>
-    apiRequest(`/api/v1/admin/arrival-routes/${id}`, { method: 'DELETE' }),
+  getArrivalFixes: (airportId: number): Promise<ArrivalFixExpectationSet> =>
+    apiRequest(`/api/v1/admin/airports/${airportId}/arrival-fixes`),
+  replaceArrivalFixes: (
+    airportId: number,
+    config: ArrivalFixExpectationSet
+  ): Promise<ArrivalFixExpectationSet> =>
+    apiRequest(`/api/v1/admin/airports/${airportId}/arrival-fixes`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
 
   saveFeederFix: (
     record: FeederFixRecord,

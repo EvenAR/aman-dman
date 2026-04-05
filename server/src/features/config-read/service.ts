@@ -1,7 +1,7 @@
 import type {
   ConfigAirportAggregateDto,
   ConfigAirportDto,
-  ConfigArrivalRouteDto,
+  ConfigArrivalFixDto,
   ConfigFeederFixDto,
   ConfigHorizonDto,
   ConfigSubdivisionDto,
@@ -73,19 +73,17 @@ function mapFeederFixDto(feederFix: { identifier: string }): ConfigFeederFixDto 
   };
 }
 
-function mapArrivalRouteDto(
-  routeConfig: NonNullable<Awaited<ReturnType<ConfigRepository['listArrivalRoutes']>>[number]>
-): ConfigArrivalRouteDto {
+function mapArrivalFixDto(
+  expectation: NonNullable<
+    Awaited<ReturnType<ConfigRepository['getArrivalFixes']>>
+  >['expectations'][number]
+): ConfigArrivalFixDto {
   return {
-    runwayIdentifier: routeConfig.route.runway_identifier,
-    name: routeConfig.route.name,
-    intermediateFix: routeConfig.route.intermediate_fix,
-    initialApproachFix: routeConfig.route.initial_approach_fix,
-    expectations: routeConfig.expectations.map((expectation) => ({
-      fixName: expectation.fix_name,
-      typicalAltitude: expectation.typical_altitude,
-      typicalAirspeed: expectation.typical_airspeed,
-    })),
+    fixName: expectation.fixName,
+    runwayIdentifiers: expectation.runwayIdentifiers,
+    role: expectation.role,
+    typicalAltitude: expectation.typicalAltitude,
+    typicalAirspeed: expectation.typicalAirspeed,
   };
 }
 
@@ -251,17 +249,15 @@ function buildTimelineDtos(
     });
 }
 
-export async function listConfigAirportArrivalRoutes(
+export async function listConfigAirportArrivalFixes(
   repository: ConfigRepository,
   subdivisionParam: string,
   icaoParam: string
-): Promise<ConfigArrivalRouteDto[]> {
+): Promise<ConfigArrivalFixDto[]> {
   const { airport } = await resolveAirportInSubdivision(repository, subdivisionParam, icaoParam);
-  const arrivalRoutes = await repository.listArrivalRoutes();
+  const arrivalFixes = await repository.getArrivalFixes(airport.airport.id ?? 0);
 
-  return arrivalRoutes
-    .filter((route) => route.route.airport_id === airport.airport.id)
-    .map(mapArrivalRouteDto);
+  return arrivalFixes.expectations.map(mapArrivalFixDto);
 }
 
 export async function listConfigAirportFeederFixes(
@@ -310,9 +306,9 @@ export async function getConfigAirportAggregate(
   icaoParam: string
 ): Promise<ConfigAirportAggregateDto> {
   const { airport } = await resolveAirportInSubdivision(repository, subdivisionParam, icaoParam);
-  const [feederFixes, arrivalRoutes, timelines, horizons, labelLayouts] = await Promise.all([
+  const [feederFixes, arrivalFixes, timelines, horizons, labelLayouts] = await Promise.all([
     repository.listFeederFixes(),
-    repository.listArrivalRoutes(),
+    repository.getArrivalFixes(airport.airport.id ?? 0),
     repository.listTimelinePresets(),
     repository.listHorizons(),
     repository.listLabelLayouts(),
@@ -324,9 +320,7 @@ export async function getConfigAirportAggregate(
     feederFixes: feederFixes
       .filter((feederFix) => feederFix.airport_id === airport.airport.id)
       .map(mapFeederFixDto),
-    arrivalRoutes: arrivalRoutes
-      .filter((route) => route.route.airport_id === airport.airport.id)
-      .map(mapArrivalRouteDto),
+    arrivalFixes: arrivalFixes.expectations.map(mapArrivalFixDto),
     timelines: buildTimelineDtos(timelines, airport, labelLayouts),
     horizons: horizons
       .filter((horizon) => horizon.horizon.airport_id === airport.airport.id)

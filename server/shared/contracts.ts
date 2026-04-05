@@ -96,26 +96,21 @@ export interface OpenAipAirportLookupResult {
   source_name: string | null;
 }
 
-export interface ArrivalRouteRecord {
+export type ArrivalFixRole = 'INTERMEDIATE' | 'INITIAL_APPROACH';
+
+export interface ArrivalFixExpectation {
   id: number | null;
-  airport_id: number | null;
-  airport_icao: string;
-  runway_identifier: string;
-  name: string;
-  intermediate_fix: string | null;
-  initial_approach_fix: string | null;
+  fixName: string;
+  runwayIdentifiers: string[];
+  role: ArrivalFixRole | null;
+  typicalAltitude: number | null;
+  typicalAirspeed: number | null;
 }
 
-export interface ArrivalRouteExpectationRecord {
-  arrival_route_id: number | null;
-  fix_name: string;
-  typical_altitude: number | null;
-  typical_airspeed: number | null;
-}
-
-export interface ArrivalRouteConfig {
-  route: ArrivalRouteRecord;
-  expectations: ArrivalRouteExpectationRecord[];
+export interface ArrivalFixExpectationSet {
+  airportId: number | null;
+  airportIcao: string;
+  expectations: ArrivalFixExpectation[];
 }
 
 export interface LabelLayoutRecord {
@@ -276,18 +271,12 @@ export interface ConfigFeederFixDto {
   identifier: string;
 }
 
-export interface ConfigArrivalRouteExpectationDto {
+export interface ConfigArrivalFixDto {
   fixName: string;
+  runwayIdentifiers: string[];
+  role: ArrivalFixRole | null;
   typicalAltitude: number | null;
   typicalAirspeed: number | null;
-}
-
-export interface ConfigArrivalRouteDto {
-  runwayIdentifier: string;
-  name: string;
-  intermediateFix: string | null;
-  initialApproachFix: string | null;
-  expectations: ConfigArrivalRouteExpectationDto[];
 }
 
 export interface ConfigLabelLayoutItemDto {
@@ -337,7 +326,7 @@ export interface ConfigAirportAggregateDto {
   airport: ConfigAirportDto;
   thresholds: ConfigThresholdDto[];
   feederFixes: ConfigFeederFixDto[];
-  arrivalRoutes: ConfigArrivalRouteDto[];
+  arrivalFixes: ConfigArrivalFixDto[];
   timelines: ConfigTimelinePresetDto[];
   horizons: ConfigHorizonDto[];
 }

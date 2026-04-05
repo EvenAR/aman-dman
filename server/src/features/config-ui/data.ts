@@ -2,11 +2,11 @@ import { NotFoundError, ValidationError } from '../../app/errors';
 import { requireAuthenticatedPage } from '../../auth/dal';
 import { getConfigRepository } from '../../next/runtime';
 import type {
+  ArrivalFixExpectationSet,
   AirportConfig,
   AirportRecord,
   AirportRouteContext,
   AirportRouteNavItem,
-  ArrivalRouteConfig,
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
@@ -19,7 +19,7 @@ import type {
 
 const airportRouteSections: Array<{ section: AirportRouteNavItem['section']; label: string }> = [
   { section: 'settings', label: 'Settings' },
-  { section: 'arrival-routes', label: 'Arrival Routes' },
+  { section: 'arrival-routes', label: 'Arrival Fixes' },
   { section: 'feeder-fixes', label: 'Feeder Fixes' },
   { section: 'independent-runway-systems', label: 'Runway Systems' },
   { section: 'timelines', label: 'Timelines' },
@@ -34,8 +34,8 @@ async function getAirportCached(id: number): Promise<AirportConfig> {
   return getConfigRepository().getAirport(id);
 }
 
-async function listArrivalRoutesCached(): Promise<ArrivalRouteConfig[]> {
-  return getConfigRepository().listArrivalRoutes();
+async function getArrivalFixesCached(airportId: number): Promise<ArrivalFixExpectationSet> {
+  return getConfigRepository().getArrivalFixes(airportId);
 }
 
 async function listFeederFixesCached(): Promise<FeederFixRecord[]> {
@@ -213,12 +213,12 @@ export async function loadAirportSettingsPage(
   };
 }
 
-export async function loadArrivalRoutesPage(
+export async function loadArrivalFixesPage(
   vaccSlug: string,
   airportIcao: string
 ): Promise<{
   context: AirportRouteContext;
-  routes: ArrivalRouteConfig[];
+  arrivalFixes: ArrivalFixExpectationSet;
   thresholds: ThresholdRecord[];
 }> {
   await requireAuthenticatedPage(
@@ -226,13 +226,10 @@ export async function loadArrivalRoutesPage(
   );
   const context = await getAirportConfigContext(vaccSlug, airportIcao);
   const bootstrap = await getBootstrapCached();
-  const routes = (await listArrivalRoutesCached()).filter(
-    (route) => route.route.airport_id === context.airport.id
-  );
 
   return {
     context,
-    routes,
+    arrivalFixes: await getArrivalFixesCached(context.airport.id ?? 0),
     thresholds: bootstrap.thresholds.filter(
       (threshold) => threshold.airport_id === context.airport.id
     ),

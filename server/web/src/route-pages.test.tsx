@@ -1,8 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import {
-  AirportArrivalRoutesPageClient,
+  AirportArrivalFixesPageClient,
   AirportFeederFixesPageClient,
   AirportIndependentRunwaySystemsPageClient,
   AirportTimelinesPageClient,
@@ -13,8 +13,7 @@ import {
 const {
   push,
   refresh,
-  saveArrivalRoute,
-  deleteArrivalRoute,
+  replaceArrivalFixes,
   saveFeederFix,
   deleteFeederFix,
   replaceIndependentRunwaySystems,
@@ -25,8 +24,7 @@ const {
 } = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
-  saveArrivalRoute: vi.fn(),
-  deleteArrivalRoute: vi.fn(),
+  replaceArrivalFixes: vi.fn(),
   saveFeederFix: vi.fn(),
   deleteFeederFix: vi.fn(),
   replaceIndependentRunwaySystems: vi.fn(),
@@ -45,8 +43,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('./api', () => ({
   api: {
-    saveArrivalRoute,
-    deleteArrivalRoute,
+    replaceArrivalFixes,
     saveFeederFix,
     deleteFeederFix,
     replaceIndependentRunwaySystems,
@@ -60,8 +57,7 @@ vi.mock('./api', () => ({
 beforeEach(() => {
   push.mockReset();
   refresh.mockReset();
-  saveArrivalRoute.mockReset();
-  deleteArrivalRoute.mockReset();
+  replaceArrivalFixes.mockReset();
   saveFeederFix.mockReset();
   deleteFeederFix.mockReset();
   replaceIndependentRunwaySystems.mockReset();
@@ -75,10 +71,14 @@ afterEach(() => {
   cleanup();
 });
 
-test('arrival routes page explains STAR usage and EuroScope exact naming', () => {
+test('arrival fixes page shows a compact runway matrix', () => {
   render(
-    <AirportArrivalRoutesPageClient
-      records={[]}
+    <AirportArrivalFixesPageClient
+      arrivalFixes={{
+        airportId: 1,
+        airportIcao: 'ENGM',
+        expectations: [],
+      }}
       airport={{
         id: 1,
         icao: 'ENGM',
@@ -102,75 +102,38 @@ test('arrival routes page explains STAR usage and EuroScope exact naming', () =>
 
   expect(
     screen.getByText(
-      'Define typical altitudes and airspeed along each STAR for an airport. This will make descent trajectories and estimated landing times more accurate. Make sure the STAR names and fixes match exactly with the ones defined in the EuroScope .ese sector file.'
+      'Set the usual altitude, speed, and fix type for each runway. Share one row when multiple runways use the same expectation.'
     )
   ).toBeInTheDocument();
-  expect(
-    screen.getByText('Configure a separate arrival route for each runway used at this airport.')
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText('Must match the arrival route name in the EuroScope sectorfile exactly.')
-  ).toBeInTheDocument();
-  expect(screen.getByText('Intermediate fix')).toBeInTheDocument();
-  expect(screen.getByText('Initial approach fix')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Add expectation' })).toBeInTheDocument();
+  expect(screen.getByText('Runway matrix')).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: '01L' })).toBeInTheDocument();
+  expect(screen.getByText('Applies to')).toBeInTheDocument();
 });
 
-test('clones an arrival route into a new draft and saves it as a new record', async () => {
-  saveArrivalRoute.mockResolvedValue({
-    route: {
-      id: 22,
-      airport_id: 1,
-      airport_icao: 'ENGM',
-      runway_identifier: '19R',
-      name: 'MIRPU1A',
-      intermediate_fix: 'NILUG',
-      initial_approach_fix: 'MIRPU',
-    },
+test('saves airport-wide arrival fixes with shared runway membership', async () => {
+  replaceArrivalFixes.mockResolvedValue({
+    airportId: 1,
+    airportIcao: 'ENGM',
     expectations: [
       {
-        arrival_route_id: 22,
-        fix_name: 'MIRPU',
-        typical_altitude: 7000,
-        typical_airspeed: 210,
-      },
-      {
-        arrival_route_id: 22,
-        fix_name: 'NILUG',
-        typical_altitude: 5000,
-        typical_airspeed: 180,
+        id: 22,
+        fixName: 'TITLA',
+        runwayIdentifiers: ['19L', '19R'],
+        role: 'INITIAL_APPROACH',
+        typicalAltitude: 5000,
+        typicalAirspeed: 200,
       },
     ],
   });
 
   render(
-    <AirportArrivalRoutesPageClient
-      records={[
-        {
-          route: {
-            id: 10,
-            airport_id: 1,
-            airport_icao: 'ENGM',
-            runway_identifier: '19R',
-            name: 'MIRPU1A',
-            intermediate_fix: 'NILUG',
-            initial_approach_fix: 'MIRPU',
-          },
-          expectations: [
-            {
-              arrival_route_id: 10,
-              fix_name: 'MIRPU',
-              typical_altitude: 7000,
-              typical_airspeed: 210,
-            },
-            {
-              arrival_route_id: 10,
-              fix_name: 'NILUG',
-              typical_altitude: 5000,
-              typical_airspeed: 180,
-            },
-          ],
-        },
-      ]}
+    <AirportArrivalFixesPageClient
+      arrivalFixes={{
+        airportId: 1,
+        airportIcao: 'ENGM',
+        expectations: [],
+      }}
       airport={{
         id: 1,
         icao: 'ENGM',
@@ -179,6 +142,15 @@ test('clones an arrival route into a new draft and saves it as a new record', as
         subdivision: 'VACCSCA',
       }}
       thresholds={[
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: '19L',
+          runway_true_bearing: 192,
+          latitude: 60.1939,
+          longitude: 11.1004,
+          elevation_feet: 681,
+        },
         {
           airport_id: 1,
           airport_icao: 'ENGM',
@@ -192,55 +164,47 @@ test('clones an arrival route into a new draft and saves it as a new record', as
     />
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Clone' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add expectation' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Expectation 1 runway 19L' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Expectation 1 runway 19R' }));
+  fireEvent.change(screen.getByLabelText('Fix 1'), { target: { value: 'titla' } });
+  fireEvent.change(screen.getByLabelText('Type 1'), {
+    target: { value: 'INITIAL_APPROACH' },
+  });
+  fireEvent.change(screen.getByLabelText('Typical altitude 1'), {
+    target: { value: '5000' },
+  });
+  fireEvent.change(screen.getByLabelText('Typical airspeed 1'), {
+    target: { value: '200' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
   await waitFor(() =>
-    expect(saveArrivalRoute).toHaveBeenCalledWith({
-      route: {
-        id: null,
-        airport_id: 1,
-        airport_icao: 'ENGM',
-        runway_identifier: '19R',
-        name: 'MIRPU1A',
-        intermediate_fix: 'NILUG',
-        initial_approach_fix: 'MIRPU',
-      },
+    expect(replaceArrivalFixes).toHaveBeenCalledWith(1, {
+      airportId: 1,
+      airportIcao: 'ENGM',
       expectations: [
         {
-          arrival_route_id: null,
-          fix_name: 'MIRPU',
-          typical_altitude: 7000,
-          typical_airspeed: 210,
-        },
-        {
-          arrival_route_id: null,
-          fix_name: 'NILUG',
-          typical_altitude: 5000,
-          typical_airspeed: 180,
+          id: null,
+          fixName: 'TITLA',
+          runwayIdentifiers: ['19L', '19R'],
+          role: 'INITIAL_APPROACH',
+          typicalAltitude: 5000,
+          typicalAirspeed: 200,
         },
       ],
     })
   );
 });
 
-test('uppercases intermediate and initial approach fixes while editing', () => {
+test('requires at least one runway before saving an expectation', () => {
   render(
-    <AirportArrivalRoutesPageClient
-      records={[
-        {
-          route: {
-            id: 10,
-            airport_id: 1,
-            airport_icao: 'ENGM',
-            runway_identifier: '19R',
-            name: 'MIRPU1A',
-            intermediate_fix: null,
-            initial_approach_fix: null,
-          },
-          expectations: [],
-        },
-      ]}
+    <AirportArrivalFixesPageClient
+      arrivalFixes={{
+        airportId: 1,
+        airportIcao: 'ENGM',
+        expectations: [],
+      }}
       airport={{
         id: 1,
         icao: 'ENGM',
@@ -262,13 +226,11 @@ test('uppercases intermediate and initial approach fixes while editing', () => {
     />
   );
 
-  fireEvent.change(screen.getByLabelText('Intermediate fix'), { target: { value: 'nilug' } });
-  fireEvent.change(screen.getByLabelText('Initial approach fix'), {
-    target: { value: 'mirpu' },
-  });
+  fireEvent.click(screen.getByRole('button', { name: 'Add expectation' }));
+  fireEvent.change(screen.getByLabelText('Fix 1'), { target: { value: 'titla' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-  expect(screen.getByLabelText('Intermediate fix')).toHaveValue('NILUG');
-  expect(screen.getByLabelText('Initial approach fix')).toHaveValue('MIRPU');
+  expect(screen.getByText('Each expectation must include at least one runway.')).toBeInTheDocument();
 });
 
 test('independent runway systems save as compact airport-scoped groups', async () => {
@@ -362,30 +324,23 @@ test('independent runway systems save as compact airport-scoped groups', async (
   expect(screen.getByText('Group 1')).toBeInTheDocument();
 });
 
-test('uppercases and constrains expectation fix names while editing', () => {
+test('duplicate and split creates a second editable row', () => {
   render(
-    <AirportArrivalRoutesPageClient
-      records={[
-        {
-          route: {
+    <AirportArrivalFixesPageClient
+      arrivalFixes={{
+        airportId: 1,
+        airportIcao: 'ENGM',
+        expectations: [
+          {
             id: 10,
-            airport_id: 1,
-            airport_icao: 'ENGM',
-            runway_identifier: '19R',
-            name: 'MIRPU1A',
-            intermediate_fix: null,
-            initial_approach_fix: null,
+            fixName: 'TITLA',
+            runwayIdentifiers: ['19R'],
+            role: 'INITIAL_APPROACH',
+            typicalAltitude: 5000,
+            typicalAirspeed: 200,
           },
-          expectations: [
-            {
-              arrival_route_id: 10,
-              fix_name: '',
-              typical_altitude: null,
-              typical_airspeed: null,
-            },
-          ],
-        },
-      ]}
+        ],
+      }}
       airport={{
         id: 1,
         icao: 'ENGM',
@@ -407,12 +362,77 @@ test('uppercases and constrains expectation fix names while editing', () => {
     />
   );
 
-  const textInputs = screen.getAllByRole('textbox');
-  const expectationFixInput = textInputs[textInputs.length - 1];
+  fireEvent.click(screen.getByRole('button', { name: 'Duplicate and split' }));
 
-  fireEvent.change(expectationFixInput, { target: { value: 'ab-c12345' } });
+  expect(screen.getAllByDisplayValue('TITLA')).toHaveLength(2);
+});
 
-  expect(screen.getByDisplayValue('ABC12')).toBeInTheDocument();
+test('applies-to preview shows the selected runway without filtering the table', () => {
+  render(
+    <AirportArrivalFixesPageClient
+      arrivalFixes={{
+        airportId: 1,
+        airportIcao: 'ENGM',
+        expectations: [
+          {
+            id: 10,
+            fixName: 'TITLA',
+            runwayIdentifiers: ['19L', '19R'],
+            role: 'INITIAL_APPROACH',
+            typicalAltitude: 5000,
+            typicalAirspeed: 200,
+          },
+          {
+            id: 11,
+            fixName: 'OSPAD',
+            runwayIdentifiers: ['19L'],
+            role: 'INTERMEDIATE',
+            typicalAltitude: 4000,
+            typicalAirspeed: 180,
+          },
+        ],
+      }}
+      airport={{
+        id: 1,
+        icao: 'ENGM',
+        latitude: 60.1939,
+        longitude: 11.1004,
+        subdivision: 'VACCSCA',
+      }}
+      thresholds={[
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: '19L',
+          runway_true_bearing: 192,
+          latitude: 60.1939,
+          longitude: 11.1004,
+          elevation_feet: 681,
+        },
+        {
+          airport_id: 1,
+          airport_icao: 'ENGM',
+          identifier: '19R',
+          runway_true_bearing: 192,
+          latitude: 60.1939,
+          longitude: 11.1004,
+          elevation_feet: 681,
+        },
+      ]}
+    />
+  );
+
+  const previewSection = screen.getByText('Applies to').closest('section');
+  expect(previewSection).not.toBeNull();
+
+  const preview = within(previewSection as HTMLElement);
+  fireEvent.click(preview.getByRole('button', { name: '19L' }));
+
+  expect(preview.getByText('OSPAD')).toBeInTheDocument();
+  expect(preview.getByText('Type: Intermediate')).toBeInTheDocument();
+  expect(preview.getByText('Altitude: 4000')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('TITLA')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('OSPAD')).toBeInTheDocument();
 });
 
 test('timeline presets render left and right sides with simple multi-selects and no group name field', () => {

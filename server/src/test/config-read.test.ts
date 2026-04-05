@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import type {
   AircraftConfig,
+  ArrivalFixExpectationSet,
   AirportConfig,
-  ArrivalRouteConfig,
   BootstrapData,
   FeederFixRecord,
   HorizonConfig,
@@ -19,7 +19,7 @@ import type {
 import { NotFoundError } from '../app/errors';
 import {
   getConfigAirportAggregate,
-  listConfigAirportArrivalRoutes,
+  listConfigAirportArrivalFixes,
   listConfigAirportFeederFixes,
   listConfigAirportHorizons,
   listConfigAirportTimelines,
@@ -73,39 +73,41 @@ function createRepositoryFixture(): ConfigRepository {
     },
   ];
 
-  const arrivalRoutes: ArrivalRouteConfig[] = [
-    {
-      route: {
-        id: 10,
-        airport_id: 1,
-        airport_icao: 'ENGM',
-        runway_identifier: '01L',
-        name: 'LUNIP',
-        intermediate_fix: 'LUNIP',
-        initial_approach_fix: 'TITLA',
+  const arrivalFixes = new Map<number, ArrivalFixExpectationSet>([
+    [
+      1,
+      {
+        airportId: 1,
+        airportIcao: 'ENGM',
+        expectations: [
+          {
+            id: 10,
+            fixName: 'LUNIP',
+            runwayIdentifiers: ['01L'],
+            role: 'INTERMEDIATE',
+            typicalAltitude: 7000,
+            typicalAirspeed: 210,
+          },
+          {
+            id: 11,
+            fixName: 'TITLA',
+            runwayIdentifiers: ['01L'],
+            role: 'INITIAL_APPROACH',
+            typicalAltitude: 5000,
+            typicalAirspeed: 200,
+          },
+        ],
       },
-      expectations: [
-        {
-          arrival_route_id: 10,
-          fix_name: 'LUNIP',
-          typical_altitude: 7000,
-          typical_airspeed: 210,
-        },
-      ],
-    },
-    {
-      route: {
-        id: 11,
-        airport_id: 2,
-        airport_icao: 'ENGM',
-        runway_identifier: '03',
-        name: 'OTHER',
-        intermediate_fix: null,
-        initial_approach_fix: null,
+    ],
+    [
+      2,
+      {
+        airportId: 2,
+        airportIcao: 'ENGM',
+        expectations: [],
       },
-      expectations: [],
-    },
-  ];
+    ],
+  ]);
 
   const feederFixes: FeederFixRecord[] = [
     { airport_id: 1, airport_icao: 'ENGM', identifier: 'FIXA', created_at: null },
@@ -246,11 +248,15 @@ function createRepositoryFixture(): ConfigRepository {
     getAirport: notImplemented as unknown as (id: number) => Promise<AirportConfig>,
     saveAirport: notImplemented as unknown as (config: AirportConfig) => Promise<AirportConfig>,
     deleteAirport: notImplemented as unknown as (id: number) => Promise<void>,
-    listArrivalRoutes: async () => arrivalRoutes,
-    saveArrivalRoute: notImplemented as unknown as (
-      config: ArrivalRouteConfig
-    ) => Promise<ArrivalRouteConfig>,
-    deleteArrivalRoute: notImplemented as unknown as (id: number) => Promise<void>,
+    getArrivalFixes: async (airportId: number) =>
+      arrivalFixes.get(airportId) ?? {
+        airportId,
+        airportIcao: airports.find((airport) => airport.airport.id === airportId)?.airport.icao ?? '',
+        expectations: [],
+      },
+    replaceArrivalFixes: notImplemented as unknown as (
+      config: ArrivalFixExpectationSet
+    ) => Promise<ArrivalFixExpectationSet>,
     listFeederFixes: async () => feederFixes,
     saveFeederFix: notImplemented as unknown as (record: FeederFixRecord) => Promise<FeederFixRecord>,
     deleteFeederFix: notImplemented as unknown as (
@@ -361,7 +367,7 @@ test('getConfigAirportAggregate resolves duplicate ICAOs by subdivision and stri
     },
   ]);
   assert.deepEqual(aggregate.feederFixes, [{ identifier: 'FIXA' }]);
-  assert.equal(aggregate.arrivalRoutes.length, 1);
+  assert.equal(aggregate.arrivalFixes.length, 2);
   assert.equal(aggregate.timelines.length, 1);
   assert.equal(aggregate.timelines[0].labelLayout.name, 'Nordic Arrivals');
   assert.equal(aggregate.timelines[0].rightGroup.groupType, 'RUNWAY');
@@ -369,7 +375,7 @@ test('getConfigAirportAggregate resolves duplicate ICAOs by subdivision and stri
   assert.equal(aggregate.horizons.length, 1);
   assert.ok(!('id' in aggregate.airport));
   assert.ok(!('airport_id' in aggregate.thresholds[0]));
-  assert.ok(!('id' in aggregate.arrivalRoutes[0]));
+  assert.ok(!('id' in aggregate.arrivalFixes[0]));
   assert.ok(!('label_layout_id' in aggregate.timelines[0]));
   assert.ok(!('airport_id' in aggregate.horizons[0]));
 });
@@ -377,14 +383,14 @@ test('getConfigAirportAggregate resolves duplicate ICAOs by subdivision and stri
 test('airport-scoped child DTO loaders only return records for the requested airport', async () => {
   const repository = createRepositoryFixture();
 
-  const [arrivalRoutes, feederFixes, timelines, horizons] = await Promise.all([
-    listConfigAirportArrivalRoutes(repository, 'vaccsca', 'engm'),
+  const [arrivalFixes, feederFixes, timelines, horizons] = await Promise.all([
+    listConfigAirportArrivalFixes(repository, 'vaccsca', 'engm'),
     listConfigAirportFeederFixes(repository, 'vaccsca', 'engm'),
     listConfigAirportTimelines(repository, 'vaccsca', 'engm'),
     listConfigAirportHorizons(repository, 'vaccsca', 'engm'),
   ]);
 
-  assert.deepEqual(arrivalRoutes.map((route) => route.name), ['LUNIP']);
+  assert.deepEqual(arrivalFixes.map((expectation) => expectation.fixName), ['LUNIP', 'TITLA']);
   assert.deepEqual(feederFixes.map((fix) => fix.identifier), ['FIXA']);
   assert.deepEqual(timelines.map((timeline) => timeline.name), ['North Flow']);
   assert.deepEqual(horizons.map((horizon) => horizon.type), ['SEQUENCING']);

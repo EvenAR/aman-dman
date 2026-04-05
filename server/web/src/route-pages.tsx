@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 
 import type {
   AircraftConfig,
+  ArrivalFixExpectationSet,
   AirportConfig,
   AirportRecord,
-  ArrivalRouteConfig,
   FeederFixRecord,
   GeometryType,
   HorizonConfig,
@@ -22,7 +22,7 @@ import type {
 } from '../../shared/contracts';
 import {
   AircraftEditor,
-  ArrivalRouteEditor,
+  ArrivalFixExpectationSetEditor,
   AirportEditor,
   FeederFixEditor,
   HorizonEditor,
@@ -34,8 +34,8 @@ import {
 } from './editors/configEditors';
 import {
   emptyAircraft,
+  emptyArrivalFixExpectationSet,
   emptyAirport,
-  emptyArrivalRoute,
   emptyFeederFix,
   emptyHorizon,
   emptyLabelLayout,
@@ -43,7 +43,7 @@ import {
   emptyRoleAssignment,
   emptySubdivision,
   emptyTimelinePreset,
-  validateArrivalRouteConfig,
+  validateArrivalFixExpectationSet,
   validateAirportConfig,
   validateFeederFix,
   validateTimelinePreset,
@@ -60,49 +60,14 @@ function getAirportLabel(record: AirportConfig): string {
   return record.airport.icao || 'New airport';
 }
 
-function getArrivalRouteLabel(record: ArrivalRouteConfig): string {
-  const name = record.route.name.trim();
-  const runway = record.route.runway_identifier.trim();
-
-  if (name && runway) {
-    return `${name} (${runway})`;
-  }
-
-  if (name) {
-    return name;
-  }
-
-  if (runway) {
-    return `Runway ${runway}`;
-  }
-
-  return record.route.airport_icao || 'New arrival route';
+function getArrivalFixExpectationSetKey(record: ArrivalFixExpectationSet): string {
+  return record.airportId === null
+    ? record.airportIcao || 'arrival-fixes'
+    : String(record.airportId);
 }
 
-function getArrivalRouteKey(record: ArrivalRouteConfig): string {
-  if (record.route.id === null) {
-    return 'new';
-  }
-
-  return [
-    record.route.id,
-    record.route.airport_id ?? record.route.airport_icao.trim().toUpperCase(),
-    record.route.runway_identifier.trim(),
-    record.route.name.trim(),
-  ].join(':');
-}
-
-function cloneArrivalRoute(record: ArrivalRouteConfig): ArrivalRouteConfig {
-  return {
-    route: {
-      ...record.route,
-      id: null,
-    },
-    expectations: record.expectations.map((expectation) => ({
-      ...expectation,
-      arrival_route_id: null,
-    })),
-  };
+function getArrivalFixExpectationSetLabel(record: ArrivalFixExpectationSet): string {
+  return record.airportIcao || 'Arrival fixes';
 }
 
 function getTimelineLabel(record: TimelinePresetRecord): string {
@@ -127,7 +92,7 @@ export function GlobalAircraftPageClient({
   return (
     <EntityEditorPage
       title="Aircraft"
-      description="Performance profiles and equivalence mappings shared across all subdivisions."
+      description="Set the aircraft performance values and equivalence mappings used across the system."
       records={records}
       createEmpty={emptyAircraft}
       getKey={(record) => record.performance.aircraft_type}
@@ -155,7 +120,7 @@ export function VaccLabelLayoutsPageClient({
   return (
     <EntityEditorPage
       title="Label Layouts"
-      description={`Arrival and departure label column definitions for ${subdivision.abbreviation}.`}
+      description={`Choose which fields appear in labels for ${subdivision.abbreviation}, and in what order.`}
       records={records}
       createEmpty={() => ({
         ...emptyLabelLayout(),
@@ -223,7 +188,7 @@ export function GlobalLabelItemSourcesPageClient({
     <div className="route-page-stack">
       <LabelSourceSection
         title="Arrival Label Sources"
-        description="Shared arrival label source catalogue."
+        description="Manage the arrival label fields available when building label layouts."
         records={arrivalRecords}
         showExample
         save={api.saveArrivalLabelSource}
@@ -231,7 +196,7 @@ export function GlobalLabelItemSourcesPageClient({
       />
       <LabelSourceSection
         title="Departure Label Sources"
-        description="Shared departure label source catalogue."
+        description="Manage the departure label fields available when building label layouts."
         records={departureRecords}
         showExample
         save={api.saveDepartureLabelSource}
@@ -253,7 +218,7 @@ export function GlobalRoleAssignmentsPageClient({
   return (
     <EntityEditorPage
       title="Role Assignments"
-      description="Shared user-to-role and subdivision mappings."
+      description="Assign users to roles and subdivisions."
       records={records}
       createEmpty={emptyRoleAssignment}
       getKey={(record) => `${record.user}:${record.role}`}
@@ -280,7 +245,7 @@ export function GlobalSubdivisionsPageClient({
   return (
     <EntityEditorPage
       title="Subdivisions"
-      description="Canonical subdivision definitions and slugs."
+      description="Manage the subdivisions available in the editor and config APIs."
       records={records}
       createEmpty={emptySubdivision}
       getKey={(record) => record.abbreviation}
@@ -304,7 +269,7 @@ export function AirportSettingsPageClient({
   return (
     <EntityEditorPage
       title="Airport Settings"
-      description="Coordinates, subdivision assignment, and thresholds for this airport."
+      description="Update the airport position and runway thresholds used by the rest of the airport setup."
       records={[record]}
       allowCreate={false}
       showRecordList={false}
@@ -330,43 +295,30 @@ export function AirportSettingsPageClient({
   );
 }
 
-export function AirportArrivalRoutesPageClient({
-  records,
+export function AirportArrivalFixesPageClient({
+  arrivalFixes,
   airport,
   thresholds,
 }: {
-  records: ArrivalRouteConfig[];
+  arrivalFixes: ArrivalFixExpectationSet;
   airport: AirportRecord;
   thresholds: ThresholdRecord[];
 }): React.JSX.Element {
   return (
     <EntityEditorPage
-      title="Arrival Routes"
-      description="Define typical altitudes and airspeed along each STAR for an airport. This will make descent trajectories and estimated landing times more accurate. Make sure the STAR names and fixes match exactly with the ones defined in the EuroScope .ese sector file."
-      records={records}
-      createEmpty={() => ({
-        ...emptyArrivalRoute(),
-        route: {
-          ...emptyArrivalRoute().route,
-          airport_id: airport.id,
-          airport_icao: airport.icao,
-        },
-      })}
-      getKey={getArrivalRouteKey}
-      getLabel={getArrivalRouteLabel}
-      cloneDraft={cloneArrivalRoute}
+      title="Arrival Fixes"
+      description="Set the usual altitude, speed, and fix type for each runway. Share one row when multiple runways use the same expectation."
+      records={[arrivalFixes]}
+      createEmpty={() => emptyArrivalFixExpectationSet(airport)}
+      getKey={getArrivalFixExpectationSetKey}
+      getLabel={getArrivalFixExpectationSetLabel}
       renderEditor={(draft, onChange) => (
-        <ArrivalRouteEditor
-          draft={draft}
-          airports={[airport]}
-          thresholds={thresholds}
-          fixedAirport={airport}
-          onChange={onChange}
-        />
+        <ArrivalFixExpectationSetEditor draft={draft} thresholds={thresholds} onChange={onChange} />
       )}
-      validate={validateArrivalRouteConfig}
-      onSave={(draft) => api.saveArrivalRoute(draft)}
-      onDelete={(draft) => api.deleteArrivalRoute(draft.route.id ?? 0)}
+      validate={validateArrivalFixExpectationSet}
+      onSave={(draft) => api.replaceArrivalFixes(airport.id ?? 0, draft)}
+      allowCreate={false}
+      showRecordList={false}
     />
   );
 }
@@ -387,7 +339,7 @@ export function AirportTimelinesPageClient({
   return (
     <EntityEditorPage
       title="Timelines"
-      description="Configure left/right timeline sides as runway or feeder-fix groups for this airport."
+      description="Choose what appears on the left and right timeline for this airport."
       records={records}
       createEmpty={() => emptyTimelinePreset(airport)}
       getKey={(record) => String(record.id ?? 'new')}
@@ -420,7 +372,7 @@ export function AirportFeederFixesPageClient({
   return (
     <EntityEditorPage
       title="Feeder Fixes"
-      description="Manage feeder fixes available for this airport. Identifiers must use uppercase letters and numbers only, max 5 characters."
+      description="Add the feeder fixes controllers can use for this airport. Identifiers use uppercase letters and numbers only, max 5 characters."
       records={records}
       createEmpty={() => emptyFeederFix(airport)}
       getKey={(record) => record.identifier || 'new'}
@@ -617,8 +569,7 @@ export function AirportIndependentRunwaySystemsPageClient({
           <span className="eyebrow">Editor</span>
           <h2>Independent Runway Systems</h2>
           <p>
-            Add a group, then click runways to assign them. Clicking a runway in another group moves
-            it here.
+            Group runways that can operate independently. Each runway can belong to one group only.
           </p>
         </div>
         <div className="workspace__actions">
@@ -705,7 +656,7 @@ export function AirportHorizonsPageClient({
   return (
     <EntityEditorPage
       title="Horizons"
-      description="Airport-specific horizons with map-centered boundary editing."
+      description="Draw or edit the horizon boundaries used for this airport."
       records={records}
       createEmpty={() => emptyHorizon(airport, horizonTypeOptions[0] ?? '')}
       getKey={getHorizonKey}

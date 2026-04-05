@@ -234,14 +234,16 @@ export function EntityEditorPage<T>({
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
-          <button
-            type="button"
-            className="danger-button"
-            onClick={() => void handleDelete()}
-            disabled={saving || !onDelete || selectedKey === 'new'}
-          >
-            Delete
-          </button>
+          {onDelete ? (
+            <button
+              type="button"
+              className="danger-button"
+              onClick={() => void handleDelete()}
+              disabled={saving || selectedKey === 'new'}
+            >
+              Delete
+            </button>
+          ) : null}
         </div>
       </header>
 

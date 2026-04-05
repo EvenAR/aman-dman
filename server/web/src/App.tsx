@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   AircraftConfig,
   AirportConfig,
-  ArrivalRouteConfig,
   BootstrapData,
   HorizonConfig,
   LabelItemSourceRecord,
@@ -19,7 +18,6 @@ import { api } from './api';
 import {
   AircraftEditor,
   AirportEditor,
-  ArrivalRouteEditor,
   HorizonEditor,
   LabelLayoutEditor,
   LabelSourceEditor,
@@ -31,7 +29,6 @@ import {
 import {
   emptyAircraft,
   emptyAirport,
-  emptyArrivalRoute,
   emptyHorizon,
   emptyLabelLayout,
   emptyLabelSource,
@@ -45,7 +42,6 @@ import { cloneValue, isEqual, useBeforeUnload } from './lib/editor-state';
 type SectionId =
   | 'aircraft'
   | 'airports'
-  | 'arrivalRoutes'
   | 'timelines'
   | 'labelLayouts'
   | 'horizons'
@@ -68,12 +64,6 @@ const sections: SectionDefinition[] = [
     description: 'Performance profiles and equivalence mapping.',
   },
   { id: 'airports', label: 'Airports', description: 'Airport coordinates and runway thresholds.' },
-  {
-    id: 'arrivalRoutes',
-    label: 'Arrival Routes',
-    description:
-      'One arrival route per runway, with names matching the EuroScope sectorfile exactly.',
-  },
   { id: 'timelines', label: 'Timelines', description: 'Timeline runway pairings.' },
   {
     id: 'labelLayouts',
@@ -114,8 +104,6 @@ function getItemKey(section: SectionId, item: unknown): string {
       return (item as AircraftConfig).performance.aircraft_type;
     case 'airports':
       return String((item as AirportConfig).airport.id ?? (item as AirportConfig).airport.icao);
-    case 'arrivalRoutes':
-      return getArrivalRouteKey(item as ArrivalRouteConfig);
     case 'timelines': {
       const timeline = item as TimelinePresetRecord;
       return String(timeline.id ?? 'new');
@@ -138,19 +126,6 @@ function getItemKey(section: SectionId, item: unknown): string {
   }
 }
 
-function getArrivalRouteKey(record: ArrivalRouteConfig): string {
-  if (record.route.id === null) {
-    return 'new';
-  }
-
-  return [
-    record.route.id,
-    record.route.airport_id ?? record.route.airport_icao.trim().toUpperCase(),
-    record.route.runway_identifier.trim(),
-    record.route.name.trim(),
-  ].join(':');
-}
-
 function getHorizonKey(record: HorizonConfig): string {
   const airportKey = record.horizon.airport_id ?? record.horizon.airport_icao.trim().toUpperCase();
   const type = record.horizon.type.trim();
@@ -163,25 +138,6 @@ function getItemLabel(section: SectionId, item: unknown): string {
       return (item as AircraftConfig).performance.aircraft_type || 'New aircraft';
     case 'airports':
       return (item as AirportConfig).airport.icao || 'New airport';
-    case 'arrivalRoutes': {
-      const route = (item as ArrivalRouteConfig).route;
-      const name = route.name.trim();
-      const runway = route.runway_identifier.trim();
-
-      if (name && runway) {
-        return `${name} (${runway})`;
-      }
-
-      if (name) {
-        return name;
-      }
-
-      if (runway) {
-        return `Runway ${runway}`;
-      }
-
-      return route.airport_icao || 'New arrival route';
-    }
     case 'timelines': {
       const timeline = item as TimelinePresetRecord;
       return timeline.name || `${timeline.airport_icao} timeline`;
@@ -212,8 +168,6 @@ function createEmptyDraft(section: SectionId, bootstrap: BootstrapData): unknown
       return emptyAircraft();
     case 'airports':
       return emptyAirport();
-    case 'arrivalRoutes':
-      return emptyArrivalRoute();
     case 'timelines':
       return emptyTimelinePreset(bootstrap.airports[0]);
     case 'labelLayouts':
@@ -238,8 +192,6 @@ async function listSectionRecords(section: SectionId): Promise<unknown[]> {
       return api.listAircraft();
     case 'airports':
       return api.listAirports();
-    case 'arrivalRoutes':
-      return api.listArrivalRoutes();
     case 'timelines':
       return api.listTimelines();
     case 'labelLayouts':
@@ -269,8 +221,6 @@ async function saveSectionRecord(
       return api.saveAircraft(draft as AircraftConfig);
     case 'airports':
       return api.saveAirport(draft as AirportConfig);
-    case 'arrivalRoutes':
-      return api.saveArrivalRoute(draft as ArrivalRouteConfig);
     case 'timelines':
       return api.saveTimelinePreset(draft as TimelinePresetRecord);
     case 'labelLayouts':
@@ -296,8 +246,6 @@ async function deleteSectionRecord(section: SectionId, draft: unknown): Promise<
       return api.deleteAircraft((draft as AircraftConfig).performance.aircraft_type);
     case 'airports':
       return api.deleteAirport((draft as AirportConfig).airport.id ?? 0);
-    case 'arrivalRoutes':
-      return api.deleteArrivalRoute((draft as ArrivalRouteConfig).route.id ?? 0);
     case 'timelines':
       return api.deleteTimelinePreset(draft as TimelinePresetRecord);
     case 'labelLayouts':
@@ -659,14 +607,6 @@ export function App(): React.JSX.Element {
                 ) : null}
                 {activeSection === 'airports' ? (
                   <AirportEditor draft={draft as AirportConfig} onChange={setDraft} />
-                ) : null}
-                {activeSection === 'arrivalRoutes' ? (
-                  <ArrivalRouteEditor
-                    draft={draft as ArrivalRouteConfig}
-                    airports={bootstrap.airports}
-                    thresholds={bootstrap.thresholds}
-                    onChange={setDraft}
-                  />
                 ) : null}
                 {activeSection === 'timelines' ? (
                   <TimelineEditor
