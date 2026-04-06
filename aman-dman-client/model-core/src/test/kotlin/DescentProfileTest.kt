@@ -1,22 +1,21 @@
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.planning.DescentTrajectoryService
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
-import no.vaccsca.amandman.model.navigation.Star
-import no.vaccsca.amandman.model.navigation.StarFix
-import no.vaccsca.amandman.model.planning.TrajectoryPoint
+import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
+import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
+import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.navigation.LatLng
+import no.vaccsca.amandman.model.navigation.NavigationUtils.dmsToDecimal
+import no.vaccsca.amandman.model.navigation.NavigationUtils.interpolatePositionAlongPath
+import no.vaccsca.amandman.model.navigation.Waypoint
 import no.vaccsca.amandman.model.navigation.bearingTo
 import no.vaccsca.amandman.model.navigation.distanceTo
+import no.vaccsca.amandman.model.planning.TrajectoryPoint
 import no.vaccsca.amandman.model.weather.SpatialWeatherField
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import no.vaccsca.amandman.model.weather.WeatherLayer
 import no.vaccsca.amandman.model.weather.WindVector
-import no.vaccsca.amandman.model.navigation.NavigationUtils.dmsToDecimal
-import no.vaccsca.amandman.model.navigation.NavigationUtils.interpolatePositionAlongPath
-import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
-import no.vaccsca.amandman.model.airport.Airport
-import no.vaccsca.amandman.model.airport.RunwayThreshold
-import no.vaccsca.amandman.model.navigation.Waypoint
 import org.junit.jupiter.api.Test
 import kotlin.collections.listOf
 import kotlin.math.roundToInt
@@ -27,35 +26,22 @@ import kotlin.time.Duration.Companion.minutes
 
 class DescentProfileTest {
 
-    val star01LLunip4L =  Star(
-        id = "LUNIP4L",
-        fixes = listOf(
-            starFix("LUNIP") {
-                speed(250)
-            },
-            starFix("GM416") {
-                altitude(11000)
-                speed(220)
-            },
-            starFix("INSUV") {
-                altitude(5000)
-                speed(200)
-            },
-            starFix("NOSLA") {
-                altitude(4000)
-                speed(180)
-            },
-            starFix("XEMEN") {
-                altitude(3500)
-                speed(170)
-            },
-            starFix("ENGM") {
-                altitude(700)
-            }
-        )
+    val arrivalFixExpectations01L = listOf(
+        arrivalFixExpectation("LUNIP", typicalSpeedIas = 250),
+        arrivalFixExpectation("GM416", typicalAltitude = 11000, typicalSpeedIas = 220),
+        arrivalFixExpectation("INSUV", typicalAltitude = 5000, typicalSpeedIas = 200),
+        arrivalFixExpectation("NOSLA", typicalAltitude = 4000, typicalSpeedIas = 180),
+        arrivalFixExpectation("XEMEN", typicalAltitude = 3500, typicalSpeedIas = 170),
+        arrivalFixExpectation("ENGM", typicalAltitude = 700),
     )
 
-    val runwayThreshold01L = RunwayThreshold("01L", latLng = LatLng(60.18501045995491,11.073783755507158), elevation = 681f, stars = listOf(star01LLunip4L), trueHeading = 014f)
+    val runwayThreshold01L = RunwayThreshold(
+        id = "01L",
+        latLng = LatLng(60.18501045995491,11.073783755507158),
+        elevation = 681f,
+        trueHeading = 14f,
+        arrivalFixExpectations = arrivalFixExpectations01L,
+    )
 
     val testAirport = Airport(
         icao = "ENGM",
@@ -100,7 +86,7 @@ class DescentProfileTest {
     ///////////////////////////////////////////////////////////////////////////
 
     @Test
-    fun `STAR length matches AIRAC spec`() {
+    fun `Arrival route length matches AIRAC spec`() {
         val lunip4lRoute = listOf(
             Waypoint("LUNIP", dmsToDecimal("""59°10'60.0"N  011°18'55.0"E""")),
             Waypoint("DEVKU", dmsToDecimal("""59°27'7.9"N  011°15'34.4"E""")),
@@ -330,7 +316,14 @@ class DescentProfileTest {
             from.latLng.distanceTo(to.latLng)
         }
 
-    private fun starFix(id: String, block: StarFix.StarFixBuilder.() -> Unit): StarFix {
-        return StarFix.StarFixBuilder(id).apply(block).build()
-    }
+    private fun arrivalFixExpectation(
+        fixName: String,
+        typicalAltitude: Int? = null,
+        typicalSpeedIas: Int? = null,
+    ) = ArrivalFixExpectation(
+        fixName = fixName,
+        role = null,
+        typicalAltitude = typicalAltitude,
+        typicalSpeedIas = typicalSpeedIas,
+    )
 }

@@ -6,9 +6,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.config.mapper.toDomain
+import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
@@ -51,15 +51,15 @@ object SettingsRepository : SettingsProvider {
         logger.info("Loaded airport config for: ${airportsJson.airports.keys.joinToString(", ")}")
         airportData = airportsJson.airports.mapNotNull { (icao, airportJson) ->
             try {
-                val stars = readYamlFile<StarYamlFile>("config/stars/$icao.yaml")
-                logger.info("Loaded STAR data for airport $icao")
-                airportJson.toDomain(icao, stars)
+                val arrivalFixes = readYamlFile<ArrivalFixYamlFile>("config/arrival-fixes/$icao.yaml")
+                logger.info("Loaded arrival fix data for airport $icao")
+                airportJson.toDomain(icao, arrivalFixes)
             } catch (e: FileNotFoundException) {
-                logger.warn("STAR data file not found for airport $icao. Trajectory calculations will have reduced accuracy.")
-                airportJson.toDomain(icao, StarYamlFile(emptyList()))
+                logger.warn("Arrival fix data file not found for airport $icao. Trajectory calculations will have reduced accuracy.")
+                airportJson.toDomain(icao, ArrivalFixYamlFile(emptyList()))
             } catch (e: Exception) {
-                logger.error("Error loading STAR data for airport $icao: ${e.message}")
-                airportJson.toDomain(icao, StarYamlFile(emptyList()))
+                logger.error("Error loading arrival fix data for airport $icao: ${e.message}")
+                airportJson.toDomain(icao, ArrivalFixYamlFile(emptyList()))
             }
         }
         validateAirportMeteringTimelineLayouts()

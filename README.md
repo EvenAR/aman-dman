@@ -38,7 +38,7 @@ See example configuration [here](https://github.com/EvenAR/aman-dman/tree/main/a
 
 - `airports.yaml`: To be able to connect the AMAN to an airport, the airport location and all its runway thresholds must be defined in this file.
 - `settings.yaml`: This defines the available timeline configurations for each airport.
-- `stars/<airport-icao>`: (optional) These files should define typical altitudes and airspeed along each STAR for an airport. This will make descent trajectories and estimated landing times more accurate.
+- `arrival-fixes/<airport-icao>`: (optional) These files define runway-scoped arrival fix expectations such as typical altitude and airspeed. Shared rows can apply to multiple runways. This makes descent trajectories and estimated landing times more accurate.
 
 💡 Tip: Install the [VSCode YAML extension from Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) to get help writing valid config files.
 

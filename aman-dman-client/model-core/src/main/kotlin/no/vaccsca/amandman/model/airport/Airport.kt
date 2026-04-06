@@ -1,7 +1,6 @@
 package no.vaccsca.amandman.model.airport
 
 import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.navigation.Star
 import kotlin.time.Duration
 
 data class Airport(
@@ -23,5 +22,5 @@ data class RunwayThreshold(
     val latLng: LatLng,
     val elevation: Float,
     val trueHeading: Float,
-    val stars: List<Star>,
+    val arrivalFixExpectations: List<ArrivalFixExpectation>,
 )

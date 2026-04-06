@@ -135,7 +135,6 @@ class ArrivalLabelScheduledArrivalTimeTest {
             airportIcao = "ENGM",
             trackingController = null,
             assignedStar = "GODOS",
-            assignedStarOk = true,
             flightLevel = 100,
             pressureAltitude = 5000,
             groundSpeed = 230,

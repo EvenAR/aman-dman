@@ -1,8 +1,7 @@
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
-import no.vaccsca.amandman.model.navigation.LatLng
+import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
 import no.vaccsca.amandman.model.airport.RunwayThreshold
-import no.vaccsca.amandman.model.navigation.Star
-import no.vaccsca.amandman.model.navigation.StarFix
+import no.vaccsca.amandman.model.navigation.LatLng
 
 val b738performance = AircraftPerformance(
     takeOffV2 = 145,
@@ -34,44 +33,18 @@ val b738performance = AircraftPerformance(
     landingAPC = "D" // Approach Category D
 )
 
-val star19LEseba4M =
-    Star(
-        id="ESEBA4M",
-        fixes= listOf(
-            StarFix(id="ESEBA", typicalAltitude=null, typicalSpeedIas=250),
-            StarFix(id="GM422", typicalAltitude=10000, typicalSpeedIas=220),
-            StarFix(id="TITLA", typicalAltitude=5000, typicalSpeedIas=200),
-            StarFix(id="OSPAD", typicalAltitude=4000, typicalSpeedIas=180),
-            StarFix(id="XIVTA", typicalAltitude=3500, typicalSpeedIas=170),
-            StarFix(id="ENGM", typicalAltitude=700, typicalSpeedIas=null)
-        )
-    )
-
-
-val star19LAdopi3M =
-    Star(
-        id="ADOPI3M",
-        fixes=listOf(
-            StarFix(id="ADOPI", typicalAltitude=null, typicalSpeedIas=250),
-            StarFix(id="GM428", typicalAltitude=10000, typicalSpeedIas=220),
-            StarFix(id="BAVAD", typicalAltitude=5000, typicalSpeedIas=200),
-            StarFix(id="OSPAD", typicalAltitude=4000, typicalSpeedIas=180),
-            StarFix(id="XIVTA", typicalAltitude=3500, typicalSpeedIas=170),
-            StarFix(id="ENGM", typicalAltitude=700, typicalSpeedIas=null)
-        )
-    )
-
-
-val star19LInrex4M = Star(
-    id="INREX4M",
-    fixes= listOf(
-        StarFix(id="INREX", typicalAltitude=null, typicalSpeedIas=250),
-        StarFix(id="GM418", typicalAltitude=11000, typicalSpeedIas=220),
-        StarFix(id="TITLA", typicalAltitude=5000, typicalSpeedIas=200),
-        StarFix(id="OSPAD", typicalAltitude=4000, typicalSpeedIas=180),
-        StarFix(id="XIVTA", typicalAltitude=3500, typicalSpeedIas=170),
-        StarFix(id="ENGM", typicalAltitude=700, typicalSpeedIas=null)
-    )
+val rwy19LArrivalFixExpectations = listOf(
+    arrivalFixExpectation("ADOPI", typicalSpeedIas = 250),
+    arrivalFixExpectation("BAVAD", typicalAltitude = 5000, typicalSpeedIas = 200),
+    arrivalFixExpectation("ENGM", typicalAltitude = 700),
+    arrivalFixExpectation("ESEBA", typicalSpeedIas = 250),
+    arrivalFixExpectation("GM418", typicalAltitude = 11000, typicalSpeedIas = 220),
+    arrivalFixExpectation("GM422", typicalAltitude = 10000, typicalSpeedIas = 220),
+    arrivalFixExpectation("GM428", typicalAltitude = 10000, typicalSpeedIas = 220),
+    arrivalFixExpectation("INREX", typicalSpeedIas = 250),
+    arrivalFixExpectation("OSPAD", typicalAltitude = 4000, typicalSpeedIas = 180),
+    arrivalFixExpectation("TITLA", typicalAltitude = 5000, typicalSpeedIas = 200),
+    arrivalFixExpectation("XIVTA", typicalAltitude = 3500, typicalSpeedIas = 170),
 )
 
 val rwy19L = RunwayThreshold(
@@ -79,5 +52,16 @@ val rwy19L = RunwayThreshold(
     latLng = LatLng(60.20116653568569,11.12244616482607),
     elevation = 681f,
     trueHeading = 194f,
-    stars=listOf(star19LInrex4M, star19LEseba4M, star19LAdopi3M)
+    arrivalFixExpectations = rwy19LArrivalFixExpectations,
+)
+
+private fun arrivalFixExpectation(
+    fixName: String,
+    typicalAltitude: Int? = null,
+    typicalSpeedIas: Int? = null,
+) = ArrivalFixExpectation(
+    fixName = fixName,
+    role = null,
+    typicalAltitude = typicalAltitude,
+    typicalSpeedIas = typicalSpeedIas,
 )

@@ -80,7 +80,6 @@ object ArrivalEventService {
             pressureAltitude = arrival.currentPosition.altitudeFt,
             airportIcao = arrival.arrivalAirportIcao,
             remainingDistance = trajectory.trajectoryPoints.first().remainingDistance,
-            assignedStarOk = trajectory.star != null,
             withinActiveAdvisoryHorizon = false,
             sequenceStatus = SequenceStatus.AWAITING_FOR_SEQUENCE,
             landingIas = aircraftPerformance.landingVat,

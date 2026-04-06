@@ -16,6 +16,7 @@ import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
 import no.vaccsca.amandman.model.config.Theme
 import no.vaccsca.amandman.model.config.TimelineDefaults
 import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceYaml
+import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
 import no.vaccsca.amandman.model.config.yaml.AirportJson
 import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
@@ -27,13 +28,9 @@ import no.vaccsca.amandman.model.config.yaml.LabelItemYaml
 import no.vaccsca.amandman.model.config.yaml.MasterSlaveApiConnectionParamsYaml
 import no.vaccsca.amandman.model.config.yaml.FeederFixTimelineYaml
 import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
-import no.vaccsca.amandman.model.config.yaml.StarYamlEntry
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import no.vaccsca.amandman.model.config.yaml.TimelineDefaultsYaml
 import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
 import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.navigation.Star
-import no.vaccsca.amandman.model.navigation.StarFix
 import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toKotlinDuration
@@ -166,8 +163,13 @@ fun LabelItemSourceEnumYaml.toDomain() = when(this) {
     LabelItemSourceEnumYaml.TTL_TTG -> LabelItemSource.TTL_TTG
 }
 
-fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
-    Airport(
+fun AirportJson.toDomain(icao: String, arrivalFixes: ArrivalFixYamlFile): Airport {
+    val runwayExpectationsByRunway = arrivalFixes.toRunwayExpectationsByRunway(
+        airportIcao = icao,
+        availableRunways = runwayThresholds.keys.map { it.uppercase() }.toSet(),
+    )
+
+    return Airport(
         icao = icao,
         location = LatLng(location.latitude, location.longitude),
         independentRunwaySystems = independentRunwaySystems?.map { it.toSet() } ?: listOf(runwayThresholds.keys),
@@ -185,9 +187,7 @@ fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
                 ),
                 elevation = value.elevation,
                 trueHeading = value.trueHeading,
-                stars = stars.stars.filter { it.runway == id }.map { starYaml ->
-                    starYaml.toDomain()
-                }
+                arrivalFixExpectations = runwayExpectationsByRunway[id.uppercase()] ?: emptyList(),
             )
         },
         feederFixes = feederFixes?.map { it.uppercase() } ?: emptyList(),
@@ -197,17 +197,7 @@ fun AirportJson.toDomain(icao: String, stars: StarYamlFile) =
             ?.mapValues { (_, byRunway) -> byRunway.mapKeys { (runway, _) -> runway.uppercase() } }
             ?: emptyMap(),
     )
-
-fun StarYamlEntry.toDomain() = Star(
-    id = name,
-    fixes = waypoints.map {
-        StarFix(
-            id = it.id,
-            typicalAltitude = it.typicalAltitude,
-            typicalSpeedIas = it.typicalSpeed
-        )
-    },
-)
+}
 
 fun AircraftPerformanceYaml.toDomain() = AircraftPerformance(
         takeOffV2 = this.takeOffV2,

@@ -157,7 +157,9 @@ class DescentTrajectoryServiceTest {
         val descentTrajectory = calculateDescentTrajectoryFor(arrivalWithDirectRouting)
 
         val directRoutingIndex = descentTrajectory.indexOfFirst { it.fixId == arrivalWithDirectRouting.assignedDirect }
-        val expectedSpeedAtDirectRouting = star19LAdopi3M.fixes.find { it.id == arrivalWithDirectRouting.assignedDirect }!!.typicalSpeedIas!!
+        val expectedSpeedAtDirectRouting = rwy19L.arrivalFixExpectations
+            .find { it.fixName == arrivalWithDirectRouting.assignedDirect }!!
+            .typicalSpeedIas!!
 
         descentTrajectory.subList(0, directRoutingIndex).forEach {
             assertTrue { it.ias > expectedSpeedAtDirectRouting }
@@ -204,7 +206,7 @@ class DescentTrajectoryServiceTest {
     }
 
     @Test
-    fun `Estimated IAS should never exceed typical speed on STAR point`() {
+    fun `Estimated IAS should never exceed typical speed on configured arrival fix`() {
         val descentTrajectory = calculateDescentTrajectoryFor(testArrival1)
         val fixesInTrajectory = descentTrajectory.filter { it.fixId != null }
 
@@ -212,12 +214,12 @@ class DescentTrajectoryServiceTest {
 
         val isExceeding = fixesInTrajectory
             .any { point ->
-                val starFix = star19LInrex4M.fixes.find { it.id == point.fixId }
-                if (starFix?.typicalSpeedIas == null) return@any false
-                point.ias > starFix.typicalSpeedIas
+                val arrivalFixExpectation = rwy19L.arrivalFixExpectations.find { it.fixName == point.fixId }
+                if (arrivalFixExpectation?.typicalSpeedIas == null) return@any false
+                point.ias > arrivalFixExpectation.typicalSpeedIas
             }
 
-        assertEquals(false, isExceeding, "IAS should not exceed typical speed on STAR point")
+        assertEquals(false, isExceeding, "IAS should not exceed typical speed on configured arrival fix")
     }
 
     @Test

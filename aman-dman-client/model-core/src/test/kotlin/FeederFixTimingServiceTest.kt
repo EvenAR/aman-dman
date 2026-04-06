@@ -114,7 +114,6 @@ class FeederFixTimingServiceTest {
         airportIcao = "TEST",
         trackingController = null,
         assignedStar = null,
-        assignedStarOk = true,
         flightLevel = 120,
         pressureAltitude = 10000,
         groundSpeed = 250,

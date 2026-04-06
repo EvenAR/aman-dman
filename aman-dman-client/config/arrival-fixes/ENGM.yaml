@@ -1,0 +1,153 @@
+arrivalFixes:
+    - name: ADOPI
+      runways: [01L, 01R, 19L, 19R]
+      typicalAirspeed: 250
+    - name: BAVAD
+      runways: [19L, 19R]
+      typicalAltitude: 5000
+      typicalAirspeed: 200
+      role: IAF
+    - name: BELGU
+      runways: [01L, 01R, 19L, 19R]
+      typicalAirspeed: 250
+    - name: ELVUN
+      runways: [01L]
+      typicalAltitude: 5000
+      typicalAirspeed: 200
+    - name: ENGM
+      runways: [01L, 01R, 19L, 19R]
+      typicalAltitude: 700
+    - name: ESEBA
+      runways: [01L, 01R, 19L, 19R]
+      typicalAirspeed: 250
+    - name: GM400
+      runways: [01L, 01R]
+      typicalAltitude: 9000
+      typicalAirspeed: 250
+    - name: GM401
+      runways: [01L, 01R]
+      typicalAltitude: 9000
+      typicalAirspeed: 250
+    - name: GM402
+      runways: [01L, 01R]
+      typicalAltitude: 10000
+      typicalAirspeed: 220
+    - name: GM403
+      runways: [01L, 01R]
+      typicalAltitude: 10000
+      typicalAirspeed: 220
+    - name: GM410
+      runways: [01L, 01R]
+      typicalAltitude: 11000
+      typicalAirspeed: 220
+    - name: GM416
+      runways: [01L, 01R]
+      typicalAltitude: 11000
+      typicalAirspeed: 220
+    - name: GM418
+      runways: [19L, 19R]
+      typicalAltitude: 11000
+      typicalAirspeed: 220
+    - name: GM422
+      runways: [19L, 19R]
+      typicalAltitude: 10000
+      typicalAirspeed: 220
+    - name: GM426
+      runways: [19L, 19R]
+      typicalAltitude: 9000
+      typicalAirspeed: 250
+    - name: GM427
+      runways: [19L, 19R]
+      typicalAltitude: 9000
+      typicalAirspeed: 250
+    - name: GM428
+      runways: [19L, 19R]
+      typicalAltitude: 10000
+      typicalAirspeed: 220
+    - name: GM433
+      runways: [19L, 19R]
+      typicalAltitude: 9000
+      typicalAirspeed: 250
+    - name: GM434
+      runways: [19L, 19R]
+      typicalAltitude: 9000
+      typicalAirspeed: 220
+    - name: GM453
+      runways: [19R]
+      typicalAltitude: 9000
+      typicalAirspeed: 220
+    - name: GM551
+      runways: [01L]
+      typicalAltitude: 3000
+      typicalAirspeed: 180
+    - name: GM552
+      runways: [01L]
+      typicalAltitude: 2400
+      typicalAirspeed: 170
+    - name: GM553
+      runways: [01L]
+      typicalAltitude: 1800
+      typicalAirspeed: 150
+    - name: INREX
+      runways: [01L, 01R, 19L, 19R]
+      typicalAirspeed: 250
+    - name: INSUV
+      runways: [01L, 01R]
+      typicalAltitude: 5000
+      typicalAirspeed: 200
+      role: IAF
+    - name: LUNIP
+      runways: [01L, 01R, 19L, 19R]
+      typicalAirspeed: 250
+    - name: NIVDU
+      runways: [01R]
+      typicalAirspeed: 250
+    - name: NOSLA
+      runways: [01R]
+      typicalAltitude: 4000
+      typicalAirspeed: 180
+      role: IF
+    - name: ODUDI
+      runways: [19R]
+      typicalAltitude: 4000
+      typicalAirspeed: 180
+      role: IF
+    - name: OGRAS
+      runways: [01L]
+      typicalAltitude: 4000
+      typicalAirspeed: 180
+      role: IF
+    - name: OSPAD
+      runways: [19L]
+      typicalAltitude: 4000
+      typicalAirspeed: 180
+      role: IF
+    - name: RIPAM
+      runways: [01L, 01R, 19L, 19R]
+      typicalAirspeed: 250
+    - name: TITLA
+      runways: [19L, 19R]
+      typicalAltitude: 5000
+      typicalAirspeed: 200
+      role: IAF
+    - name: VALPU
+      runways: [01L, 01R]
+      typicalAltitude: 5000
+      typicalAirspeed: 200
+      role: IAF
+    - name: XEMEN
+      runways: [01R]
+      typicalAltitude: 3500
+      typicalAirspeed: 170
+    - name: XIKLA
+      runways: [01L]
+      typicalAltitude: 3500
+      typicalAirspeed: 170
+    - name: XINLO
+      runways: [19R]
+      typicalAltitude: 3500
+      typicalAirspeed: 170
+    - name: XIVTA
+      runways: [19L]
+      typicalAltitude: 3500
+      typicalAirspeed: 170

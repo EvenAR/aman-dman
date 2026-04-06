@@ -15,7 +15,6 @@ data class RunwayArrivalEvent(
     override val airportIcao: String,
     override val trackingController: String?,
     val assignedStar: String?,
-    val assignedStarOk: Boolean,
     val flightLevel: Int,
     val pressureAltitude: Int,
     val groundSpeed: Int,

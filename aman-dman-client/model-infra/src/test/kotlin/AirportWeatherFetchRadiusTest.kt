@@ -3,8 +3,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import no.vaccsca.amandman.model.config.mapper.toDomain
+import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -83,5 +83,5 @@ class AirportWeatherFetchRadiusTest {
         .readValue<AirportDataJson>(yaml)
         .airports
         .getValue("TEST")
-        .toDomain("TEST", StarYamlFile(emptyList()))
+        .toDomain("TEST", ArrivalFixYamlFile(emptyList()))
 }

@@ -720,7 +720,7 @@ class AirportPresenterTimelineFormTest {
                 latLng = LatLng(60.0, 11.0),
                 elevation = 200f,
                 trueHeading = 190f,
-                stars = emptyList()
+                arrivalFixExpectations = emptyList()
             )
         }
         return Airport(

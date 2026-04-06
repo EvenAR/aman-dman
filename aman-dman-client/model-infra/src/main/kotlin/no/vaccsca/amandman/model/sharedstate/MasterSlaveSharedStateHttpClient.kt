@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -35,6 +36,54 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+internal fun createSharedStateObjectMapper(): ObjectMapper =
+    ObjectMapper().apply {
+        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        registerModule(KotlinModule.Builder().build())
+        registerModule(JavaTimeModule())
+        registerModule(KotlinxInstantModule)
+        registerModule(KotlinDurationModule)
+        findAndRegisterModules()
+    }
+
+private object KotlinxInstantModule : SimpleModule() {
+    init {
+        addSerializer(Instant::class.java, KotlinxInstantSerializer)
+        addDeserializer(Instant::class.java, KotlinxInstantDeserializer)
+    }
+}
+
+private object KotlinxInstantSerializer : JsonSerializer<Instant>() {
+    override fun serialize(value: Instant, gen: JsonGenerator, serializers: SerializerProvider) {
+        gen.writeString(value.toString())
+    }
+}
+
+private object KotlinxInstantDeserializer : JsonDeserializer<Instant>() {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Instant {
+        return Instant.parse(p.text)
+    }
+}
+
+private object KotlinDurationModule : SimpleModule() {
+    init {
+        addSerializer(Duration::class.java, KotlinDurationSerializer)
+        addDeserializer(Duration::class.java, KotlinDurationDeserializer)
+    }
+}
+
+private object KotlinDurationSerializer : JsonSerializer<Duration>() {
+    override fun serialize(value: Duration, gen: JsonGenerator, serializers: SerializerProvider) {
+        gen.writeString(value.toIsoString())
+    }
+}
+
+private object KotlinDurationDeserializer : JsonDeserializer<Duration>() {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Duration {
+        return Duration.parseIsoString(p.text)
+    }
+}
+
 class MasterSlaveSharedStateHttpClient(
     private val settingsProvider: SettingsProvider,
     private val httpClient: OkHttpClient = OkHttpClient()
@@ -43,13 +92,7 @@ class MasterSlaveSharedStateHttpClient(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     private val clientUuid = randomUUID().toString()
-    private val objectMapper = ObjectMapper().apply {
-        registerModule(KotlinModule.Builder().build())
-        registerModule(JavaTimeModule())
-        registerModule(KotlinxInstantModule)
-        registerModule(KotlinDurationModule)
-        findAndRegisterModules()
-    }
+    private val objectMapper = createSharedStateObjectMapper()
 
     private val SESSION_ID_HEADER = "x-session-uuid"
     private val CLIENT_VERSION_HEADER = "x-client-version"
@@ -349,47 +392,6 @@ class MasterSlaveSharedStateHttpClient(
             detail = detail
         )
     }
-
-
-
-    private object KotlinxInstantModule : SimpleModule() {
-        init {
-            addSerializer(Instant::class.java, KotlinxInstantSerializer)
-            addDeserializer(Instant::class.java, KotlinxInstantDeserializer)
-        }
-    }
-
-    private object KotlinxInstantSerializer : JsonSerializer<Instant>() {
-        override fun serialize(value: Instant, gen: JsonGenerator, serializers: SerializerProvider) {
-            gen.writeString(value.toString())
-        }
-    }
-
-    private object KotlinxInstantDeserializer : JsonDeserializer<Instant>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Instant {
-            return Instant.parse(p.text)
-        }
-    }
-
-    private object KotlinDurationModule : SimpleModule() {
-        init {
-            addSerializer(Duration::class.java, KotlinDurationSerializer)
-            addDeserializer(Duration::class.java, KotlinDurationDeserializer)
-        }
-    }
-
-    private object KotlinDurationSerializer : JsonSerializer<Duration>() {
-        override fun serialize(value: Duration, gen: JsonGenerator, serializers: SerializerProvider) {
-            gen.writeString(value.toIsoString())
-        }
-    }
-
-    private object KotlinDurationDeserializer : JsonDeserializer<Duration>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Duration {
-            return Duration.parseIsoString(p.text)
-        }
-    }
-
     private data class CompatibilityCheckJson(
         val apiVersion: String,
         val latestClientVersion: String,
