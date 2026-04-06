@@ -16,11 +16,10 @@ import no.vaccsca.amandman.model.config.SharedStateConnectionParameters
 import no.vaccsca.amandman.model.config.Theme
 import no.vaccsca.amandman.model.config.TimelineDefaults
 import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceYaml
-import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
-import no.vaccsca.amandman.model.config.yaml.AirportJson
 import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
 import no.vaccsca.amandman.model.config.yaml.AtcClientConnectionParamsYaml
+import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.ConnectionConfigYaml
 import no.vaccsca.amandman.model.config.yaml.LabelItemAlignmentEnumYaml
 import no.vaccsca.amandman.model.config.yaml.LabelItemSourceEnumYaml
@@ -163,7 +162,7 @@ fun LabelItemSourceEnumYaml.toDomain() = when(this) {
     LabelItemSourceEnumYaml.TTL_TTG -> LabelItemSource.TTL_TTG
 }
 
-fun AirportJson.toDomain(icao: String, arrivalFixes: ArrivalFixYamlFile): Airport {
+fun AirportDataJson.toDomain(icao: String): Airport {
     val runwayExpectationsByRunway = arrivalFixes.toRunwayExpectationsByRunway(
         airportIcao = icao,
         availableRunways = runwayThresholds.keys.map { it.uppercase() }.toSet(),
@@ -190,7 +189,7 @@ fun AirportJson.toDomain(icao: String, arrivalFixes: ArrivalFixYamlFile): Airpor
                 arrivalFixExpectations = runwayExpectationsByRunway[id.uppercase()] ?: emptyList(),
             )
         },
-        feederFixes = feederFixes?.map { it.uppercase() } ?: emptyList(),
+        feederFixes = feederFixes.map { it.uppercase() },
         feederFixTimelineArrivalLabelLayoutId = feederFixTimelineArrivalLabelLayoutId,
         feederFixTransitTimesMinutes = feederFixTransitTimesMinutes
             ?.mapKeys { (fix, _) -> fix.uppercase() }

@@ -4,15 +4,19 @@ import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
 import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.config.yaml.ArrivalFixRoleYaml
 import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlEntry
-import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
+import org.slf4j.LoggerFactory
 
 private val FIX_NAME_REGEX = Regex("^[A-Z0-9]{1,5}$")
+private const val ARRIVAL_FIX_YAML_MAPPER_LOGGER_NAME = "no.vaccsca.amandman.model.config.mapper.ArrivalFixYamlMapper"
+internal var arrivalFixWarningLogger: (String) -> Unit = { message ->
+    LoggerFactory.getLogger(ARRIVAL_FIX_YAML_MAPPER_LOGGER_NAME).warn(message)
+}
 
-internal fun ArrivalFixYamlFile.toRunwayExpectationsByRunway(
+internal fun List<ArrivalFixYamlEntry>.toRunwayExpectationsByRunway(
     airportIcao: String,
     availableRunways: Set<String>,
 ): Map<String, List<ArrivalFixExpectation>> {
-    val normalizedRows = arrivalFixes.mapIndexed { index, entry ->
+    val normalizedRows = mapIndexed { index, entry ->
         entry.toNormalizedRow(airportIcao, index + 1)
     }
 
@@ -35,8 +39,10 @@ internal fun ArrivalFixYamlFile.toRunwayExpectationsByRunway(
 
             row.role?.let { role ->
                 val previousFix = seenRolesByRunway.putIfAbsent(runwayIdentifier to role, row.fixName)
-                require(previousFix == null) {
-                    "Airport $airportIcao runway $runwayIdentifier has multiple ${role.toDisplayName()} fixes."
+                if (previousFix != null && role == ArrivalFixRole.IF) {
+                    arrivalFixWarningLogger(
+                        "Airport $airportIcao runway $runwayIdentifier has multiple IF fixes ($previousFix, ${row.fixName})."
+                    )
                 }
             }
         }
@@ -110,10 +116,4 @@ private fun ArrivalFixRoleYaml.toDomain(): ArrivalFixRole =
     when (this) {
         ArrivalFixRoleYaml.IF -> ArrivalFixRole.IF
         ArrivalFixRoleYaml.IAF -> ArrivalFixRole.IAF
-    }
-
-private fun ArrivalFixRole.toDisplayName(): String =
-    when (this) {
-        ArrivalFixRole.IF -> "IF"
-        ArrivalFixRole.IAF -> "IAF"
     }

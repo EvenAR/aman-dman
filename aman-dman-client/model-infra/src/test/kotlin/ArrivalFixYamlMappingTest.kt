@@ -2,8 +2,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import no.vaccsca.amandman.model.config.mapper.arrivalFixWarningLogger
 import no.vaccsca.amandman.model.config.mapper.toDomain
-import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -57,6 +57,26 @@ class ArrivalFixYamlMappingTest {
     }
 
     @Test
+    fun `missing arrival fix list defaults to empty`() {
+        val airport = yamlMapper.readValue<AirportDataJson>(
+            """
+            location:
+              latitude: 60.0
+              longitude: 11.0
+            runwayThresholds:
+              19L:
+                location:
+                  latitude: 60.1
+                  longitude: 11.1
+                elevation: 681
+                trueHeading: 194
+            """.trimIndent()
+        ).toDomain("TEST")
+
+        assertTrue(airport.runways.values.all { it.arrivalFixExpectations.isEmpty() })
+    }
+
+    @Test
     fun `duplicate fix plus runway combinations are rejected`() {
         assertFailsWith<IllegalArgumentException> {
             parseAirport(
@@ -104,9 +124,35 @@ class ArrivalFixYamlMappingTest {
     }
 
     @Test
-    fun `runways may not define the same role twice`() {
-        assertFailsWith<IllegalArgumentException> {
-            parseAirport(
+    fun `runways may define multiple iaf fixes`() {
+        val airport = parseAirport(
+            arrivalFixYaml = """
+                arrivalFixes:
+                  - name: TITLA
+                    runways: [19L]
+                    role: IAF
+                    typicalAltitude: 5000
+                  - name: XIVTA
+                    runways: [19L]
+                    role: IAF
+                    typicalAltitude: 3500
+            """.trimIndent()
+        )
+
+        assertEquals(
+            setOf("TITLA", "XIVTA"),
+            airport.runways.getValue("19L").arrivalFixExpectations.map { it.fixName }.toSet()
+        )
+    }
+
+    @Test
+    fun `runways may define multiple if fixes but log warning`() {
+        val warningMessages = mutableListOf<String>()
+        val originalWarningLogger = arrivalFixWarningLogger
+        arrivalFixWarningLogger = warningMessages::add
+
+        try {
+            val airport = parseAirport(
                 arrivalFixYaml = """
                     arrivalFixes:
                       - name: TITLA
@@ -119,15 +165,25 @@ class ArrivalFixYamlMappingTest {
                         typicalAltitude: 3500
                 """.trimIndent()
             )
+
+            assertEquals(
+                setOf("TITLA", "XIVTA"),
+                airport.runways.getValue("19L").arrivalFixExpectations.map { it.fixName }.toSet()
+            )
+            assertEquals(
+                listOf("Airport TEST runway 19L has multiple IF fixes (TITLA, XIVTA)."),
+                warningMessages
+            )
+        } finally {
+            arrivalFixWarningLogger = originalWarningLogger
         }
     }
 
     private fun parseAirport(arrivalFixYaml: String) =
         yamlMapper
             .readValue<AirportDataJson>(
-                """
-                airports:
-                  TEST:
+                (
+                    """
                     location:
                       latitude: 60.0
                       longitude: 11.0
@@ -144,9 +200,8 @@ class ArrivalFixYamlMappingTest {
                           longitude: 11.2
                         elevation: 681
                         trueHeading: 194
-                """.trimIndent()
+                    """.trimIndent() + "\n" + arrivalFixYaml
+                )
             )
-            .airports
-            .getValue("TEST")
-            .toDomain("TEST", yamlMapper.readValue<ArrivalFixYamlFile>(arrivalFixYaml))
+            .toDomain("TEST")
 }

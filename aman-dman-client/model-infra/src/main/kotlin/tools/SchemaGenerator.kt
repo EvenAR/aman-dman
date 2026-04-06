@@ -12,7 +12,6 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceConfigYaml
-import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlFile
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
 import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
@@ -51,8 +50,7 @@ private fun generateSchemas(outputPath: String) {
     generateForClass(AmanDmanSettingsYaml::class.java, outputPath, "settings")
     generateForClass(TimelineSettingsYaml::class.java, outputPath, "timelines")
     generateForClass(AircraftPerformanceConfigYaml::class.java, outputPath, "aircraft-performance")
-    generateForClass(AirportDataJson::class.java, outputPath, "airports")
-    generateForClass(ArrivalFixYamlFile::class.java, "$outputPath/arrival-fixes", "arrival-fixes")
+    generateForClass(AirportDataJson::class.java, "$outputPath/airports", "airport")
 }
 
 private fun generateForClass(clazz: Class<*>, outputPath: String, name: String) {

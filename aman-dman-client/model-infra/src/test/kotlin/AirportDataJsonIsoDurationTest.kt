@@ -17,34 +17,30 @@ class AirportDataJsonIsoDurationTest {
     @Test
     fun `should parse transit duration minutes`() {
         val yaml = """
-            airports:
-              TEST:
-                location:
-                  latitude: 60.0
-                  longitude: 11.0
-                runwayThresholds: {}
-                feederFixTransitTimesMinutes:
-                  FIX1:
-                    "01L": 8
+            location:
+              latitude: 60.0
+              longitude: 11.0
+            runwayThresholds: {}
+            feederFixTransitTimesMinutes:
+              FIX1:
+                "01L": 8
         """.trimIndent()
 
         val parsed = yamlMapper.readValue<AirportDataJson>(yaml)
-        val minutes = parsed.airports["TEST"]?.feederFixTransitTimesMinutes?.get("FIX1")?.get("01L")
+        val minutes = parsed.feederFixTransitTimesMinutes?.get("FIX1")?.get("01L")
         assertEquals(8, minutes)
     }
 
     @Test
     fun `should reject non-integer transit duration minutes`() {
         val yaml = """
-            airports:
-              TEST:
-                location:
-                  latitude: 60.0
-                  longitude: 11.0
-                runwayThresholds: {}
-                feederFixTransitTimesMinutes:
-                  FIX1:
-                    "01L": PT8M30S
+            location:
+              latitude: 60.0
+              longitude: 11.0
+            runwayThresholds: {}
+            feederFixTransitTimesMinutes:
+              FIX1:
+                "01L": PT8M30S
         """.trimIndent()
 
         assertFailsWith<InvalidFormatException> {

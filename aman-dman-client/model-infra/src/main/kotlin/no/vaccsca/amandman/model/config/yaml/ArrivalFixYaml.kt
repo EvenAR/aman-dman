@@ -2,11 +2,6 @@ package no.vaccsca.amandman.model.config.yaml
 
 import jakarta.validation.constraints.NotNull
 
-data class ArrivalFixYamlFile(
-    @field:NotNull
-    val arrivalFixes: List<ArrivalFixYamlEntry>
-)
-
 data class ArrivalFixYamlEntry(
     @field:NotNull
     val name: String,

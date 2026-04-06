@@ -36,9 +36,8 @@ When the application starts, right click on the window bar and select "Start new
 
 See example configuration [here](https://github.com/EvenAR/aman-dman/tree/main/aman-dman-client/config). When downloading the release files you will find `*.schema.yaml`-files where all possible values are listed. 
 
-- `airports.yaml`: To be able to connect the AMAN to an airport, the airport location and all its runway thresholds must be defined in this file.
+- `airports/<airport-icao>.yaml`: Each airport file defines the airport location, runway thresholds, feeder fixes, and optional arrival-fix expectations used for trajectory prediction.
 - `settings.yaml`: This defines the available timeline configurations for each airport.
-- `arrival-fixes/<airport-icao>`: (optional) These files define runway-scoped arrival fix expectations such as typical altitude and airspeed. Shared rows can apply to multiple runways. This makes descent trajectories and estimated landing times more accurate.
 
 💡 Tip: Install the [VSCode YAML extension from Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) to get help writing valid config files.
 
