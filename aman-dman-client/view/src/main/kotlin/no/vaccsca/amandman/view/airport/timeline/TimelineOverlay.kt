@@ -4,15 +4,10 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.config.LabelItem
+import no.vaccsca.amandman.model.planning.SequenceStatus
 import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
-import no.vaccsca.amandman.model.planning.SequenceStatus
-import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.*
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.labels.ArrivalLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.DepartureLabel
@@ -29,6 +24,7 @@ import java.util.*
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
+
 
 class TimelineOverlay(
     val timelineConfig: TimelineConfig,
@@ -207,6 +203,7 @@ class TimelineOverlay(
         doLayout()
         drawLinesFromLabelsToTimeScale(g)
         drawDraggedLabelLine(g)
+        drawDirectRoutingIndicators(g)
         drawHourglasses(g)
         drawTimelineTitle(g)
         drawProposedTime(g)
@@ -241,6 +238,40 @@ class TimelineOverlay(
             g.color = if (event is RunwayArrivalEvent && event.sequenceStatus == SequenceStatus.OK) Color.WHITE else Color.GRAY
             g.drawLine(labelX, label.y + label.preferredSize.height / 2, dotX, dotY)
             g.fillOval(dotX - pointDiameter / 2, dotY - pointDiameter / 2, pointDiameter, pointDiameter)
+        }
+    }
+
+    private fun drawDirectRoutingIndicators(g: Graphics) {
+        val scaleBounds = timelineView.getScaleBounds()
+        labels.values.forEach { label ->
+            val event = label.timelineEvent
+            if (event is RunwayArrivalEvent && (event.assignedDirectIsIAF || event.assignedDirectIsIF)) {
+                val isOnRightSide = label.x > scaleBounds.x
+                val labelCenterY = label.y + label.preferredSize.height / 2
+                val triangleWidth = 8
+                val triangleHalfHeight = 4
+                g.color = if (event.sequenceStatus == SequenceStatus.OK) Color.WHITE else Color.GRAY
+
+                if (isOnRightSide) {
+                    // Label on right side, triangle points right (→) toward label
+                    val baseX = label.x - triangleWidth + 1
+                    val tipX = baseX + triangleWidth
+                    g.fillPolygon(Polygon(
+                        intArrayOf(baseX, tipX, baseX),
+                        intArrayOf(labelCenterY - triangleHalfHeight, labelCenterY, labelCenterY + triangleHalfHeight),
+                        3
+                    ))
+                } else {
+                    // Label on left side, triangle points left (←) toward label
+                    val baseX = label.x + label.width - 1 + triangleWidth
+                    val tipX = baseX - triangleWidth
+                    g.fillPolygon(Polygon(
+                        intArrayOf(baseX, tipX, baseX),
+                        intArrayOf(labelCenterY - triangleHalfHeight, labelCenterY, labelCenterY + triangleHalfHeight),
+                        3
+                    ))
+                }
+            }
         }
     }
 

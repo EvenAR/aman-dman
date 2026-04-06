@@ -66,6 +66,15 @@ object ArrivalEventService {
 
         val estimatedTime = NtpClock.now() + (trajectory.trajectoryPoints.firstOrNull()?.remainingTime ?: 0.seconds)
 
+        // Check if assigned direct routing is to an IAF or IF
+        val directFixInfo = arrival.assignedDirect?.let { directFix ->
+            runwayInfo.arrivalFixExpectations.find { fix ->
+                fix.fixName.equals(directFix, ignoreCase = true)
+            }
+        }
+        val assignedDirectIsIAF = directFixInfo?.role == no.vaccsca.amandman.model.airport.ArrivalFixRole.IAF
+        val assignedDirectIsIF = directFixInfo?.role == no.vaccsca.amandman.model.airport.ArrivalFixRole.IF
+
         return RunwayArrivalEvent(
             callsign = arrival.callsign,
             icaoType = arrival.icaoType,
@@ -85,6 +94,8 @@ object ArrivalEventService {
             landingIas = aircraftPerformance.landingVat,
             scratchPad = arrival.scratchPad,
             assignedDirect = arrival.assignedDirect,
+            assignedDirectIsIAF = assignedDirectIsIAF,
+            assignedDirectIsIF = assignedDirectIsIF,
             lastTimestamp = NtpClock.now()
         )
     }

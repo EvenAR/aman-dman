@@ -144,6 +144,8 @@ class ArrivalLabelScheduledArrivalTimeTest {
             landingIas = 145,
             assignedDirect = null,
             scratchPad = null,
+            assignedDirectIsIAF = false,
+            assignedDirectIsIF = false,
         )
 
         return ArrivalLabel(

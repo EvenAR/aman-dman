@@ -123,6 +123,8 @@ class FeederFixTimingServiceTest {
         landingIas = 140,
         assignedDirect = null,
         scratchPad = null,
+        assignedDirectIsIAF = false,
+        assignedDirectIsIF = false,
     )
 
     private fun trajectoryPoint(fixId: String, remainingTime: kotlin.time.Duration): TrajectoryPoint = TrajectoryPoint(

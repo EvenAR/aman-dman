@@ -86,6 +86,8 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
                             landingIas = 140,
                             assignedDirect = null,
                             scratchPad = null,
+                            assignedDirectIsIAF = false,
+                            assignedDirectIsIF = false,
                         ),
                     )
                 )

@@ -26,6 +26,8 @@ data class RunwayArrivalEvent(
     val timeToPreceding: Duration? = null,
     val assignedDirect: String?,
     val scratchPad: String?,
+    val assignedDirectIsIAF: Boolean,
+    val assignedDirectIsIF: Boolean,
 ) : RunwayFlightEvent(
     scheduledTime = scheduledTime,
     estimatedTime = estimatedTime,
