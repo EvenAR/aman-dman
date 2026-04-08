@@ -8,6 +8,7 @@ data class FeederFixState(
 )
 
 data class FeederFixTiming(
-    val eta: Instant,
-    val sta: Instant,
+    val eto: Instant,
+    val sto: Instant,
+    val isAbeamTime: Boolean = false,
 )

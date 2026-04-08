@@ -10,7 +10,7 @@ This is the core of the project. All domain logic, computation, integrations, an
 - `common`: Shared utilities and types.
 
 ## Configuration
-Configuration is provided via YAML files under `config/` (per-airport files under `airports/<ICAO>.yaml`, aircraft performance, settings, and timelines). Each airport file contains runway data, feeder-fix config, and optional runway-scoped arrival-fix expectations used by the descent and ETA logic.
+Configuration is provided via YAML files under `config/` (per-airport files under `airports/<ICAO>.yaml`, aircraft performance, settings, and timelines). Each airport file contains runway data, feeder-fix config, and optional runway-scoped arrival-fix expectations used by the descent and ETO logic.
 
 ---
 ## Development

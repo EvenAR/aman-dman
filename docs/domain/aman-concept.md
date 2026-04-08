@@ -21,7 +21,7 @@ At a high level, AMAN aims to:
 
 AMAN trajectory prediction is usually runway-anchored:
 
-- Predict runway-threshold ETA (estimated crossing time) and other key-point ETAs from route, performance, and wind data.
+- Predict runway-threshold ETO (estimated time over / crossing time) and other key-point ETOs from route, performance, and wind data.
 - Propagate estimates across the expected route/profile to derive timing at fixes and approach-relevant fixes.
 - Use aircraft performance assumptions (speed, descent capability, configuration effects) to model travel time.
 - Apply forecast/measured wind components along altitude bands and route segments.
@@ -31,11 +31,11 @@ AMAN first estimates how the aircraft is likely to progress in time (prediction)
 
 ## How AMAN Works (General Flow)
 
-### Predicted Time vs Target Time (ETA, STA)
+### Predicted Time vs Target Time (ETO, STO)
 
-- Predicted time (ETA): model output based on current trajectory/performance/wind assumptions; continuously updated and uncertain.
-- Target time / STA (Scheduled Time of Arrival): planning/advisory output chosen by AMAN/controller to achieve runway and flow objectives.
-- AMAN compares STA vs ETA to derive advisory intent (for example absorb delay early, or reduce excess delay where feasible).
+- Predicted time (ETO): model output based on current trajectory/performance/wind assumptions; continuously updated and uncertain.
+- Target time / STO (Scheduled Time Over): planning/advisory output chosen by AMAN/controller to achieve runway and flow objectives.
+- AMAN compares STO vs ETO to derive advisory intent (for example absorb delay early, or reduce excess delay where feasible).
 
 
 1. AMAN ingests flight, surveillance, runway, and constraint data.
@@ -51,7 +51,7 @@ In more mature implementations, sequence support is extended upstream (Extended 
 
 To avoid ambiguity across positions, AMAN should define one shared sequence truth.
 
-- Primary canonical anchor: planned runway-threshold crossing time (or landing time) per runway, typically expressed as STA.
+- Primary canonical anchor: planned runway-threshold crossing time (or landing time) per runway, typically expressed as STO.
 - Secondary anchors: metering/fix/IAF times derived from the runway-based plan.
 - Role-specific displays can differ, but they must reference the same underlying sequence object.
 - If runway mode/configuration changes, sequence truth is recomputed from the new runway context.

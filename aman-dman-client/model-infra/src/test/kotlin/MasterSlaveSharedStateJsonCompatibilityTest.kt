@@ -4,11 +4,14 @@ import no.vaccsca.amandman.model.planning.SequenceStatus
 import no.vaccsca.amandman.model.sharedstate.SharedStateJson
 import no.vaccsca.amandman.model.sharedstate.SharedStateTimelineEventJson
 import no.vaccsca.amandman.model.sharedstate.createSharedStateObjectMapper
+import no.vaccsca.amandman.model.timeline.FeederFixState
+import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class MasterSlaveSharedStateJsonCompatibilityTest {
 
@@ -95,5 +98,54 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
         )
 
         assertFalse(json.contains("assignedStarOk"))
+    }
+
+    @Test
+    fun `feeder fix payloads without abeam flag still parse`() {
+        val parsed = objectMapper.readValue(
+            """
+            {
+              "lastUpdate": "2026-04-06T10:00:00Z",
+              "data": {
+                "availableFixes": ["TITLA"],
+                "timingsByCallsign": {
+                  "SAS123": {
+                    "TITLA": {
+                      "eto": "2026-04-06T10:03:00Z",
+                      "sto": "2026-04-06T10:05:00Z"
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent(),
+            object : TypeReference<SharedStateJson<FeederFixState>>() {}
+        )
+
+        val timing = parsed.data.timingsByCallsign.getValue("SAS123").getValue("TITLA")
+        assertFalse(timing.isAbeamTime)
+    }
+
+    @Test
+    fun `new feeder fix payloads serialize abeam flag`() {
+        val json = objectMapper.writeValueAsString(
+            SharedStateJson(
+                lastUpdate = Instant.parse("2026-04-06T10:00:00Z"),
+                data = FeederFixState(
+                    availableFixes = listOf("TITLA"),
+                    timingsByCallsign = mapOf(
+                        "SAS123" to mapOf(
+                            "TITLA" to FeederFixTiming(
+                                eto = Instant.parse("2026-04-06T10:03:00Z"),
+                                sto = Instant.parse("2026-04-06T10:05:00Z"),
+                                isAbeamTime = true,
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        assertTrue(json.contains("\"isAbeamTime\":true"))
     }
 }

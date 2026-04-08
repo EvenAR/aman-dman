@@ -160,10 +160,10 @@ class DescentProfileVisualization : JPanel(BorderLayout()) {
         g.drawString(ias, x, height - 5)
         x += g.fontMetrics.stringWidth("$ias | ")
 
-        // ETA
-        val eta = "ETA: ${it.remainingTime}"
-        g.drawString(eta, x, height - 5)
-        x += g.fontMetrics.stringWidth("$eta | ")
+        // ETO
+        val eto = "ETO: ${it.remainingTime}"
+        g.drawString(eto, x, height - 5)
+        x += g.fontMetrics.stringWidth("$eto | ")
 
         // Remaining distance
         val dist = "${it.remainingDistance.roundToInt()} NM"

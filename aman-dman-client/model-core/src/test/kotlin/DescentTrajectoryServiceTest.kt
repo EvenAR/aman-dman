@@ -260,7 +260,7 @@ class DescentTrajectoryServiceTest {
     }
 
     @Test
-    fun `Removing waypoint along a straight line should not affect ETA`() {
+    fun `Removing waypoint along a straight line should not affect ETO`() {
         val originalTrajectory = calculateDescentTrajectoryFor(testArrival2)
 
         val modifiedRoute = testArrival2.copy(
@@ -273,12 +273,12 @@ class DescentTrajectoryServiceTest {
             expected = originalTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
             actual = newTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
             absoluteTolerance = 5.0,
-            "ETA should not change when removing a waypoint along a straight line"
+            "ETO should not change when removing a waypoint along a straight line"
         )
     }
 
     @Test
-    fun `Removing waypoint along a curve should affect ETA`() {
+    fun `Removing waypoint along a curve should affect ETO`() {
         val originalTrajectory = calculateDescentTrajectoryFor(testArrival2)
 
         val modifiedRoute = testArrival2.copy(
@@ -295,7 +295,7 @@ class DescentTrajectoryServiceTest {
             illegal = originalTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
             actual = newTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
             absoluteTolerance = 45.0,
-            "ETA should change when removing a waypoint along a curve"
+            "ETO should change when removing a waypoint along a curve"
         )
     }
 

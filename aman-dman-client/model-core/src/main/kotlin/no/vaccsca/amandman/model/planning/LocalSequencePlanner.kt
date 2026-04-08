@@ -27,6 +27,7 @@ import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.atc.AtcClientDepartureData
 import no.vaccsca.amandman.model.atc.ControllerInfoData
+import no.vaccsca.amandman.model.atc.ExtractedRoutePoint
 import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
@@ -67,6 +68,7 @@ class LocalSequencePlanner(
     private val feederFixTimingService = FeederFixTimingService()
 
     private var arrivalsCache: List<RunwayArrivalEvent> = emptyList()
+    private var extractedRoutesByCallsign: Map<String, List<ExtractedRoutePoint>> = emptyMap()
     private var departuresCache: List<DepartureEvent> = emptyList()
     private var sequenceSystems: List<AmanSequenceSystem> = airport.independentRunwaySystems.map { AmanSequenceSystem(it, emptyList()) }
     private var minimumSpacingNm: Double = 3.0
@@ -151,6 +153,10 @@ class LocalSequencePlanner(
     }
 
     private fun handleArrivalsUpdate(arrivals: List<AtcClientArrivalData>) {
+        extractedRoutesByCallsign = arrivals.associate { arrival ->
+            arrival.callsign to arrival.extractedRoute
+        }
+
         val (runwayArrivalEvents, nonSeq) = makeRunwayArrivalEvents(arrivals)
         nonSequencedList = nonSeq
 
@@ -402,6 +408,7 @@ class LocalSequencePlanner(
             airport = airport,
             arrivals = arrivals,
             trajectoryProvider = ArrivalEventService::getDescentProfileForCallsign,
+            extractedRouteProvider = extractedRoutesByCallsign::get,
         )
         dataUpdateListeners.forEach { listener ->
             listener.onFeederFixStateUpdated(airportIcao, feederFixState)

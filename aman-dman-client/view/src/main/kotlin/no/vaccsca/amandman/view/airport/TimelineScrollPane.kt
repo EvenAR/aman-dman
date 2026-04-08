@@ -177,12 +177,12 @@ class TimelineScrollPane(
                 val selectedTimings = selectedFixes.mapNotNull { fix ->
                     perFix[fix]?.let { timing -> fix to timing }
                 }
-                val (anchorFix, timing) = selectedTimings.minByOrNull { (_, timing) -> timing.eta } ?: return@mapNotNull null
+                val (anchorFix, timing) = selectedTimings.minByOrNull { (_, timing) -> timing.eto } ?: return@mapNotNull null
 
                 TimelineDisplayEvent(
                     event = arrival,
-                    displayScheduledTime = timing.sta,
-                    displayEstimatedTime = timing.eta,
+                    displayScheduledTime = timing.sto,
+                    displayEstimatedTime = timing.eto,
                     anchorId = anchorFix,
                 )
             }

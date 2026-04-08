@@ -90,8 +90,8 @@ class ArrivalLabel(
 
             LabelItemSource.ESTIMATED_LANDING_TIME,
             LabelItemSource.ESTIMATED_ARRIVAL_TIME -> {
-                val referenceEta = displayEstimatedTime ?: arrival.estimatedTime
-                LabelStyleOptions(text = formatUtc(referenceEta, timePattern(item, "HH:mm:ss")))
+                val referenceEto = displayEstimatedTime ?: arrival.estimatedTime
+                LabelStyleOptions(text = formatUtc(referenceEto, timePattern(item, "HH:mm:ss")))
             }
 
             LabelItemSource.SCHEDULED_ARRIVAL_TIME ->
@@ -135,8 +135,8 @@ class ArrivalLabel(
         }
 
     private fun formatTtlTtgValue(): String {
-        val eta = displayEstimatedTime ?: arrivalEvent.estimatedTime
-        val timeToLoseOrGain = displayScheduledTime - eta
+        val eto = displayEstimatedTime ?: arrivalEvent.estimatedTime
+        val timeToLoseOrGain = displayScheduledTime - eto
         val minutesToLoseOrGain = toNormalizedMinutes(timeToLoseOrGain)
         return when {
             timeToLoseOrGain > TTL_TTG_THRESHOLD -> "+$minutesToLoseOrGain"

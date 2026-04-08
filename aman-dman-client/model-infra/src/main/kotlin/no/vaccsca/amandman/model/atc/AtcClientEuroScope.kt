@@ -303,7 +303,13 @@ class AtcClientEuroScope(
                 }
 
                 is ArrivalsUpdateFromEuroScopePluginJson -> {
-                    val arrivals = messageObj.inbounds.mapNotNull { it.toDomain() }
+                    val arrivals = messageObj.inbounds.mapNotNull { arrival ->
+                        arrival.toDomain().also {
+                            if (it == null) {
+                                logger.warn("Failed to parse arrival data for ${arrival.callsign}")
+                            }
+                        }
+                    }
                     val grouped = arrivals.groupBy { it.arrivalAirportIcao }
                     grouped.forEach { (icao, list) ->
                         markAirportDataReceived(icao)
@@ -348,34 +354,6 @@ class AtcClientEuroScope(
             }
         } catch (e: Exception) {
             logger.error("Failed to parse message: ${e.message}")
-        }
-    }
-
-    private fun ArrivalJson.toDomain(): AtcClientArrivalData? {
-        return try {
-            AtcClientArrivalData(
-                callsign = callsign,
-                icaoType = icaoType,
-                assignedStar = assignedStar,
-                assignedDirect = assignedDirect,
-                trackingController = trackingController,
-                scratchPad = scratchPad,
-                currentPosition = AircraftPosition(
-                    latLng = LatLng(latitude, longitude),
-                    flightLevel = flightLevel,
-                    altitudeFt = pressureAltitude,
-                    groundspeedKts = groundSpeed,
-                    trackDeg = track
-                ),
-                remainingWaypoints = route.filter { !it.isPassed }.map { Waypoint(it.name, LatLng(it.latitude, it.longitude)) },
-                assignedRunway = assignedRunway,
-                arrivalAirportIcao = arrivalAirportIcao,
-                flightPlanTas = flightPlanTas,
-                recvTimestamp = NtpClock.now(),
-            )
-        } catch (e: Exception) {
-            logger.warn("Failed to parse arrival data for $callsign: ${e.message}")
-            null
         }
     }
 
@@ -441,3 +419,40 @@ class AtcClientEuroScope(
         socket = null
     }
 }
+
+internal fun ArrivalJson.toDomain(receivedAt: kotlinx.datetime.Instant = NtpClock.now()): AtcClientArrivalData? {
+    return try {
+        val extractedRoute = route.map { point -> point.toDomain() }
+        AtcClientArrivalData(
+            callsign = callsign,
+            icaoType = icaoType,
+            assignedStar = assignedStar,
+            assignedDirect = assignedDirect,
+            trackingController = trackingController,
+            scratchPad = scratchPad,
+            currentPosition = AircraftPosition(
+                latLng = LatLng(latitude, longitude),
+                flightLevel = flightLevel,
+                altitudeFt = pressureAltitude,
+                groundspeedKts = groundSpeed,
+                trackDeg = track
+            ),
+            extractedRoute = extractedRoute,
+            remainingWaypoints = extractedRoute
+                .filter { !it.isPassed }
+                .map { Waypoint(it.id, it.latLng) },
+            assignedRunway = assignedRunway,
+            arrivalAirportIcao = arrivalAirportIcao,
+            flightPlanTas = flightPlanTas,
+            recvTimestamp = receivedAt,
+        )
+    } catch (_: Exception) {
+        null
+    }
+}
+
+internal fun FixPointJson.toDomain(): ExtractedRoutePoint = ExtractedRoutePoint(
+    id = name,
+    latLng = LatLng(latitude, longitude),
+    isPassed = isPassed,
+)
