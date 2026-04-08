@@ -65,6 +65,7 @@ object ArrivalEventService {
         }
 
         val estimatedTime = NtpClock.now() + (trajectory.trajectoryPoints.firstOrNull()?.remainingTime ?: 0.seconds)
+        val assignedDirectRoutingState = assignedDirectRoutingState(arrival, airport)
 
         // Check if assigned direct routing is to an IAF or IF
         val directFixInfo = arrival.assignedDirect?.let { directFix ->
@@ -96,6 +97,8 @@ object ArrivalEventService {
             assignedDirect = arrival.assignedDirect,
             assignedDirectIsIAF = assignedDirectIsIAF,
             assignedDirectIsIF = assignedDirectIsIF,
+            assignedDirectIsActive = assignedDirectRoutingState.isActive,
+            assignedDirectIsAfterFeederFix = assignedDirectRoutingState.isAfterFeederFix,
             lastTimestamp = NtpClock.now()
         )
     }
@@ -111,3 +114,38 @@ object ArrivalEventService {
         return thresholdIsBehindAircraft && distanceToRunway < 3 && aircraftPosition.groundspeedKts < 160
     }
 }
+
+internal fun assignedDirectRoutingState(
+    arrival: AtcClientArrivalData,
+    airport: Airport,
+): AssignedDirectRoutingState {
+    val assignedDirect = arrival.assignedDirect?.uppercase() ?: return AssignedDirectRoutingState()
+    val isActive = arrival.remainingWaypoints.any { waypoint ->
+        waypoint.id.uppercase() == assignedDirect
+    }
+    if (!isActive) {
+        return AssignedDirectRoutingState()
+    }
+
+    val directIndex = arrival.extractedRoute.indexOfFirst { point ->
+        point.id.uppercase() == assignedDirect
+    }
+    if (directIndex <= 0) {
+        return AssignedDirectRoutingState(isActive = true)
+    }
+
+    val feederFixes = airport.feederFixes.map { it.uppercase() }.toSet()
+    val isAfterFeederFix = arrival.extractedRoute
+        .take(directIndex)
+        .any { point -> point.id.uppercase() in feederFixes }
+
+    return AssignedDirectRoutingState(
+        isActive = true,
+        isAfterFeederFix = isAfterFeederFix,
+    )
+}
+
+internal data class AssignedDirectRoutingState(
+    val isActive: Boolean = false,
+    val isAfterFeederFix: Boolean = false,
+)

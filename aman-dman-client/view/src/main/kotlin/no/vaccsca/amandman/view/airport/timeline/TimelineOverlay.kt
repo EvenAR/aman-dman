@@ -245,32 +245,24 @@ class TimelineOverlay(
         val scaleBounds = timelineView.getScaleBounds()
         labels.values.forEach { label ->
             val event = label.timelineEvent
-            if (event is RunwayArrivalEvent && (event.assignedDirectIsIAF || event.assignedDirectIsIF)) {
+            val indicator = (event as? RunwayArrivalEvent)?.let(::directRoutingIndicatorFor)
+            if (indicator != null) {
                 val isOnRightSide = label.x > scaleBounds.x
                 val labelCenterY = label.y + label.preferredSize.height / 2
-                val triangleWidth = 8
-                val triangleHalfHeight = 4
                 g.color = if (event.sequenceStatus == SequenceStatus.OK) Color.WHITE else Color.GRAY
 
-                if (isOnRightSide) {
-                    // Label on right side, triangle points right (→) toward label
-                    val baseX = label.x - triangleWidth + 1
-                    val tipX = baseX + triangleWidth
-                    g.fillPolygon(Polygon(
-                        intArrayOf(baseX, tipX, baseX),
-                        intArrayOf(labelCenterY - triangleHalfHeight, labelCenterY, labelCenterY + triangleHalfHeight),
-                        3
-                    ))
-                } else {
-                    // Label on left side, triangle points left (←) toward label
-                    val baseX = label.x + label.width - 1 + triangleWidth
-                    val tipX = baseX - triangleWidth
-                    g.fillPolygon(Polygon(
-                        intArrayOf(baseX, tipX, baseX),
-                        intArrayOf(labelCenterY - triangleHalfHeight, labelCenterY, labelCenterY + triangleHalfHeight),
-                        3
-                    ))
-                }
+                paintDirectRoutingIndicator(
+                    g = g,
+                    indicator = indicator,
+                    anchorX = directRoutingIndicatorAnchorX(
+                        labelX = label.x,
+                        labelWidth = label.width,
+                        isOnRightSide = isOnRightSide,
+                        indicator = indicator,
+                    ),
+                    centerY = labelCenterY,
+                    pointsRight = isOnRightSide,
+                )
             }
         }
     }
@@ -503,4 +495,67 @@ class TimelineOverlay(
 
     private fun MouseEvent.isLeftButtonDown(): Boolean = (this.modifiersEx and MouseEvent.BUTTON1_DOWN_MASK) != 0
 
+}
+
+internal enum class DirectRoutingIndicator {
+    TRIANGLE,
+    CIRCLE,
+}
+
+internal fun directRoutingIndicatorFor(event: RunwayArrivalEvent): DirectRoutingIndicator? {
+    if (!event.assignedDirectIsActive) return null
+    if (event.assignedDirectIsIAF || event.assignedDirectIsIF) return DirectRoutingIndicator.TRIANGLE
+    if (event.assignedDirectIsAfterFeederFix) return DirectRoutingIndicator.CIRCLE
+    return null
+}
+
+internal fun directRoutingIndicatorAnchorX(
+    labelX: Int,
+    labelWidth: Int,
+    isOnRightSide: Boolean,
+    indicator: DirectRoutingIndicator,
+): Int {
+    val circleRadius = 4
+    return when (indicator) {
+        DirectRoutingIndicator.TRIANGLE -> if (isOnRightSide) labelX - 6 else labelX + labelWidth + 6
+        DirectRoutingIndicator.CIRCLE -> if (isOnRightSide) labelX - (circleRadius - 1) else labelX + labelWidth + (circleRadius - 1)
+    }
+}
+
+private fun paintDirectRoutingIndicator(
+    g: Graphics,
+    indicator: DirectRoutingIndicator,
+    anchorX: Int,
+    centerY: Int,
+    pointsRight: Boolean,
+) {
+    when (indicator) {
+        DirectRoutingIndicator.TRIANGLE -> {
+            val triangleWidth = 8
+            val triangleHalfHeight = 4
+            if (pointsRight) {
+                val baseX = anchorX - 1
+                val tipX = baseX + triangleWidth
+                g.fillPolygon(Polygon(
+                    intArrayOf(baseX, tipX, baseX),
+                    intArrayOf(centerY - triangleHalfHeight, centerY, centerY + triangleHalfHeight),
+                    3
+                ))
+            } else {
+                val baseX = anchorX + 1
+                val tipX = baseX - triangleWidth
+                g.fillPolygon(Polygon(
+                    intArrayOf(baseX, tipX, baseX),
+                    intArrayOf(centerY - triangleHalfHeight, centerY, centerY + triangleHalfHeight),
+                    3
+                ))
+            }
+        }
+
+        DirectRoutingIndicator.CIRCLE -> {
+            val diameter = 8
+            val radius = diameter / 2
+            g.fillOval(anchorX - radius, centerY - radius, diameter, diameter)
+        }
+    }
 }

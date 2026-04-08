@@ -59,6 +59,8 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
         assertEquals("INREX4M", event.assignedStar)
         assertEquals(SequenceStatus.OK, event.sequenceStatus)
         assertEquals(250, event.groundSpeed)
+        assertFalse(event.assignedDirectIsActive)
+        assertFalse(event.assignedDirectIsAfterFeederFix)
     }
 
     @Test
@@ -98,6 +100,8 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
         )
 
         assertFalse(json.contains("assignedStarOk"))
+        assertTrue(json.contains("\"assignedDirectIsActive\":false"))
+        assertTrue(json.contains("\"assignedDirectIsAfterFeederFix\":false"))
     }
 
     @Test
