@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.planning.DescentTrajectoryService
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
@@ -187,7 +189,7 @@ class DescentTrajectoryServiceTest {
 
         descentTrajectory.forEach {
             println(
-                "FixId: ${it.fixId}, ias: ${it.ias}, altitude: ${it.altitude}, remainingDistance: ${it.remainingDistance}, remainingTime: ${it.remainingTime}, groundSpeed: ${it.groundSpeed}, tas: ${it.tas}"
+                "FixId: ${it.fixId}, ias: ${it.ias}, altitude: ${it.altitude}, remainingDistance: ${it.remainingDistance}, time: ${it.time}, groundSpeed: ${it.groundSpeed}, tas: ${it.tas}"
             )
         }
 
@@ -270,8 +272,8 @@ class DescentTrajectoryServiceTest {
         val newTrajectory = calculateDescentTrajectoryFor(modifiedRoute)
 
         assertEquals(
-            expected = originalTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
-            actual = newTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
+            expected = (originalTrajectory.last().time - originalTrajectory.first().time).inWholeSeconds.toDouble(),
+            actual = (newTrajectory.last().time - newTrajectory.first().time).inWholeSeconds.toDouble(),
             absoluteTolerance = 5.0,
             "ETO should not change when removing a waypoint along a straight line"
         )
@@ -287,13 +289,13 @@ class DescentTrajectoryServiceTest {
 
         val newTrajectory = calculateDescentTrajectoryFor(modifiedRoute)
 
-        val timeGained = originalTrajectory.first().remainingTime - newTrajectory.first().remainingTime
+        val timeGained = (originalTrajectory.last().time - originalTrajectory.first().time) - (newTrajectory.last().time - newTrajectory.first().time)
 
         assertTrue { timeGained > 30.seconds && timeGained < 2.minutes }
 
         assertNotEquals(
-            illegal = originalTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
-            actual = newTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
+            illegal = (originalTrajectory.last().time - originalTrajectory.first().time).inWholeSeconds.toDouble(),
+            actual = (newTrajectory.last().time - newTrajectory.first().time).inWholeSeconds.toDouble(),
             absoluteTolerance = 45.0,
             "ETO should change when removing a waypoint along a curve"
         )
@@ -334,7 +336,8 @@ class DescentTrajectoryServiceTest {
             spatialWeatherField = null,
             flightPlanTas = 450,
             aircraftPerformance = b738performance,
-            airport = testAirport
+            airport = testAirport,
+            currentTime = NtpClock.now(),
         )!!.trajectoryPoints
 
 }

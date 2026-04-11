@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
 import no.vaccsca.amandman.model.airport.RunwayArrivalProfile
 import no.vaccsca.amandman.model.airport.RunwayThreshold

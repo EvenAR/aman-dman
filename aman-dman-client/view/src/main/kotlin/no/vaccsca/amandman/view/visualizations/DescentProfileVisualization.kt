@@ -210,11 +210,8 @@ class DescentProfileVisualization : JPanel(BorderLayout()) {
         x += g.fontMetrics.stringWidth("$ias | ")
 
         // ETO - Estimated Time Over (absolute timestamp)
-        // remainingTime is "time from touchdown", so we need to calculate the landing time first
-        val landingTime = kotlinx.datetime.Clock.System.now() + trajectoryPoints.first().remainingTime
-        val estimatedTimeOver = landingTime - it.remainingTime
+        val javaInstant = Instant.ofEpochMilli(it.time.toEpochMilliseconds())
         val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(java.time.ZoneOffset.UTC)
-        val javaInstant = Instant.ofEpochMilli(estimatedTimeOver.toEpochMilliseconds())
         val eto = "ETO: ${formatter.format(javaInstant)}"
         g.drawString(eto, x, height - 5)
         x += g.fontMetrics.stringWidth("$eto | ")

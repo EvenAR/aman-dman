@@ -1,5 +1,6 @@
 package no.vaccsca.amandman.model.planning
 
+import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
@@ -17,6 +18,7 @@ import no.vaccsca.amandman.model.weather.WeatherUtils
 import no.vaccsca.amandman.model.weather.WindVector
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 object DescentTrajectoryService {
@@ -50,6 +52,7 @@ object DescentTrajectoryService {
         aircraftPerformance: AircraftPerformance,
         flightPlanTas: Int?,
         airport: Airport,
+        currentTime: Instant,
     ): DescentTrajectoryResult? {
         val runwayInfo = airport.runways[assignedRunway]
         if (runwayInfo == null) {
@@ -63,6 +66,7 @@ object DescentTrajectoryService {
         }
         val arrivalFixExpectationByName = routeArrivalFixExpectations.associateBy { it.fixName }
         val trajectoryPoints = mutableListOf<TrajectoryPoint>()
+        val durations = mutableListOf<Duration>()
 
         // Starts at the airports and works backwards
         var probePosition = runwayInfo.latLng
@@ -89,13 +93,14 @@ object DescentTrajectoryService {
         }
 
         // Add the last point (the airport) to the profile
+        durations += accumulatedTimeFromDestination
         trajectoryPoints +=
                 TrajectoryPoint(
                     fixId = assignedRunway,
                     latLng = probePosition,
                     altitude = probeAltitude,
                     remainingDistance = probingDistance,
-                    remainingTime = accumulatedTimeFromDestination,
+                    time = Instant.DISTANT_PAST,
                     groundSpeed = aircraftPerformance.landingVat, // TODO: convert to ground speed
                     tas = aircraftPerformance.landingVat,
                     windVector = calmWindVector, // TODO: use wind from METAR
@@ -151,12 +156,13 @@ object DescentTrajectoryService {
                     arrivalFixExpectationByName[earlierPoint.id]
                 } else null
 
+                durations += accumulatedTimeFromDestination
                 trajectoryPoints +=
                         TrajectoryPoint(
                             latLng = step.position,
                             altitude = step.altitudeFt,
                             remainingDistance = probingDistance,
-                            remainingTime = accumulatedTimeFromDestination,
+                            time = Instant.DISTANT_PAST,
                             groundSpeed = step.groundSpeed,
                             tas = step.tas,
                             windVector = step.windVector,
@@ -173,8 +179,15 @@ object DescentTrajectoryService {
             }
         }
 
+        val reversedPoints = trajectoryPoints.reversed()
+        val reversedDurations = durations.reversed()
+        val landingInstant = currentTime + reversedDurations.first()
+        val finalPoints = reversedPoints.zip(reversedDurations).map { (point, duration) ->
+            point.copy(time = landingInstant - duration)
+        }
+
         return DescentTrajectoryResult(
-            trajectoryPoints = trajectoryPoints.reversed(),
+            trajectoryPoints = finalPoints,
             runwayThreshold = runwayInfo,
         )
     }

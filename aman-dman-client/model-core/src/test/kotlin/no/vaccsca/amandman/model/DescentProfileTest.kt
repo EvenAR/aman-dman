@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.planning.DescentTrajectoryService
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
@@ -114,16 +116,16 @@ class DescentProfileTest {
     @Test
     fun `Removing a fix that causes a shorter flight path should reduce time`() {
         val descentSegmentsOriginalRoute = calculateTestDescent(testFlight)
-        val remainingTimeOriginalRoute = descentSegmentsOriginalRoute.first().remainingTime
+        val flightTimeOriginalRoute = descentSegmentsOriginalRoute.last().time - descentSegmentsOriginalRoute.first().time
 
         val testAircraftB = testFlight.copy(
             remainingRoute = testFlight.remainingRoute.filter { it.id != "GM415" && it.id != "GM414" }
         )
         val descentSegmentsModifiedRoute = calculateTestDescent(testAircraftB)
 
-        val remainingTimeModifiedRoute = descentSegmentsModifiedRoute.first().remainingTime
+        val flightTimeModifiedRoute = descentSegmentsModifiedRoute.last().time - descentSegmentsModifiedRoute.first().time
 
-        assertTrue { remainingTimeOriginalRoute > remainingTimeModifiedRoute }
+        assertTrue { flightTimeOriginalRoute > flightTimeModifiedRoute }
     }
 
    /* @Test
@@ -274,7 +276,8 @@ class DescentProfileTest {
             spatialWeatherField = lateralGradientField,
             aircraftPerformance = b738performance,
             flightPlanTas = 450,
-            airport = testAirport
+            airport = testAirport,
+            currentTime = NtpClock.now(),
         )
 
         val sampledWindVectors = descentTrajectoryResult!!.trajectoryPoints
@@ -308,7 +311,8 @@ class DescentProfileTest {
             spatialWeatherField = weatherField,
             aircraftPerformance = b738performance,
             flightPlanTas = 450,
-            airport = testAirport
+            airport = testAirport,
+            currentTime = NtpClock.now(),
         )
 
         println("Descent segments for route:")

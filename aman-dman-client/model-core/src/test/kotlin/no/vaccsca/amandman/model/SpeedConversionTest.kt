@@ -1,6 +1,7 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.model.weather.WindVector
 import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

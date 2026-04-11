@@ -10,7 +10,6 @@ import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.navigation.distanceTo
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.weather.SpatialWeatherField
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Maps data from the ATC client to domain objects used for planning.
@@ -43,6 +42,7 @@ object ArrivalEventService {
             throw HasLandedException("Aircraft ${arrival.callsign} has already landed")
         }
 
+        val now = NtpClock.now()
         val trajectory = DescentTrajectoryService.calculateDescentTrajectory(
             currentPosition = arrival.currentPosition,
             assignedRunway = arrival.assignedRunway,
@@ -51,7 +51,8 @@ object ArrivalEventService {
             assignedStar = arrival.assignedStar,
             aircraftPerformance = aircraftPerformance,
             flightPlanTas = arrival.flightPlanTas,
-            airport = airport
+            airport = airport,
+            currentTime = now,
         )
 
         if (trajectory == null) {
@@ -64,7 +65,7 @@ object ArrivalEventService {
             throw EmptyTrajectoryException("The descent trajectory is empty")
         }
 
-        val estimatedTime = NtpClock.now() + (trajectory.trajectoryPoints.firstOrNull()?.remainingTime ?: 0.seconds)
+        val estimatedTime = trajectory.trajectoryPoints.last().time
         val assignedDirectRoutingState = assignedDirectRoutingState(arrival, airport)
 
         // Check if assigned direct routing is to an IAF or IF

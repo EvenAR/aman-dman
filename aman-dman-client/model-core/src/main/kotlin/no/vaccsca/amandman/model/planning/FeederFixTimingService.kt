@@ -6,6 +6,7 @@ import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
+import kotlinx.datetime.Instant
 import kotlin.math.cos
 import kotlin.math.hypot
 
@@ -34,7 +35,7 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
                 point.fixId?.uppercase() == feederFix
             }
             if (fixPoint != null) {
-                timings[feederFix] = arrival.toFeederFixTiming(fixPoint.remainingTime)
+                timings[feederFix] = arrival.toFeederFixTiming(fixPoint.time)
                 return@forEach
             }
 
@@ -65,35 +66,35 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
 
         // A direct past a feeder fix removes the explicit route crossing, but the aircraft can still
         // be operationally relevant to that feeder flow, so we anchor it by the closest abeam time.
-        val projectedRemainingTime = trajectory
+        val projectedTime = trajectory
             .zipWithNext()
-            .mapNotNull { (start, end) -> projectRemainingTimeOntoSegment(start, end, bypassedFix.latLng) }
+            .mapNotNull { (start, end) -> projectTimeOntoSegment(start, end, bypassedFix.latLng) }
             .minByOrNull { it.distanceNm }
-            ?.remainingTime
+            ?.time
             ?: return null
-        if (projectedRemainingTime >= trajectory.first().remainingTime) {
+        if (projectedTime <= trajectory.first().time) {
             return null
         }
 
-        return arrival.toFeederFixTiming(projectedRemainingTime, isAbeamTime = true)
+        return arrival.toFeederFixTiming(projectedTime, isAbeamTime = true)
     }
 
-    private fun projectRemainingTimeOntoSegment(
+    private fun projectTimeOntoSegment(
         start: TrajectoryPoint,
         end: TrajectoryPoint,
         feederFixPosition: LatLng,
-    ): ProjectedRemainingTime? {
+    ): ProjectedTime? {
         val projection = SegmentProjection.from(start.latLng, end.latLng, feederFixPosition) ?: return null
-        val remainingTimeDelta = start.remainingTime - end.remainingTime
-        val projectedRemainingTime = start.remainingTime - (remainingTimeDelta * projection.fractionAlongSegment)
-        return ProjectedRemainingTime(
-            remainingTime = projectedRemainingTime,
+        val timeDelta = end.time - start.time
+        val projectedTime = start.time + timeDelta * projection.fractionAlongSegment
+        return ProjectedTime(
+            time = projectedTime,
             distanceNm = projection.distanceNm,
         )
     }
 
-    private data class ProjectedRemainingTime(
-        val remainingTime: kotlin.time.Duration,
+    private data class ProjectedTime(
+        val time: Instant,
         val distanceNm: Double,
     )
 
@@ -128,11 +129,11 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
     }
 
     private fun RunwayArrivalEvent.toFeederFixTiming(
-        remainingTime: kotlin.time.Duration,
+        time: Instant,
         isAbeamTime: Boolean = false,
     ) = FeederFixTiming(
-        eto = estimatedTime - remainingTime,
-        sto = scheduledTime - remainingTime,
+        eto = time,
+        sto = time + (scheduledTime - estimatedTime),
         isAbeamTime = isAbeamTime,
     )
 }

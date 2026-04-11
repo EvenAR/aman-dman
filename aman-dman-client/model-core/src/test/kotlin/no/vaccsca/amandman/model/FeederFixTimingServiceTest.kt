@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.atc.ExtractedRoutePoint
@@ -32,9 +34,9 @@ class FeederFixTimingServiceTest {
             arrivals = listOf(arrival),
             trajectoryProvider = {
                 listOf(
-                    trajectoryPoint("F1", 20.minutes, LatLng(60.0, 11.0)),
-                    trajectoryPoint("F2", 10.minutes, LatLng(60.0, 11.5)),
-                    trajectoryPoint("19L", 0.minutes, LatLng(60.0, 12.0)),
+                    trajectoryPoint("F1", referenceEto - 20.minutes, LatLng(60.0, 11.0)),
+                    trajectoryPoint("F2", referenceEto - 10.minutes, LatLng(60.0, 11.5)),
+                    trajectoryPoint("19L", referenceEto, LatLng(60.0, 12.0)),
                 )
             },
             extractedRouteProvider = { emptyList() },
@@ -71,9 +73,9 @@ class FeederFixTimingServiceTest {
             arrivals = listOf(arrival),
             trajectoryProvider = {
                 listOf(
-                    trajectoryPoint(fixId = null, remainingTime = 20.minutes, latLng = LatLng(60.0, 10.0)),
-                    trajectoryPoint(fixId = "NEXT", remainingTime = 10.minutes, latLng = LatLng(60.0, 12.0)),
-                    trajectoryPoint(fixId = "19L", remainingTime = 0.minutes, latLng = LatLng(60.0, 13.0)),
+                    trajectoryPoint(fixId = null, time = referenceEto - 20.minutes, latLng = LatLng(60.0, 10.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = "19L", time = referenceEto, latLng = LatLng(60.0, 13.0)),
                 )
             },
             extractedRouteProvider = {
@@ -103,8 +105,8 @@ class FeederFixTimingServiceTest {
             arrivals = listOf(arrival),
             trajectoryProvider = {
                 listOf(
-                    trajectoryPoint("F1", 12.minutes, LatLng(60.0, 11.0)),
-                    trajectoryPoint("19L", 0.minutes, LatLng(60.0, 12.0)),
+                    trajectoryPoint("F1", referenceEto - 12.minutes, LatLng(60.0, 11.0)),
+                    trajectoryPoint("19L", referenceEto, LatLng(60.0, 12.0)),
                 )
             },
             extractedRouteProvider = {
@@ -132,8 +134,8 @@ class FeederFixTimingServiceTest {
             arrivals = listOf(arrival),
             trajectoryProvider = {
                 listOf(
-                    trajectoryPoint(fixId = null, remainingTime = 20.minutes, latLng = LatLng(60.0, 10.0)),
-                    trajectoryPoint(fixId = "NEXT", remainingTime = 10.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = null, time = referenceEto - 20.minutes, latLng = LatLng(60.0, 10.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(60.0, 12.0)),
                 )
             },
             extractedRouteProvider = {
@@ -158,7 +160,7 @@ class FeederFixTimingServiceTest {
             arrivals = listOf(arrival),
             trajectoryProvider = {
                 listOf(
-                    trajectoryPoint(fixId = "NEXT", remainingTime = 10.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(60.0, 12.0)),
                 )
             },
             extractedRouteProvider = {
@@ -183,9 +185,9 @@ class FeederFixTimingServiceTest {
             arrivals = listOf(arrival),
             trajectoryProvider = {
                 listOf(
-                    trajectoryPoint(fixId = null, remainingTime = 20.minutes, latLng = LatLng(60.0, 12.0)),
-                    trajectoryPoint(fixId = "NEXT", remainingTime = 10.minutes, latLng = LatLng(60.0, 13.0)),
-                    trajectoryPoint(fixId = "19L", remainingTime = 0.minutes, latLng = LatLng(60.0, 14.0)),
+                    trajectoryPoint(fixId = null, time = referenceEto - 20.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(60.0, 13.0)),
+                    trajectoryPoint(fixId = "19L", time = referenceEto, latLng = LatLng(60.0, 14.0)),
                 )
             },
             extractedRouteProvider = {
@@ -207,8 +209,8 @@ class FeederFixTimingServiceTest {
         val result = strategy.computeTimingsForArrival(
             arrival = arrival,
             trajectory = listOf(
-                trajectoryPoint("F1", 18.minutes, LatLng(60.0, 11.0)),
-                trajectoryPoint("F1", 8.minutes, LatLng(60.0, 11.5)),
+                trajectoryPoint("F1", referenceEto - 18.minutes, LatLng(60.0, 11.0)),
+                trajectoryPoint("F1", referenceEto - 8.minutes, LatLng(60.0, 11.5)),
             ),
             extractedRoute = emptyList(),
             targetFixes = setOf("F1"),
@@ -261,14 +263,14 @@ class FeederFixTimingServiceTest {
 
     private fun trajectoryPoint(
         fixId: String?,
-        remainingTime: kotlin.time.Duration,
+        time: Instant,
         latLng: LatLng,
     ): TrajectoryPoint = TrajectoryPoint(
         fixId = fixId,
         latLng = latLng,
         altitude = 10000,
         remainingDistance = 100f,
-        remainingTime = remainingTime,
+        time = time,
         groundSpeed = 250,
         tas = 260,
         ias = 240,
