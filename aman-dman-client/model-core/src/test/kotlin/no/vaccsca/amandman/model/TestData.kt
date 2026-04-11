@@ -2,6 +2,7 @@ package no.vaccsca.amandman.model
 
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.airport.RunwayArrivalProfile
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.navigation.LatLng
@@ -38,7 +39,7 @@ val b738performance = AircraftPerformance(
 
 val rwy19LArrivalFixExpectations = listOf(
     arrivalFixExpectation("ADOPI", typicalSpeedIas = 250),
-    arrivalFixExpectation("BAVAD", typicalAltitude = 5000, typicalSpeedIas = 200),
+    arrivalFixExpectation("BAVAD", typicalAltitude = 5000, typicalSpeedIas = 200, role = ArrivalFixRole.IAF),
     arrivalFixExpectation("ENGM", typicalAltitude = 700),
     arrivalFixExpectation("ESEBA", typicalSpeedIas = 250),
     arrivalFixExpectation("GM418", typicalAltitude = 11000, typicalSpeedIas = 220),
@@ -67,9 +68,10 @@ private fun arrivalFixExpectation(
     fixName: String,
     typicalAltitude: Int? = null,
     typicalSpeedIas: Int? = null,
+    role: ArrivalFixRole? = null,
 ) = ArrivalFixExpectation(
     fixName = fixName,
-    role = null,
+    role = role,
     typicalAltitude = typicalAltitude,
     typicalSpeedIas = typicalSpeedIas,
 )

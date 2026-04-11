@@ -2,6 +2,7 @@ package no.vaccsca.amandman.model.planning
 
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceProvider
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.airport.Airport
@@ -22,7 +23,8 @@ object ArrivalEventService {
         airport: Airport,
         arrival: AtcClientArrivalData,
         weatherField: SpatialWeatherField?,
-        aircraftPerformanceProvider: AircraftPerformanceProvider
+        aircraftPerformanceProvider: AircraftPerformanceProvider,
+        useGroundspeedOnDirectRouting: Boolean = true,
     ): RunwayArrivalEvent {
         val aircraftPerformance = try {
             aircraftPerformanceProvider.get(arrival.icaoType)
@@ -43,6 +45,13 @@ object ArrivalEventService {
         }
 
         val now = NtpClock.now()
+
+        val directFixRole = arrival.assignedDirect?.let { directFix ->
+            runwayInfo.arrivalFixExpectationsFor(arrival.assignedStar)
+                .find { it.fixName.equals(directFix, ignoreCase = true) }
+                ?.role
+        }
+
         val trajectory = DescentTrajectoryService.calculateDescentTrajectory(
             currentPosition = arrival.currentPosition,
             assignedRunway = arrival.assignedRunway,
@@ -53,6 +62,7 @@ object ArrivalEventService {
             flightPlanTas = arrival.flightPlanTas,
             airport = airport,
             currentTime = now,
+            useGroundspeedOnDirectRouting = useGroundspeedOnDirectRouting,
         )
 
         if (trajectory == null) {
@@ -69,13 +79,8 @@ object ArrivalEventService {
         val assignedDirectRoutingState = assignedDirectRoutingState(arrival, airport)
 
         // Check if assigned direct routing is to an IAF or IF
-        val directFixInfo = arrival.assignedDirect?.let { directFix ->
-            runwayInfo.arrivalFixExpectationsFor(arrival.assignedStar).find { fix ->
-                fix.fixName.equals(directFix, ignoreCase = true)
-            }
-        }
-        val assignedDirectIsIAF = directFixInfo?.role == no.vaccsca.amandman.model.airport.ArrivalFixRole.IAF
-        val assignedDirectIsIF = directFixInfo?.role == no.vaccsca.amandman.model.airport.ArrivalFixRole.IF
+        val assignedDirectIsIAF = directFixRole == ArrivalFixRole.IAF
+        val assignedDirectIsIF = directFixRole == ArrivalFixRole.IF
 
         return RunwayArrivalEvent(
             callsign = arrival.callsign,

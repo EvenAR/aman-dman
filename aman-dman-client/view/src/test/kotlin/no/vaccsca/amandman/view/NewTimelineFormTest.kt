@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.view
+
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.FeederFixTimelineConfig
 import no.vaccsca.amandman.common.RunwayTimelineConfig

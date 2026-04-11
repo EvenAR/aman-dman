@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.model.config.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.fasterxml.jackson.annotation.JsonValue
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -28,6 +29,14 @@ data class AmanDmanSettingsYaml(
             >? = null,
 
     val theme: ThemeYaml?,
+
+    @field:Valid
+    val planningSettings: PlanningSettingsYaml? = null,
+)
+
+data class PlanningSettingsYaml(
+    @field:JsonPropertyDescription("When aircraft is given direct IF/IAF, base predictions on current speed instead of speed from performance model.")
+    val useGroundspeedOnDirectRouting: Boolean = true,
 )
 
 data class TimelineSettingsYaml(

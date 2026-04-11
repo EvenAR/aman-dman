@@ -5,6 +5,7 @@ import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.config.AirportTimelines
 import no.vaccsca.amandman.model.config.AmanDmanSettings
+import no.vaccsca.amandman.model.config.PlanningSettings
 import no.vaccsca.amandman.model.config.AtcClientConnectionParameters
 import no.vaccsca.amandman.model.config.ConnectionConfig
 import no.vaccsca.amandman.model.config.LabelItem
@@ -28,6 +29,7 @@ import no.vaccsca.amandman.model.config.yaml.MasterSlaveApiConnectionParamsYaml
 import no.vaccsca.amandman.model.config.yaml.FeederFixTimelineYaml
 import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
 import no.vaccsca.amandman.model.config.yaml.TimelineDefaultsYaml
+import no.vaccsca.amandman.model.config.yaml.PlanningSettingsYaml
 import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
 import no.vaccsca.amandman.model.navigation.LatLng
 import java.util.UUID
@@ -39,6 +41,11 @@ fun AmanDmanSettingsYaml.toDomain(): AmanDmanSettings = AmanDmanSettings(
     arrivalLabelLayouts = arrivalLabelLayouts.mapValues { entry -> entry.value.map { it.toDomain() } },
     departureLabelLayouts = departureLabelLayouts?.mapValues { entry -> entry.value.map { it.toDomain() } } ?: emptyMap(),
     theme = theme?.toDomain() ?: Theme.FLATLAF_DARK,
+    planningSettings = planningSettings?.toDomain() ?: PlanningSettings(),
+)
+
+fun PlanningSettingsYaml.toDomain() = PlanningSettings(
+    useGroundspeedOnDirectRouting = useGroundspeedOnDirectRouting,
 )
 
 fun TimelineSettingsYaml.toDomain(): Map<String, AirportTimelines> = timelines.mapValues { entry -> entry.value.toDomain() }

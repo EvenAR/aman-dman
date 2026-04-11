@@ -6,6 +6,7 @@ import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.NavdataUtils.getInterpolatedSpeedExpectation
 import no.vaccsca.amandman.model.navigation.NavigationUtils.interpolatePositionAlongPath
@@ -53,6 +54,7 @@ object DescentTrajectoryService {
         flightPlanTas: Int?,
         airport: Airport,
         currentTime: Instant,
+        useGroundspeedOnDirectRouting: Boolean = true,
     ): DescentTrajectoryResult? {
         val runwayInfo = airport.runways[assignedRunway]
         if (runwayInfo == null) {
@@ -65,6 +67,19 @@ object DescentTrajectoryService {
             it.fixName in routeFixIds
         }
         val arrivalFixExpectationByName = routeArrivalFixExpectations.associateBy { it.fixName }
+
+        // When the first remaining waypoint is an IAF or IF (direct routing), seed the trajectory
+        // with the aircraft's current groundspeed converted to IAS instead of performance data.
+        val firstWaypointRole = remainingWaypoints.firstOrNull()?.let { firstWaypoint ->
+            routeArrivalFixExpectations.find { it.fixName.equals(firstWaypoint.id, ignoreCase = true) }?.role
+        }
+        val currentPositionIas: Int? = if (useGroundspeedOnDirectRouting && (firstWaypointRole == ArrivalFixRole.IAF || firstWaypointRole == ArrivalFixRole.IF)) {
+            val weather = spatialWeatherField?.sampleWeather(currentPosition.latLng, currentPosition.altitudeFt)
+            val tempC = weather?.temperatureC ?: WeatherUtils.getStandardTemperatureAt(currentPosition.altitudeFt)
+            val windVector = weather?.windVector
+            val tas = if (windVector != null) SpeedConversionUtils.gsToTAS(currentPosition.groundspeedKts, windVector, currentPosition.trackDeg) else currentPosition.groundspeedKts
+            SpeedConversionUtils.tasToIAS(tas, currentPosition.altitudeFt, tempC)
+        } else null
         val trajectoryPoints = mutableListOf<TrajectoryPoint>()
         val durations = mutableListOf<Duration>()
 
@@ -120,19 +135,21 @@ object DescentTrajectoryService {
                 ?.let { arrivalFixExpectationByName[it.id]?.typicalAltitude }
                 ?: currentPosition.altitudeFt
 
-            val earlierSpeedExpectation =
-                if (routeArrivalFixExpectations.isNotEmpty()) {
+            val earlierSpeedExpectation = when {
+                earlierPoint.id == CURRENT_ID && currentPositionIas != null ->
+                    currentPositionIas
+                routeArrivalFixExpectations.isNotEmpty() ->
                     remainingWaypoints.getInterpolatedSpeedExpectation(
                         arrivalFixExpectations = routeArrivalFixExpectations,
                         atWaypoint = earlierPoint
                     )
-                } else {
+                else ->
                     aircraftPerformance.getPreferredIas(
                         altitudeFt = nextAltitudeExpectation,
                         temperatureC = spatialWeatherField?.sampleWeather(earlierPoint.latLng, nextAltitudeExpectation)?.temperatureC,
                         flightPlanTas = flightPlanTas
                     )
-                }
+            }
 
             val descentSteps = aircraftPerformance.computeDescentPathBackward(
                 lowerAltitude = probeAltitude,

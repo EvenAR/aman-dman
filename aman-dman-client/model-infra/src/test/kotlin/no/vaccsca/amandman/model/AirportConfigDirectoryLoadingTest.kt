@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.model.config.SettingsRepository
 import java.nio.file.Files
 import kotlin.test.Test

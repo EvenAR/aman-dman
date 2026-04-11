@@ -184,6 +184,7 @@ class MainPresenter(
                     cdmClient = cdmProvider,
                     sharedState = sharedState,
                     aircraftPerformanceProvider = performanceProvider,
+                    planningSettings = settingsProvider.getSettings().planningSettings,
                     dataUpdateListeners = arrayOf(guiDataHandler, dataUpdatesServerSender),
                 )
             }
@@ -207,6 +208,7 @@ class MainPresenter(
                     atcClient = atcClient,
                     cdmClient = cdmProvider,
                     aircraftPerformanceProvider = performanceProvider,
+                    planningSettings = settingsProvider.getSettings().planningSettings,
                     dataUpdateListeners = arrayOf(guiDataHandler),
                 )
             }

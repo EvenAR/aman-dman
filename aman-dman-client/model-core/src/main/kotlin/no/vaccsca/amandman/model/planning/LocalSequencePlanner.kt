@@ -29,6 +29,7 @@ import no.vaccsca.amandman.model.atc.AtcClientDepartureData
 import no.vaccsca.amandman.model.atc.ControllerInfoData
 import no.vaccsca.amandman.model.atc.ExtractedRoutePoint
 import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedState
+import no.vaccsca.amandman.model.config.PlanningSettings
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
@@ -51,6 +52,7 @@ class LocalSequencePlanner(
     private val cdmClient: CdmProvider,
     private val sharedState: MasterSlaveSharedState? = null,
     private val aircraftPerformanceProvider: AircraftPerformanceProvider,
+    private val planningSettings: PlanningSettings = PlanningSettings(),
     private vararg val dataUpdateListeners: DataUpdateListener,
 ) : SequencePlanner {
 
@@ -221,7 +223,8 @@ class LocalSequencePlanner(
                     airport = airport,
                     arrival = arrival,
                     weatherField = weatherField,
-                    aircraftPerformanceProvider = aircraftPerformanceProvider
+                    aircraftPerformanceProvider = aircraftPerformanceProvider,
+                    useGroundspeedOnDirectRouting = planningSettings.useGroundspeedOnDirectRouting,
                 )
                 runwayArrivalEvents.add(arrivalEvent)
             } catch (_: NoAssignedRunwayException) {

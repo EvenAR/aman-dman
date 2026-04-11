@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import com.fasterxml.jackson.core.type.TypeReference
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.planning.SequenceStatus

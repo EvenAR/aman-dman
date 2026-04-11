@@ -28,3 +28,6 @@ connectionConfig:
     host: "https://aman-dman-api.fly.dev"
 
 theme: "JTattoo"
+
+planningSettings:
+  useGroundspeedOnDirectRouting: true
