@@ -1,5 +1,6 @@
 import no.vaccsca.amandman.model.aircraft.AircraftPerformance
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
+import no.vaccsca.amandman.model.airport.RunwayArrivalProfile
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.navigation.LatLng
 
@@ -52,7 +53,12 @@ val rwy19L = RunwayThreshold(
     latLng = LatLng(60.20116653568569,11.12244616482607),
     elevation = 681f,
     trueHeading = 194f,
-    arrivalFixExpectations = rwy19LArrivalFixExpectations,
+    arrivalProfiles = listOf(
+        RunwayArrivalProfile(
+            arrivalNamePattern = "*",
+            fixExpectations = rwy19LArrivalFixExpectations,
+        )
+    ),
 )
 
 private fun arrivalFixExpectation(

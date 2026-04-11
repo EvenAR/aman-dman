@@ -4,6 +4,7 @@ import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
 import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.airport.RunwayArrivalProfile
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.NavigationUtils.dmsToDecimal
@@ -40,7 +41,12 @@ class DescentProfileTest {
         latLng = LatLng(60.18501045995491,11.073783755507158),
         elevation = 681f,
         trueHeading = 14f,
-        arrivalFixExpectations = arrivalFixExpectations01L,
+        arrivalProfiles = listOf(
+            RunwayArrivalProfile(
+                arrivalNamePattern = "*",
+                fixExpectations = arrivalFixExpectations01L,
+            )
+        ),
     )
 
     val testAirport = Airport(

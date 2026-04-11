@@ -2,114 +2,135 @@ package no.vaccsca.amandman.model.config.mapper
 
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
 import no.vaccsca.amandman.model.airport.ArrivalFixRole
+import no.vaccsca.amandman.model.airport.RunwayArrivalProfile
 import no.vaccsca.amandman.model.config.yaml.ArrivalFixRoleYaml
-import no.vaccsca.amandman.model.config.yaml.ArrivalFixYamlEntry
-import org.slf4j.LoggerFactory
+import no.vaccsca.amandman.model.config.yaml.ArrivalProfileFixYaml
+import no.vaccsca.amandman.model.config.yaml.ArrivalProfileYaml
 
 private val FIX_NAME_REGEX = Regex("^[A-Z0-9]{1,5}$")
-private const val ARRIVAL_FIX_YAML_MAPPER_LOGGER_NAME = "no.vaccsca.amandman.model.config.mapper.ArrivalFixYamlMapper"
-internal var arrivalFixWarningLogger: (String) -> Unit = { message ->
-    LoggerFactory.getLogger(ARRIVAL_FIX_YAML_MAPPER_LOGGER_NAME).warn(message)
-}
+private val ARRIVAL_NAME_PATTERN_REGEX = Regex("^[A-Z0-9*]+$")
+private val RUNWAY_PATTERN_REGEX = Regex("^[A-Z0-9*]+$")
 
-internal fun List<ArrivalFixYamlEntry>.toRunwayExpectationsByRunway(
+internal fun Map<String, List<ArrivalProfileYaml>>.toRunwayProfilesByRunway(
     airportIcao: String,
     availableRunways: Set<String>,
-): Map<String, List<ArrivalFixExpectation>> {
-    val normalizedRows = mapIndexed { index, entry ->
-        entry.toNormalizedRow(airportIcao, index + 1)
-    }
+): Map<String, List<RunwayArrivalProfile>> {
+    val profilesByRunway = availableRunways.associateWith { mutableListOf<RunwayArrivalProfile>() }
 
-    normalizedRows.forEach { row ->
-        row.runwayIdentifiers.forEach { runwayIdentifier ->
-            require(runwayIdentifier in availableRunways) {
-                "Airport $airportIcao arrival fix ${row.fixName} references unknown runway $runwayIdentifier."
-            }
+    entries.forEach { (rawRunwayPattern, profiles) ->
+        val runwayPattern = rawRunwayPattern.trim().uppercase()
+        require(runwayPattern.isNotBlank()) {
+            "Airport $airportIcao arrivalProfiles contains a blank runway pattern."
+        }
+        require(RUNWAY_PATTERN_REGEX.matches(runwayPattern)) {
+            "Airport $airportIcao arrivalProfiles has invalid runway pattern '$rawRunwayPattern'. " +
+                "Expected uppercase alphanumeric characters and '*'."
+        }
+        val matchingRunways = availableRunways.filter { runwayIdentifier ->
+            runwayPattern.matchesGlob(runwayIdentifier)
+        }
+        require(matchingRunways.isNotEmpty()) {
+            "Airport $airportIcao arrivalProfiles runway pattern $runwayPattern matches no configured runways."
+        }
+
+        val domainProfiles = profiles.toDomainProfiles(
+            airportIcao = airportIcao,
+            runwayPattern = runwayPattern,
+        )
+
+        matchingRunways.forEach { runwayIdentifier ->
+            profilesByRunway.getValue(runwayIdentifier).addAll(domainProfiles)
         }
     }
 
-    val seenFixesByRunway = mutableSetOf<Pair<String, String>>()
-    val seenRolesByRunway = mutableMapOf<Pair<String, ArrivalFixRole>, String>()
-
-    normalizedRows.forEach { row ->
-        row.runwayIdentifiers.forEach { runwayIdentifier ->
-            require(seenFixesByRunway.add(runwayIdentifier to row.fixName)) {
-                "Airport $airportIcao has duplicate arrival fix ${row.fixName} for runway $runwayIdentifier."
-            }
-
-            row.role?.let { role ->
-                val previousFix = seenRolesByRunway.putIfAbsent(runwayIdentifier to role, row.fixName)
-                if (previousFix != null && role == ArrivalFixRole.IF) {
-                    arrivalFixWarningLogger(
-                        "Airport $airportIcao runway $runwayIdentifier has multiple IF fixes ($previousFix, ${row.fixName})."
-                    )
-                }
-            }
-        }
-    }
-
-    return normalizedRows
-        .flatMap { row ->
-            row.runwayIdentifiers.map { runwayIdentifier ->
-                runwayIdentifier to row.toDomain()
-            }
-        }
-        .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+    return profilesByRunway
+        .filterValues { it.isNotEmpty() }
+        .mapValues { (_, profiles) -> profiles.toList() }
 }
 
-private fun ArrivalFixYamlEntry.toNormalizedRow(
+private fun List<ArrivalProfileYaml>.toDomainProfiles(
     airportIcao: String,
-    rowNumber: Int,
-): NormalizedArrivalFixRow {
-    val rowPrefix = "Airport $airportIcao arrival fix row $rowNumber"
-    val normalizedFixName = name.trim().uppercase()
-    require(FIX_NAME_REGEX.matches(normalizedFixName)) {
-        "$rowPrefix has invalid name '$name'. Expected 1-5 uppercase alphanumeric characters."
-    }
+    runwayPattern: String,
+): List<RunwayArrivalProfile> {
+        val normalizedArrivalNames = mutableSetOf<String>()
 
-    val normalizedRunways = runways.map { it.trim().uppercase() }
-    require(normalizedRunways.isNotEmpty()) {
-        "$rowPrefix must define at least one runway."
-    }
-    require(normalizedRunways.none { it.isBlank() }) {
-        "$rowPrefix contains a blank runway."
-    }
-    require(normalizedRunways.distinct().size == normalizedRunways.size) {
-        "$rowPrefix contains duplicate runways."
-    }
+    return mapIndexed { index, profile ->
+        val rowPrefix = "Airport $airportIcao runway pattern $runwayPattern arrival profile ${index + 1}"
+        val normalizedArrivalName = profile.arrivalName.trim().uppercase()
+        require(normalizedArrivalName.isNotBlank()) {
+            "$rowPrefix has a blank arrivalName pattern."
+        }
+        require(ARRIVAL_NAME_PATTERN_REGEX.matches(normalizedArrivalName)) {
+            "$rowPrefix has invalid arrivalName pattern '${profile.arrivalName}'. Expected uppercase alphanumeric characters and '*'."
+        }
+        require(normalizedArrivalNames.add(normalizedArrivalName)) {
+            "$rowPrefix duplicates arrivalName pattern $normalizedArrivalName."
+        }
+        require(profile.fixes.isNotEmpty()) {
+            "$rowPrefix must define at least one fix."
+        }
 
-    typicalAltitude?.let {
-        require(it > 0) { "$rowPrefix has invalid typicalAltitude=$it. Value must be > 0." }
+        RunwayArrivalProfile(
+            arrivalNamePattern = normalizedArrivalName,
+            fixExpectations = profile.fixes.toDomainFixExpectations(
+                airportIcao = airportIcao,
+                runwayPattern = runwayPattern,
+                arrivalNamePattern = normalizedArrivalName,
+            ),
+        )
     }
-    typicalAirspeed?.let {
-        require(it > 0) { "$rowPrefix has invalid typicalAirspeed=$it. Value must be > 0." }
-    }
-    require(role != null || typicalAltitude != null || typicalAirspeed != null) {
-        "$rowPrefix must define at least one of role, typicalAltitude, or typicalAirspeed."
-    }
-
-    return NormalizedArrivalFixRow(
-        fixName = normalizedFixName,
-        runwayIdentifiers = normalizedRunways,
-        role = role?.toDomain(),
-        typicalAltitude = typicalAltitude,
-        typicalAirspeed = typicalAirspeed,
-    )
 }
 
-private data class NormalizedArrivalFixRow(
-    val fixName: String,
-    val runwayIdentifiers: List<String>,
-    val role: ArrivalFixRole?,
-    val typicalAltitude: Int?,
-    val typicalAirspeed: Int?,
-) {
-    fun toDomain() = ArrivalFixExpectation(
-        fixName = fixName,
-        role = role,
-        typicalAltitude = typicalAltitude,
-        typicalSpeedIas = typicalAirspeed,
-    )
+private fun List<ArrivalProfileFixYaml>.toDomainFixExpectations(
+    airportIcao: String,
+    runwayPattern: String,
+    arrivalNamePattern: String,
+): List<ArrivalFixExpectation> {
+    val seenFixes = mutableSetOf<String>()
+
+    return mapIndexed { index, fixRow ->
+        val rowPrefix =
+            "Airport $airportIcao runway pattern $runwayPattern arrival profile $arrivalNamePattern fix row ${index + 1}"
+        val normalizedFixName = fixRow.fix.trim().uppercase()
+        require(FIX_NAME_REGEX.matches(normalizedFixName)) {
+            "$rowPrefix has invalid fix '${fixRow.fix}'. Expected 1-5 uppercase alphanumeric characters."
+        }
+        require(seenFixes.add(normalizedFixName)) {
+            "$rowPrefix duplicates fix $normalizedFixName within the same arrival profile."
+        }
+
+        fixRow.altitude?.let {
+            require(it > 0) { "$rowPrefix has invalid altitude=$it. Value must be > 0." }
+        }
+        fixRow.speed?.let {
+            require(it > 0) { "$rowPrefix has invalid speed=$it. Value must be > 0." }
+        }
+        require(fixRow.role != null || fixRow.altitude != null || fixRow.speed != null) {
+            "$rowPrefix must define at least one of role, altitude, or speed."
+        }
+
+        ArrivalFixExpectation(
+            fixName = normalizedFixName,
+            role = fixRow.role?.toDomain(),
+            typicalAltitude = fixRow.altitude,
+            typicalSpeedIas = fixRow.speed,
+        )
+    }
+}
+
+private fun String.matchesGlob(value: String): Boolean {
+    val patternRegex = Regex(buildString {
+        append("^")
+        this@matchesGlob.forEach { character ->
+            if (character == '*') {
+                append(".*")
+            } else {
+                append(Regex.escape(character.toString()))
+            }
+        }
+        append("$")
+    })
+    return patternRegex.matches(value.uppercase())
 }
 
 private fun ArrivalFixRoleYaml.toDomain(): ArrivalFixRole =

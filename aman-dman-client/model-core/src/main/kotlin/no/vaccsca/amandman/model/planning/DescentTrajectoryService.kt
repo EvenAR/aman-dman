@@ -29,14 +29,13 @@ object DescentTrajectoryService {
 
     /**
      * Calculates a descent trajectory from the current position to the runway using
-     * runway-scoped arrival fix expectations and aircraft performance data.
+     * runway plus arrival-name-scoped arrival fix expectations and aircraft performance data.
      *
      * @param currentPosition The current position of the aircraft.
      * @param assignedRunway The runway assigned to the aircraft.
      * @param remainingWaypoints The remaining waypoints in the flight plan leading to the runway
      * @param spatialWeatherField The spatial weather field, if available.
-     * @param assignedStar The STAR assigned to the aircraft, if any. This is currently
-     * used for controller-facing labels only and not for local config lookup.
+     * @param assignedStar The arrival name assigned to the aircraft, if any.
      * @param aircraftPerformance The performance characteristics of the aircraft.
      * @param flightPlanTas The true airspeed (TAS) from the flight plan
      *
@@ -59,7 +58,7 @@ object DescentTrajectoryService {
         }
 
         val routeFixIds = remainingWaypoints.map { it.id.uppercase() }.toSet()
-        val routeArrivalFixExpectations = runwayInfo.arrivalFixExpectations.filter {
+        val routeArrivalFixExpectations = runwayInfo.arrivalFixExpectationsFor(assignedStar).filter {
             it.fixName in routeFixIds
         }
         val arrivalFixExpectationByName = routeArrivalFixExpectations.associateBy { it.fixName }

@@ -1,19 +1,28 @@
 package no.vaccsca.amandman.model.config.yaml
 
+import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import jakarta.validation.constraints.NotNull
 
-data class ArrivalFixYamlEntry(
+data class ArrivalProfileYaml(
     @field:NotNull
-    val name: String,
+    @field:JsonPropertyDescription("Arrival name or procedure name. One or multiple wildcards (*) can be used to match multiple arrival names")
+    val arrivalName: String,
 
     @field:NotNull
-    val runways: List<String>,
+    val fixes: List<ArrivalProfileFixYaml> = emptyList(),
+)
+
+data class ArrivalProfileFixYaml(
+    @field:NotNull
+    val fix: String,
 
     val role: ArrivalFixRoleYaml? = null,
 
-    val typicalAltitude: Int? = null,
+    @field:JsonPropertyDescription("Expected altitude at the fix in feet AMSL")
+    val altitude: Int? = null,
 
-    val typicalAirspeed: Int? = null,
+    @field:JsonPropertyDescription("Expected indicated airspeed in knots (IAS)")
+    val speed: Int? = null,
 )
 
 enum class ArrivalFixRoleYaml {

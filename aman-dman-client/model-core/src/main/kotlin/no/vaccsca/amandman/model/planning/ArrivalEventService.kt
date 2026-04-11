@@ -69,7 +69,7 @@ object ArrivalEventService {
 
         // Check if assigned direct routing is to an IAF or IF
         val directFixInfo = arrival.assignedDirect?.let { directFix ->
-            runwayInfo.arrivalFixExpectations.find { fix ->
+            runwayInfo.arrivalFixExpectationsFor(arrival.assignedStar).find { fix ->
                 fix.fixName.equals(directFix, ignoreCase = true)
             }
         }

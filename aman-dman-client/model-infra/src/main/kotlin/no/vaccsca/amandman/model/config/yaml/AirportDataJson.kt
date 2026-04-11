@@ -27,7 +27,7 @@ data class AirportDataJson(
     // Reserved for future fixed-transit strategy, currently not used in projection.
     val feederFixTransitTimesMinutes: Map<String, Map<String, Int>>? = null,
 
-    val arrivalFixes: List<ArrivalFixYamlEntry> = emptyList(),
+    val arrivalProfiles: Map<String, List<ArrivalProfileYaml>> = emptyMap(),
 )
 
 data class RunwayThresholdJson(

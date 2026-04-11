@@ -22,5 +22,52 @@ data class RunwayThreshold(
     val latLng: LatLng,
     val elevation: Float,
     val trueHeading: Float,
-    val arrivalFixExpectations: List<ArrivalFixExpectation>,
-)
+    val arrivalProfiles: List<RunwayArrivalProfile> = emptyList(),
+) {
+    val arrivalFixExpectations: List<ArrivalFixExpectation>
+        get() = arrivalFixExpectationsFor(assignedArrivalName = null)
+
+    fun arrivalFixExpectationsFor(assignedArrivalName: String?): List<ArrivalFixExpectation> {
+        val mergedExpectations = mutableListOf<ArrivalFixExpectation>()
+        val indexByFixName = mutableMapOf<String, Int>()
+
+        arrivalProfiles
+            .filter { it.matches(assignedArrivalName) }
+            .forEach { profile ->
+                profile.fixExpectations.forEach { fixExpectation ->
+                    val fixKey = fixExpectation.fixName.uppercase()
+                    val existingIndex = indexByFixName[fixKey]
+                    if (existingIndex == null) {
+                        indexByFixName[fixKey] = mergedExpectations.size
+                        mergedExpectations += fixExpectation
+                    } else {
+                        mergedExpectations[existingIndex] = fixExpectation
+                    }
+                }
+            }
+
+        return mergedExpectations
+    }
+}
+
+data class RunwayArrivalProfile(
+    val arrivalNamePattern: String,
+    val fixExpectations: List<ArrivalFixExpectation>,
+) {
+    fun matches(assignedArrivalName: String?): Boolean {
+        val normalizedPattern = arrivalNamePattern.trim().uppercase()
+        val normalizedArrivalName = assignedArrivalName?.trim()?.uppercase().orEmpty()
+        val patternRegex = Regex(buildString {
+            append("^")
+            normalizedPattern.forEach { character ->
+                if (character == '*') {
+                    append(".*")
+                } else {
+                    append(Regex.escape(character.toString()))
+                }
+            }
+            append("$")
+        })
+        return patternRegex.matches(normalizedArrivalName)
+    }
+}

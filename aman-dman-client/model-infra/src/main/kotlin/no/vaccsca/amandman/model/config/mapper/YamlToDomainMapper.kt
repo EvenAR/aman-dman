@@ -163,7 +163,7 @@ fun LabelItemSourceEnumYaml.toDomain() = when(this) {
 }
 
 fun AirportDataJson.toDomain(icao: String): Airport {
-    val runwayExpectationsByRunway = arrivalFixes.toRunwayExpectationsByRunway(
+    val runwayProfilesByRunway = arrivalProfiles.toRunwayProfilesByRunway(
         airportIcao = icao,
         availableRunways = runwayThresholds.keys.map { it.uppercase() }.toSet(),
     )
@@ -186,7 +186,7 @@ fun AirportDataJson.toDomain(icao: String): Airport {
                 ),
                 elevation = value.elevation,
                 trueHeading = value.trueHeading,
-                arrivalFixExpectations = runwayExpectationsByRunway[id.uppercase()] ?: emptyList(),
+                arrivalProfiles = runwayProfilesByRunway[id.uppercase()] ?: emptyList(),
             )
         },
         feederFixes = feederFixes.map { it.uppercase() },
