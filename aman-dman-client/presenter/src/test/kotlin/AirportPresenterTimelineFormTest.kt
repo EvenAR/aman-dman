@@ -3,6 +3,7 @@ import no.vaccsca.amandman.common.FeederFixTimelineConfig
 import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.airport.RunwayArrivalProfile
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.config.AirportTimelines
@@ -720,7 +721,12 @@ class AirportPresenterTimelineFormTest {
                 latLng = LatLng(60.0, 11.0),
                 elevation = 200f,
                 trueHeading = 190f,
-                stars = emptyList()
+                arrivalProfiles = listOf(
+                    RunwayArrivalProfile(
+                        arrivalNamePattern = "*",
+                        fixExpectations = emptyList(),
+                    )
+                )
             )
         }
         return Airport(

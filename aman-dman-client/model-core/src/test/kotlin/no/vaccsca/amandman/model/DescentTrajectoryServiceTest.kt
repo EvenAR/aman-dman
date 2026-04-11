@@ -1,11 +1,15 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.planning.DescentTrajectoryService
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
+import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
 import no.vaccsca.amandman.model.navigation.distanceTo
+import no.vaccsca.amandman.model.weather.WeatherUtils
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -153,11 +157,29 @@ class DescentTrajectoryServiceTest {
     }
 
     @Test
+    fun `When direct routing to IAF, first point IAS reflects current groundspeed`() {
+        val pos = arrivalWithDirectRouting.currentPosition
+        val tempC = WeatherUtils.getStandardTemperatureAt(pos.altitudeFt)
+        val expectedIas = SpeedConversionUtils.tasToIAS(pos.groundspeedKts, pos.altitudeFt, tempC)
+
+        val descentTrajectory = calculateDescentTrajectoryFor(arrivalWithDirectRouting)
+
+        assertEquals(
+            expected = expectedIas.toDouble(),
+            actual = descentTrajectory.first().ias.toDouble(),
+            absoluteTolerance = 5.0,
+            "First trajectory point IAS should reflect current groundspeed when direct is to IAF"
+        )
+    }
+
+    @Test
     fun `When direct routing, use preferred speed until next typical speed`() {
         val descentTrajectory = calculateDescentTrajectoryFor(arrivalWithDirectRouting)
 
         val directRoutingIndex = descentTrajectory.indexOfFirst { it.fixId == arrivalWithDirectRouting.assignedDirect }
-        val expectedSpeedAtDirectRouting = star19LAdopi3M.fixes.find { it.id == arrivalWithDirectRouting.assignedDirect }!!.typicalSpeedIas!!
+        val expectedSpeedAtDirectRouting = rwy19L.arrivalFixExpectations
+            .find { it.fixName == arrivalWithDirectRouting.assignedDirect }!!
+            .typicalSpeedIas!!
 
         descentTrajectory.subList(0, directRoutingIndex).forEach {
             assertTrue { it.ias > expectedSpeedAtDirectRouting }
@@ -185,7 +207,7 @@ class DescentTrajectoryServiceTest {
 
         descentTrajectory.forEach {
             println(
-                "FixId: ${it.fixId}, ias: ${it.ias}, altitude: ${it.altitude}, remainingDistance: ${it.remainingDistance}, remainingTime: ${it.remainingTime}, groundSpeed: ${it.groundSpeed}, tas: ${it.tas}"
+                "FixId: ${it.fixId}, ias: ${it.ias}, altitude: ${it.altitude}, remainingDistance: ${it.remainingDistance}, time: ${it.time}, groundSpeed: ${it.groundSpeed}, tas: ${it.tas}"
             )
         }
 
@@ -204,7 +226,7 @@ class DescentTrajectoryServiceTest {
     }
 
     @Test
-    fun `Estimated IAS should never exceed typical speed on STAR point`() {
+    fun `Estimated IAS should never exceed typical speed on configured arrival fix`() {
         val descentTrajectory = calculateDescentTrajectoryFor(testArrival1)
         val fixesInTrajectory = descentTrajectory.filter { it.fixId != null }
 
@@ -212,12 +234,12 @@ class DescentTrajectoryServiceTest {
 
         val isExceeding = fixesInTrajectory
             .any { point ->
-                val starFix = star19LInrex4M.fixes.find { it.id == point.fixId }
-                if (starFix?.typicalSpeedIas == null) return@any false
-                point.ias > starFix.typicalSpeedIas
+                val arrivalFixExpectation = rwy19L.arrivalFixExpectations.find { it.fixName == point.fixId }
+                if (arrivalFixExpectation?.typicalSpeedIas == null) return@any false
+                point.ias > arrivalFixExpectation.typicalSpeedIas
             }
 
-        assertEquals(false, isExceeding, "IAS should not exceed typical speed on STAR point")
+        assertEquals(false, isExceeding, "IAS should not exceed typical speed on configured arrival fix")
     }
 
     @Test
@@ -238,14 +260,9 @@ class DescentTrajectoryServiceTest {
     @Test
     fun `Estimated IAS should not be more than 250 below FL100`() {
         val descentTrajectory = calculateDescentTrajectoryFor(testArrival1)
-        val descentTrajectory2 = calculateDescentTrajectoryFor(arrivalWithDirectRouting)
 
         val isExceeding = descentTrajectory.any { it.altitude < 10_000 && it.ias > 250 }
         assertEquals(false, isExceeding, "IAS should not exceed 250 below FL100")
-
-
-        val isExceeding2 = descentTrajectory2.any { it.altitude < 10_000 && it.ias > 250 }
-        assertEquals(false, isExceeding2, "IAS should not exceed 250 below FL100")
     }
 
     @Test
@@ -258,7 +275,7 @@ class DescentTrajectoryServiceTest {
     }
 
     @Test
-    fun `Removing waypoint along a straight line should not affect ETA`() {
+    fun `Removing waypoint along a straight line should not affect ETO`() {
         val originalTrajectory = calculateDescentTrajectoryFor(testArrival2)
 
         val modifiedRoute = testArrival2.copy(
@@ -268,15 +285,15 @@ class DescentTrajectoryServiceTest {
         val newTrajectory = calculateDescentTrajectoryFor(modifiedRoute)
 
         assertEquals(
-            expected = originalTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
-            actual = newTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
+            expected = (originalTrajectory.last().time - originalTrajectory.first().time).inWholeSeconds.toDouble(),
+            actual = (newTrajectory.last().time - newTrajectory.first().time).inWholeSeconds.toDouble(),
             absoluteTolerance = 5.0,
-            "ETA should not change when removing a waypoint along a straight line"
+            "ETO should not change when removing a waypoint along a straight line"
         )
     }
 
     @Test
-    fun `Removing waypoint along a curve should affect ETA`() {
+    fun `Removing waypoint along a curve should affect ETO`() {
         val originalTrajectory = calculateDescentTrajectoryFor(testArrival2)
 
         val modifiedRoute = testArrival2.copy(
@@ -285,15 +302,15 @@ class DescentTrajectoryServiceTest {
 
         val newTrajectory = calculateDescentTrajectoryFor(modifiedRoute)
 
-        val timeGained = originalTrajectory.first().remainingTime - newTrajectory.first().remainingTime
+        val timeGained = (originalTrajectory.last().time - originalTrajectory.first().time) - (newTrajectory.last().time - newTrajectory.first().time)
 
         assertTrue { timeGained > 30.seconds && timeGained < 2.minutes }
 
         assertNotEquals(
-            illegal = originalTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
-            actual = newTrajectory.first().remainingTime.inWholeSeconds.toDouble(),
+            illegal = (originalTrajectory.last().time - originalTrajectory.first().time).inWholeSeconds.toDouble(),
+            actual = (newTrajectory.last().time - newTrajectory.first().time).inWholeSeconds.toDouble(),
             absoluteTolerance = 45.0,
-            "ETA should change when removing a waypoint along a curve"
+            "ETO should change when removing a waypoint along a curve"
         )
     }
 
@@ -323,8 +340,8 @@ class DescentTrajectoryServiceTest {
         )
     }
 
-    private fun calculateDescentTrajectoryFor(arrival: AtcClientArrivalData) =
-        DescentTrajectoryService.calculateDescentTrajectory(
+    private fun calculateDescentTrajectoryFor(arrival: AtcClientArrivalData): List<no.vaccsca.amandman.model.planning.TrajectoryPoint> {
+        return DescentTrajectoryService.calculateDescentTrajectory(
             currentPosition = arrival.currentPosition,
             assignedRunway = arrival.assignedRunway!!,
             remainingWaypoints = arrival.remainingWaypoints,
@@ -332,7 +349,9 @@ class DescentTrajectoryServiceTest {
             spatialWeatherField = null,
             flightPlanTas = 450,
             aircraftPerformance = b738performance,
-            airport = testAirport
+            airport = testAirport,
+            currentTime = NtpClock.now(),
         )!!.trajectoryPoints
+    }
 
 }

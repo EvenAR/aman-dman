@@ -8,7 +8,6 @@ import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
@@ -21,11 +20,15 @@ object SettingsRepository : SettingsProvider {
     private var airportData: List<Airport>? = null
 
     private const val SETTINGS_FILE_PATH = "config/settings.yaml"
-    private const val AIRPORTS_FILE_PATH = "config/airports.yaml"
+    private const val AIRPORTS_DIRECTORY_PATH = "config/airports"
+    private const val AIRPORT_SCHEMA_FILE_NAME = "airport.schema.yaml"
 
-    private val yamlMapper = YAMLMapper()
-        .registerKotlinModule()
-        .registerModule(JavaTimeModule())
+    private val yamlMapper = createYamlMapper()
+
+    internal fun createYamlMapper(): YAMLMapper = YAMLMapper().apply {
+        registerKotlinModule()
+        registerModule(JavaTimeModule())
+    }
 
     override fun getSettings(reload: Boolean): AmanDmanSettings {
         if (settings == null || reload) loadSettings()
@@ -47,22 +50,31 @@ object SettingsRepository : SettingsProvider {
     }
 
     private fun loadAirportData() {
-        val airportsJson = readYamlFile<AirportDataJson>(AIRPORTS_FILE_PATH)
-        logger.info("Loaded airport config for: ${airportsJson.airports.keys.joinToString(", ")}")
-        airportData = airportsJson.airports.mapNotNull { (icao, airportJson) ->
-            try {
-                val stars = readYamlFile<StarYamlFile>("config/stars/$icao.yaml")
-                logger.info("Loaded STAR data for airport $icao")
-                airportJson.toDomain(icao, stars)
-            } catch (e: FileNotFoundException) {
-                logger.warn("STAR data file not found for airport $icao. Trajectory calculations will have reduced accuracy.")
-                airportJson.toDomain(icao, StarYamlFile(emptyList()))
-            } catch (e: Exception) {
-                logger.error("Error loading STAR data for airport $icao: ${e.message}")
-                airportJson.toDomain(icao, StarYamlFile(emptyList()))
-            }
-        }
+        airportData = loadAirportDataFromDirectory(File(AIRPORTS_DIRECTORY_PATH), yamlMapper)
+        logger.info("Loaded airport config for: ${airportData!!.map { it.icao }.joinToString(", ")}")
         validateAirportMeteringTimelineLayouts()
+    }
+
+    internal fun loadAirportDataFromDirectory(directory: File, yamlMapper: YAMLMapper = createYamlMapper()): List<Airport> {
+        require(directory.exists()) {
+            "Airport config directory not found: ${directory.path}"
+        }
+        require(directory.isDirectory) {
+            "Airport config path is not a directory: ${directory.path}"
+        }
+
+        return directory
+            .listFiles { file ->
+                file.isFile &&
+                    file.extension.equals("yaml", ignoreCase = true) &&
+                    file.name != AIRPORT_SCHEMA_FILE_NAME
+            }
+            ?.sortedBy { it.nameWithoutExtension.uppercase() }
+            ?.map { file ->
+                val icao = file.nameWithoutExtension.uppercase()
+                yamlMapper.readValue<AirportDataJson>(file).toDomain(icao)
+            }
+            ?: emptyList()
     }
 
     private fun validateAirportMeteringTimelineLayouts() {

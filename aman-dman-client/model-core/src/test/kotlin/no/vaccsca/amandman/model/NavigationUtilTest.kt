@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.navigation.LatLng
 import kotlin.test.Test

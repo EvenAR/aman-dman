@@ -1,22 +1,26 @@
 package no.vaccsca.amandman.model.navigation
 
-import no.vaccsca.amandman.model.navigation.StarFix
-import no.vaccsca.amandman.model.navigation.Waypoint
-import no.vaccsca.amandman.model.navigation.distanceTo
+import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
 import kotlin.collections.sumOf
 
 object NavdataUtils {
     /**
-     * Interpolate typical speed for a STAR fix that doesn't have a typical speed, but is between two fixes that do.
+     * Interpolate typical speed for a route fix that doesn't have an exact speed expectation,
+     * but is between two configured arrival fixes that do.
      */
-    fun List<Waypoint>.getInterpolatedSpeedExpectation(star: List<StarFix>, atWaypoint: Waypoint): Int? {
-        val exactExpectation = star.find { it.id == atWaypoint.id }?.typicalSpeedIas
+    fun List<Waypoint>.getInterpolatedSpeedExpectation(
+        arrivalFixExpectations: List<ArrivalFixExpectation>,
+        atWaypoint: Waypoint,
+    ): Int? {
+        val exactExpectation = arrivalFixExpectations
+            .find { it.fixName == atWaypoint.id.uppercase() }
+            ?.typicalSpeedIas
         if (exactExpectation != null) {
             return exactExpectation
         }
 
-        val laterSpeedRestriction = this.nextSpeedExpectation(atWaypoint, star)
-        val priorSpeedRestriction = this.previousSpeedExpectation(atWaypoint, star)
+        val laterSpeedRestriction = this.nextSpeedExpectation(atWaypoint, arrivalFixExpectations)
+        val priorSpeedRestriction = this.previousSpeedExpectation(atWaypoint, arrivalFixExpectations)
 
         if (laterSpeedRestriction == null) {
             return priorSpeedRestriction?.first?.typicalSpeedIas
@@ -37,36 +41,44 @@ object NavdataUtils {
     }
 
     /**
-     * Find the next STAR fix with a typical speed expectation after the given waypoint.
-     * Returns a Pair of the StarFix and the corresponding Waypoint, or null if none found.
+     * Find the next route fix with a configured speed expectation after the given waypoint.
      */
-    private fun List<Waypoint>.nextSpeedExpectation(atWaypoint: Waypoint, star: List<StarFix>): Pair<StarFix, Waypoint>? {
+    private fun List<Waypoint>.nextSpeedExpectation(
+        atWaypoint: Waypoint,
+        arrivalFixExpectations: List<ArrivalFixExpectation>,
+    ): Pair<ArrivalFixExpectation, Waypoint>? {
         val currentPointIndex = this.indexOf(atWaypoint)
         if (currentPointIndex == -1) return null
 
         for (i in currentPointIndex until this.size) {
             val routePoint = this[i]
-            val starFix = star.find { it.id == routePoint.id }
-            if (starFix?.typicalSpeedIas != null) {
-                return Pair(starFix, routePoint)
+            val arrivalFixExpectation = arrivalFixExpectations.find {
+                it.fixName == routePoint.id.uppercase()
+            }
+            if (arrivalFixExpectation?.typicalSpeedIas != null) {
+                return Pair(arrivalFixExpectation, routePoint)
             }
         }
         return null
     }
 
     /**
-     * Find the previous STAR fix with a typical speed expectation before the given waypoint.
-     * Returns a Pair of the StarFix and the corresponding Waypoint, or null if none found.
+     * Find the previous route fix with a configured speed expectation before the given waypoint.
      */
-    private fun List<Waypoint>.previousSpeedExpectation(atWaypoint: Waypoint, star: List<StarFix>): Pair<StarFix, Waypoint>? {
+    private fun List<Waypoint>.previousSpeedExpectation(
+        atWaypoint: Waypoint,
+        arrivalFixExpectations: List<ArrivalFixExpectation>,
+    ): Pair<ArrivalFixExpectation, Waypoint>? {
         val currentPointIndex = this.indexOf(atWaypoint)
         if (currentPointIndex == -1) return null
 
         for (i in currentPointIndex - 1 downTo 0) {
             val routePoint = this[i]
-            val starFix = star.find { it.id == routePoint.id }
-            if (starFix?.typicalSpeedIas != null) {
-                return Pair(starFix, routePoint)
+            val arrivalFixExpectation = arrivalFixExpectations.find {
+                it.fixName == routePoint.id.uppercase()
+            }
+            if (arrivalFixExpectation?.typicalSpeedIas != null) {
+                return Pair(arrivalFixExpectation, routePoint)
             }
         }
         return null

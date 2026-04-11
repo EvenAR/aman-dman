@@ -15,7 +15,6 @@ data class RunwayArrivalEvent(
     override val airportIcao: String,
     override val trackingController: String?,
     val assignedStar: String?,
-    val assignedStarOk: Boolean,
     val flightLevel: Int,
     val pressureAltitude: Int,
     val groundSpeed: Int,
@@ -27,6 +26,9 @@ data class RunwayArrivalEvent(
     val timeToPreceding: Duration? = null,
     val assignedDirect: String?,
     val scratchPad: String?,
+    val assignedDirectIsIAF: Boolean = false,
+    val assignedDirectIsIF: Boolean = false,
+    val assignedDirectIsActive: Boolean = false,
 ) : RunwayFlightEvent(
     scheduledTime = scheduledTime,
     estimatedTime = estimatedTime,

@@ -1,23 +1,25 @@
 package no.vaccsca.amandman.model.planning
 
+import kotlinx.datetime.Instant
+import no.vaccsca.amandman.model.aircraft.AircraftPerformance
+import no.vaccsca.amandman.model.aircraft.AircraftPosition
+import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
+import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
+import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.NavdataUtils.getInterpolatedSpeedExpectation
 import no.vaccsca.amandman.model.navigation.NavigationUtils.interpolatePositionAlongPath
 import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
-import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
-import no.vaccsca.amandman.model.weather.WeatherUtils
-import no.vaccsca.amandman.model.aircraft.AircraftPerformance
-import no.vaccsca.amandman.model.aircraft.AircraftPosition
-import no.vaccsca.amandman.model.airport.Airport
-import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.navigation.Star
-import no.vaccsca.amandman.model.navigation.StarFix
 import no.vaccsca.amandman.model.navigation.Waypoint
 import no.vaccsca.amandman.model.navigation.bearingTo
 import no.vaccsca.amandman.model.navigation.distanceTo
 import no.vaccsca.amandman.model.weather.SpatialWeatherField
+import no.vaccsca.amandman.model.weather.WeatherUtils
 import no.vaccsca.amandman.model.weather.WindVector
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 object DescentTrajectoryService {
@@ -29,13 +31,14 @@ object DescentTrajectoryService {
     private val calmWindVector = WindVector(0, 0)
 
     /**
-     * Calculates a descent trajectory from the current position to the runway using the provided STAR and aircraft performance data.
+     * Calculates a descent trajectory from the current position to the runway using
+     * runway plus arrival-name-scoped arrival fix expectations and aircraft performance data.
      *
      * @param currentPosition The current position of the aircraft.
      * @param assignedRunway The runway assigned to the aircraft.
      * @param remainingWaypoints The remaining waypoints in the flight plan leading to the runway
      * @param spatialWeatherField The spatial weather field, if available.
-     * @param assignedStar The STAR assigned to the aircraft, if any.
+     * @param assignedStar The arrival name assigned to the aircraft, if any.
      * @param aircraftPerformance The performance characteristics of the aircraft.
      * @param flightPlanTas The true airspeed (TAS) from the flight plan
      *
@@ -50,6 +53,8 @@ object DescentTrajectoryService {
         aircraftPerformance: AircraftPerformance,
         flightPlanTas: Int?,
         airport: Airport,
+        currentTime: Instant,
+        useGroundspeedOnDirectRouting: Boolean = true,
     ): DescentTrajectoryResult? {
         val runwayInfo = airport.runways[assignedRunway]
         if (runwayInfo == null) {
@@ -57,10 +62,26 @@ object DescentTrajectoryService {
             return null
         }
 
-        val starInfo = runwayInfo.stars.find { it.id == assignedStar }
+        val routeFixIds = remainingWaypoints.map { it.id.uppercase() }.toSet()
+        val routeArrivalFixExpectations = runwayInfo.arrivalFixExpectationsFor(assignedStar).filter {
+            it.fixName in routeFixIds
+        }
+        val arrivalFixExpectationByName = routeArrivalFixExpectations.associateBy { it.fixName }
 
-        val starFixLookupMap = starInfo?.fixes?.associateBy { it.id }
+        // When the first remaining waypoint is an IAF or IF (direct routing), seed the trajectory
+        // with the aircraft's current groundspeed converted to IAS instead of performance data.
+        val firstWaypointRole = remainingWaypoints.firstOrNull()?.let { firstWaypoint ->
+            routeArrivalFixExpectations.find { it.fixName.equals(firstWaypoint.id, ignoreCase = true) }?.role
+        }
+        val currentPositionIas: Int? = if (useGroundspeedOnDirectRouting && (firstWaypointRole == ArrivalFixRole.IAF || firstWaypointRole == ArrivalFixRole.IF)) {
+            val weather = spatialWeatherField?.sampleWeather(currentPosition.latLng, currentPosition.altitudeFt)
+            val tempC = weather?.temperatureC ?: WeatherUtils.getStandardTemperatureAt(currentPosition.altitudeFt)
+            val windVector = weather?.windVector
+            val tas = if (windVector != null) SpeedConversionUtils.gsToTAS(currentPosition.groundspeedKts, windVector, currentPosition.trackDeg) else currentPosition.groundspeedKts
+            SpeedConversionUtils.tasToIAS(tas, currentPosition.altitudeFt, tempC)
+        } else null
         val trajectoryPoints = mutableListOf<TrajectoryPoint>()
+        val durations = mutableListOf<Duration>()
 
         // Starts at the airports and works backwards
         var probePosition = runwayInfo.latLng
@@ -87,13 +108,14 @@ object DescentTrajectoryService {
         }
 
         // Add the last point (the airport) to the profile
+        durations += accumulatedTimeFromDestination
         trajectoryPoints +=
                 TrajectoryPoint(
                     fixId = assignedRunway,
                     latLng = probePosition,
                     altitude = probeAltitude,
                     remainingDistance = probingDistance,
-                    remainingTime = accumulatedTimeFromDestination,
+                    time = Instant.DISTANT_PAST,
                     groundSpeed = aircraftPerformance.landingVat, // TODO: convert to ground speed
                     tas = aircraftPerformance.landingVat,
                     windVector = calmWindVector, // TODO: use wind from METAR
@@ -107,20 +129,27 @@ object DescentTrajectoryService {
             val earlierPoint = remainingRoute[i-1]
             val remainingRouteReversed = remainingRoute.subList(0, i).reversed()
 
-            val nextAltitudeExpectation = starInfo?.nextAltitudeExpectation(remainingRouteReversed)
-                ?.let { starFixLookupMap?.get(it.id)?.typicalAltitude }
+            val nextAltitudeExpectation = routeArrivalFixExpectations.nextAltitudeExpectation(
+                remainingRouteReversed
+            )
+                ?.let { arrivalFixExpectationByName[it.id]?.typicalAltitude }
                 ?: currentPosition.altitudeFt
 
-            val earlierSpeedExpectation =
-                if (starInfo != null) {
-                    remainingWaypoints.getInterpolatedSpeedExpectation(star = starInfo.fixes, atWaypoint = earlierPoint)
-                } else {
+            val earlierSpeedExpectation = when {
+                earlierPoint.id == CURRENT_ID && currentPositionIas != null ->
+                    currentPositionIas
+                routeArrivalFixExpectations.isNotEmpty() ->
+                    remainingWaypoints.getInterpolatedSpeedExpectation(
+                        arrivalFixExpectations = routeArrivalFixExpectations,
+                        atWaypoint = earlierPoint
+                    )
+                else ->
                     aircraftPerformance.getPreferredIas(
                         altitudeFt = nextAltitudeExpectation,
                         temperatureC = spatialWeatherField?.sampleWeather(earlierPoint.latLng, nextAltitudeExpectation)?.temperatureC,
                         flightPlanTas = flightPlanTas
                     )
-                }
+            }
 
             val descentSteps = aircraftPerformance.computeDescentPathBackward(
                 lowerAltitude = probeAltitude,
@@ -139,18 +168,27 @@ object DescentTrajectoryService {
                 probingDistance += stepLength
                 accumulatedTimeFromDestination += (stepLength / step.groundSpeed * 3600.0).roundToInt().seconds
 
+                // Get the expectation for this fix if it's the last step
+                val fixExpectation = if (isLastStep && earlierPoint.id != CURRENT_ID) {
+                    arrivalFixExpectationByName[earlierPoint.id]
+                } else null
+
+                durations += accumulatedTimeFromDestination
                 trajectoryPoints +=
                         TrajectoryPoint(
                             latLng = step.position,
                             altitude = step.altitudeFt,
                             remainingDistance = probingDistance,
-                            remainingTime = accumulatedTimeFromDestination,
+                            time = Instant.DISTANT_PAST,
                             groundSpeed = step.groundSpeed,
                             tas = step.tas,
                             windVector = step.windVector,
                             heading = step.position.bearingTo(probePosition),
                             ias = step.ias,
                             fixId = if (isLastStep && earlierPoint.id != CURRENT_ID) earlierPoint.id else null,
+                            appliedAltitudeExpectation = fixExpectation?.typicalAltitude,
+                            appliedSpeedExpectation = fixExpectation?.typicalSpeedIas,
+                            fixRole = fixExpectation?.role,
                         )
 
                 probeAltitude = step.altitudeFt
@@ -158,10 +196,16 @@ object DescentTrajectoryService {
             }
         }
 
+        val reversedPoints = trajectoryPoints.reversed()
+        val reversedDurations = durations.reversed()
+        val landingInstant = currentTime + reversedDurations.first()
+        val finalPoints = reversedPoints.zip(reversedDurations).map { (point, duration) ->
+            point.copy(time = landingInstant - duration)
+        }
+
         return DescentTrajectoryResult(
-            trajectoryPoints = trajectoryPoints.reversed(),
+            trajectoryPoints = finalPoints,
             runwayThreshold = runwayInfo,
-            star = starInfo,
         )
     }
 
@@ -335,12 +379,18 @@ object DescentTrajectoryService {
         }
     }
 
-    private fun List<Waypoint>.routeToNextAltitudeExpectation(star: List<StarFix>): List<Waypoint> {
-        val i = this.indexOfFirst { star.any { fix -> fix.id == it.id && fix.typicalAltitude != null } }
+    private fun List<Waypoint>.routeToNextAltitudeExpectation(
+        arrivalFixExpectations: List<ArrivalFixExpectation>
+    ): List<Waypoint> {
+        val i = this.indexOfFirst { waypoint ->
+            arrivalFixExpectations.any { fix ->
+                fix.fixName == waypoint.id.uppercase() && fix.typicalAltitude != null
+            }
+        }
         return if (i == -1) emptyList() else this.subList(0, i + 1)
     }
 
-    private fun Star.nextAltitudeExpectation(route: List<Waypoint>): Waypoint? =
-        route.routeToNextAltitudeExpectation(fixes).lastOrNull()
+    private fun List<ArrivalFixExpectation>.nextAltitudeExpectation(route: List<Waypoint>): Waypoint? =
+        route.routeToNextAltitudeExpectation(this).lastOrNull()
 
 }

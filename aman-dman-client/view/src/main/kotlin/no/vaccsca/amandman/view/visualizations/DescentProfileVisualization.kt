@@ -1,11 +1,14 @@
 package no.vaccsca.amandman.view.visualizations
 
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.planning.TrajectoryPoint
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Graphics
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import javax.swing.JPanel
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -95,16 +98,56 @@ class DescentProfileVisualization : JPanel(BorderLayout()) {
             g.color = Color.MAGENTA
             g.drawLine(prevX, prevY, x, yPosAlt)
 
-            g.color = Color.WHITE
+            // Visualize fix markers with role-based shapes
             tp.fixId?.let { fixId ->
-                g.drawOval(x - 3, yPosAlt - 3, 6, 6)
-                g.drawString(fixId, x, yPosAlt - 5)
+                val hasExpectations = tp.appliedAltitudeExpectation != null || tp.appliedSpeedExpectation != null
+
+                // Draw shape based on role
+                when (tp.fixRole) {
+                    ArrivalFixRole.IAF -> {
+                        g.color = Color.CYAN // Cyan for IAF
+                        drawTriangle(g, x, yPosAlt, size = 6)
+                    }
+                    ArrivalFixRole.IF -> {
+                        g.color = Color.ORANGE // Orange for IF
+                        drawTriangle(g, x, yPosAlt, size = 6)
+                    }
+                    else -> {
+                        // Regular fix - draw circle
+                        g.color = Color.WHITE
+                        g.drawOval(x - 3, yPosAlt - 3, 6, 6)
+                    }
+                }
+
+                // Draw fix name with role in parentheses
+                g.color = Color.WHITE
+                val fixLabel = when (tp.fixRole) {
+                    ArrivalFixRole.IAF -> "$fixId (IAF)"
+                    ArrivalFixRole.IF -> "$fixId (IF)"
+                    else -> fixId
+                }
+                g.drawString(fixLabel, x + 2, yPosAlt - 8)
+
+                // Draw applied expectations if they exist
+                if (hasExpectations) {
+                    g.color = Color.YELLOW
+                    var yOffset = 15
+                    tp.appliedAltitudeExpectation?.let { alt ->
+                        g.drawString("FL${(alt / 100).toString().padStart(3, '0')}", x + 2, yPosAlt + yOffset)
+                        yOffset += 12
+                    }
+                    tp.appliedSpeedExpectation?.let { speed ->
+                        g.drawString("${speed}kt", x + 2, yPosAlt + yOffset)
+                    }
+                }
             }
 
+            // Reset color to white before drawing wind barbs
+            g.color = Color.WHITE
 
             if (distFromPreviousBarb > BARB_SPACING) {
                 distFromPreviousBarb = 0
-                WindBarbs.drawWindBarb(g, x, 40, tp.windVector.directionDeg, tp.windVector.speedKts, relativeToHeading = tp.heading + 90 )
+                WindBarbs.drawWindBarb(g, x, 40, tp.windVector.directionDeg, tp.windVector.speedKts, relativeToHeading = tp.heading + 90)
             } else {
                 distFromPreviousBarb += (x - prevX)
             }
@@ -130,6 +173,12 @@ class DescentProfileVisualization : JPanel(BorderLayout()) {
             g.color = Color.RED
             g.drawLine(x, diagramMarginTop, x, height - diagramMargin)
         }
+    }
+
+    private fun drawTriangle(g: Graphics, x: Int, y: Int, size: Int) {
+        val xPoints = intArrayOf(x, x - size, x + size, x)
+        val yPoints = intArrayOf(y - size, y + size / 2, y + size / 2, y - size)
+        g.fillPolygon(xPoints, yPoints, 4)
     }
 
     private fun drawLegend(g: Graphics, it: TrajectoryPoint) {
@@ -160,10 +209,12 @@ class DescentProfileVisualization : JPanel(BorderLayout()) {
         g.drawString(ias, x, height - 5)
         x += g.fontMetrics.stringWidth("$ias | ")
 
-        // ETA
-        val eta = "ETA: ${it.remainingTime}"
-        g.drawString(eta, x, height - 5)
-        x += g.fontMetrics.stringWidth("$eta | ")
+        // ETO - Estimated Time Over (absolute timestamp)
+        val javaInstant = Instant.ofEpochMilli(it.time.toEpochMilliseconds())
+        val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(java.time.ZoneOffset.UTC)
+        val eto = "ETO: ${formatter.format(javaInstant)}"
+        g.drawString(eto, x, height - 5)
+        x += g.fontMetrics.stringWidth("$eto | ")
 
         // Remaining distance
         val dist = "${it.remainingDistance.roundToInt()} NM"

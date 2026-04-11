@@ -14,7 +14,6 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import no.vaccsca.amandman.model.config.yaml.AircraftPerformanceConfigYaml
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import no.vaccsca.amandman.model.config.yaml.AmanDmanSettingsYaml
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -51,8 +50,7 @@ private fun generateSchemas(outputPath: String) {
     generateForClass(AmanDmanSettingsYaml::class.java, outputPath, "settings")
     generateForClass(TimelineSettingsYaml::class.java, outputPath, "timelines")
     generateForClass(AircraftPerformanceConfigYaml::class.java, outputPath, "aircraft-performance")
-    generateForClass(AirportDataJson::class.java, outputPath, "airports")
-    generateForClass(StarYamlFile::class.java, "$outputPath/stars", "stars")
+    generateForClass(AirportDataJson::class.java, "$outputPath/airports", "airport")
 }
 
 private fun generateForClass(clazz: Class<*>, outputPath: String, name: String) {

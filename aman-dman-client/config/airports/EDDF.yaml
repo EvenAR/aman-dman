@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=./airport.schema.yaml
+
+location:
+    latitude: 50.037054
+    longitude: 8.570456
+sequencingHorizon: PT30M
+lockedHorizon: PT10M
+runwayThresholds:
+    07L:
+        location:
+            latitude: 50.037054
+            longitude: 8.497078
+        elevation: 304
+        trueHeading: 70
+    07C:
+        location:
+            latitude: 50.032617
+            longitude: 8.53463
+        elevation: 328
+        trueHeading: 70
+    07R:
+        location:
+            latitude: 50.027542
+            longitude: 8.534174
+        elevation: 327
+        trueHeading: 70
+    25L:
+        location:
+            latitude: 50.040052
+            longitude: 8.586529
+        elevation: 361
+        trueHeading: 250
+    25C:
+        location:
+            latitude: 50.045127
+            longitude: 8.586981
+        elevation: 363
+        trueHeading: 250
+    25R:
+        location:
+            latitude: 50.045825
+            longitude: 8.533716
+        elevation: 351
+        trueHeading: 250
+independentRunwaySystems:
+    - [07L]
+    - [07C, 07R]
+    - [25R]
+    - [25C, 25L]

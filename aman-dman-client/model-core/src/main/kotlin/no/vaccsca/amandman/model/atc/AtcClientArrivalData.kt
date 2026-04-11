@@ -2,6 +2,7 @@ package no.vaccsca.amandman.model.atc
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
+import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
 
 /**
@@ -15,6 +16,7 @@ import no.vaccsca.amandman.model.navigation.Waypoint
  * @param trackingController The position ID of the controller currently tracking.
  * @param scratchPad The scratchpad text for the aircraft, if any.
  * @param currentPosition The current position of the aircraft.
+ * @param extractedRoute The full extracted route from the ATC client, including already passed/skipped points.
  * @param remainingWaypoints All remaining waypoints between the aircraft position and the runway threshold. Runway threshold, airport or current position should not be included.
  * @param assignedRunway The runway assigned to the aircraft, if any.
  * @param arrivalAirportIcao The ICAO code of the arrival airport.
@@ -29,9 +31,16 @@ data class AtcClientArrivalData(
     val trackingController: String?,
     val scratchPad: String?,
     val currentPosition: AircraftPosition,
+    val extractedRoute: List<ExtractedRoutePoint> = emptyList(),
     val remainingWaypoints: List<Waypoint>,
     val assignedRunway: String?,
     val arrivalAirportIcao: String,
     val flightPlanTas: Int?,
     val recvTimestamp: Instant,
+)
+
+data class ExtractedRoutePoint(
+    val id: String,
+    val latLng: LatLng,
+    val isPassed: Boolean,
 )

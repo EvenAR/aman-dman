@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.weather.SpatialWeatherField

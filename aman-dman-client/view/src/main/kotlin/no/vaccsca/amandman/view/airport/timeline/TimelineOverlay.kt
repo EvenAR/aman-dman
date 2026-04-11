@@ -4,15 +4,10 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.config.LabelItem
+import no.vaccsca.amandman.model.planning.SequenceStatus
 import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
-import no.vaccsca.amandman.model.planning.SequenceStatus
-import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayDelayEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.*
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.labels.ArrivalLabel
 import no.vaccsca.amandman.view.airport.timeline.labels.DepartureLabel
@@ -29,6 +24,7 @@ import java.util.*
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
+
 
 class TimelineOverlay(
     val timelineConfig: TimelineConfig,
@@ -207,6 +203,7 @@ class TimelineOverlay(
         doLayout()
         drawLinesFromLabelsToTimeScale(g)
         drawDraggedLabelLine(g)
+        drawDirectRoutingIndicators(g)
         drawHourglasses(g)
         drawTimelineTitle(g)
         drawProposedTime(g)
@@ -241,6 +238,32 @@ class TimelineOverlay(
             g.color = if (event is RunwayArrivalEvent && event.sequenceStatus == SequenceStatus.OK) Color.WHITE else Color.GRAY
             g.drawLine(labelX, label.y + label.preferredSize.height / 2, dotX, dotY)
             g.fillOval(dotX - pointDiameter / 2, dotY - pointDiameter / 2, pointDiameter, pointDiameter)
+        }
+    }
+
+    private fun drawDirectRoutingIndicators(g: Graphics) {
+        val scaleBounds = timelineView.getScaleBounds()
+        labels.values.forEach { label ->
+            val event = label.timelineEvent
+            val indicator = (event as? RunwayArrivalEvent)?.let(::directRoutingIndicatorFor)
+            if (indicator != null) {
+                val isOnRightSide = label.x > scaleBounds.x
+                val labelCenterY = label.y + label.preferredSize.height / 2
+                g.color = if (event.sequenceStatus == SequenceStatus.OK) Color.WHITE else Color.GRAY
+
+                paintDirectRoutingIndicator(
+                    g = g,
+                    indicator = indicator,
+                    anchorX = directRoutingIndicatorAnchorX(
+                        labelX = label.x,
+                        labelWidth = label.width,
+                        isOnRightSide = isOnRightSide,
+                        indicator = indicator,
+                    ),
+                    centerY = labelCenterY,
+                    pointsRight = isOnRightSide,
+                )
+            }
         }
     }
 
@@ -472,4 +495,66 @@ class TimelineOverlay(
 
     private fun MouseEvent.isLeftButtonDown(): Boolean = (this.modifiersEx and MouseEvent.BUTTON1_DOWN_MASK) != 0
 
+}
+
+internal enum class DirectRoutingIndicator {
+    TRIANGLE,
+    CIRCLE,
+}
+
+internal fun directRoutingIndicatorFor(event: RunwayArrivalEvent): DirectRoutingIndicator? {
+    if (!event.assignedDirectIsActive) return null
+    if (event.assignedDirectIsIAF || event.assignedDirectIsIF) return DirectRoutingIndicator.TRIANGLE
+    return DirectRoutingIndicator.CIRCLE
+}
+
+internal fun directRoutingIndicatorAnchorX(
+    labelX: Int,
+    labelWidth: Int,
+    isOnRightSide: Boolean,
+    indicator: DirectRoutingIndicator,
+): Int {
+    val circleRadius = 4
+    return when (indicator) {
+        DirectRoutingIndicator.TRIANGLE -> if (isOnRightSide) labelX - 6 else labelX + labelWidth + 6
+        DirectRoutingIndicator.CIRCLE -> if (isOnRightSide) labelX - (circleRadius - 1) else labelX + labelWidth + (circleRadius - 1)
+    }
+}
+
+private fun paintDirectRoutingIndicator(
+    g: Graphics,
+    indicator: DirectRoutingIndicator,
+    anchorX: Int,
+    centerY: Int,
+    pointsRight: Boolean,
+) {
+    when (indicator) {
+        DirectRoutingIndicator.TRIANGLE -> {
+            val triangleWidth = 8
+            val triangleHalfHeight = 4
+            if (pointsRight) {
+                val baseX = anchorX - 1
+                val tipX = baseX + triangleWidth
+                g.fillPolygon(Polygon(
+                    intArrayOf(baseX, tipX, baseX),
+                    intArrayOf(centerY - triangleHalfHeight, centerY, centerY + triangleHalfHeight),
+                    3
+                ))
+            } else {
+                val baseX = anchorX + 1
+                val tipX = baseX - triangleWidth
+                g.fillPolygon(Polygon(
+                    intArrayOf(baseX, tipX, baseX),
+                    intArrayOf(centerY - triangleHalfHeight, centerY, centerY + triangleHalfHeight),
+                    3
+                ))
+            }
+        }
+
+        DirectRoutingIndicator.CIRCLE -> {
+            val diameter = 8
+            val radius = diameter / 2
+            g.fillOval(anchorX - radius, centerY - radius, diameter, diameter)
+        }
+    }
 }

@@ -2,6 +2,7 @@ package no.vaccsca.amandman.model.planning
 
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceProvider
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.airport.Airport
@@ -10,7 +11,6 @@ import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.navigation.distanceTo
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.weather.SpatialWeatherField
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Maps data from the ATC client to domain objects used for planning.
@@ -23,7 +23,8 @@ object ArrivalEventService {
         airport: Airport,
         arrival: AtcClientArrivalData,
         weatherField: SpatialWeatherField?,
-        aircraftPerformanceProvider: AircraftPerformanceProvider
+        aircraftPerformanceProvider: AircraftPerformanceProvider,
+        useGroundspeedOnDirectRouting: Boolean = true,
     ): RunwayArrivalEvent {
         val aircraftPerformance = try {
             aircraftPerformanceProvider.get(arrival.icaoType)
@@ -43,6 +44,14 @@ object ArrivalEventService {
             throw HasLandedException("Aircraft ${arrival.callsign} has already landed")
         }
 
+        val now = NtpClock.now()
+
+        val directFixRole = arrival.assignedDirect?.let { directFix ->
+            runwayInfo.arrivalFixExpectationsFor(arrival.assignedStar)
+                .find { it.fixName.equals(directFix, ignoreCase = true) }
+                ?.role
+        }
+
         val trajectory = DescentTrajectoryService.calculateDescentTrajectory(
             currentPosition = arrival.currentPosition,
             assignedRunway = arrival.assignedRunway,
@@ -51,7 +60,9 @@ object ArrivalEventService {
             assignedStar = arrival.assignedStar,
             aircraftPerformance = aircraftPerformance,
             flightPlanTas = arrival.flightPlanTas,
-            airport = airport
+            airport = airport,
+            currentTime = now,
+            useGroundspeedOnDirectRouting = useGroundspeedOnDirectRouting,
         )
 
         if (trajectory == null) {
@@ -64,7 +75,12 @@ object ArrivalEventService {
             throw EmptyTrajectoryException("The descent trajectory is empty")
         }
 
-        val estimatedTime = NtpClock.now() + (trajectory.trajectoryPoints.firstOrNull()?.remainingTime ?: 0.seconds)
+        val estimatedTime = trajectory.trajectoryPoints.last().time
+        val assignedDirectRoutingState = assignedDirectRoutingState(arrival)
+
+        // Check if assigned direct routing is to an IAF or IF
+        val assignedDirectIsIAF = directFixRole == ArrivalFixRole.IAF
+        val assignedDirectIsIF = directFixRole == ArrivalFixRole.IF
 
         return RunwayArrivalEvent(
             callsign = arrival.callsign,
@@ -80,12 +96,14 @@ object ArrivalEventService {
             pressureAltitude = arrival.currentPosition.altitudeFt,
             airportIcao = arrival.arrivalAirportIcao,
             remainingDistance = trajectory.trajectoryPoints.first().remainingDistance,
-            assignedStarOk = trajectory.star != null,
             withinActiveAdvisoryHorizon = false,
             sequenceStatus = SequenceStatus.AWAITING_FOR_SEQUENCE,
             landingIas = aircraftPerformance.landingVat,
             scratchPad = arrival.scratchPad,
             assignedDirect = arrival.assignedDirect,
+            assignedDirectIsIAF = assignedDirectIsIAF,
+            assignedDirectIsIF = assignedDirectIsIF,
+            assignedDirectIsActive = assignedDirectRoutingState.isActive,
             lastTimestamp = NtpClock.now()
         )
     }
@@ -101,3 +119,17 @@ object ArrivalEventService {
         return thresholdIsBehindAircraft && distanceToRunway < 3 && aircraftPosition.groundspeedKts < 160
     }
 }
+
+internal fun assignedDirectRoutingState(
+    arrival: AtcClientArrivalData,
+): AssignedDirectRoutingState {
+    val assignedDirect = arrival.assignedDirect?.uppercase() ?: return AssignedDirectRoutingState()
+    val isActive = arrival.remainingWaypoints.any { waypoint ->
+        waypoint.id.uppercase() == assignedDirect
+    }
+    return AssignedDirectRoutingState(isActive = isActive)
+}
+
+internal data class AssignedDirectRoutingState(
+    val isActive: Boolean = false,
+)

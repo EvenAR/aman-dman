@@ -1,10 +1,11 @@
+package no.vaccsca.amandman.model
+
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
-import no.vaccsca.amandman.model.config.yaml.StarYamlFile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -19,12 +20,10 @@ class AirportWeatherFetchRadiusTest {
     fun `airport weather fetch radius defaults to 200 NM`() {
         val airport = parseAirport(
             """
-            airports:
-              TEST:
-                location:
-                  latitude: 60.0
-                  longitude: 11.0
-                runwayThresholds: {}
+            location:
+              latitude: 60.0
+              longitude: 11.0
+            runwayThresholds: {}
             """.trimIndent()
         )
 
@@ -35,13 +34,11 @@ class AirportWeatherFetchRadiusTest {
     fun `airport weather fetch radius can be overridden from YAML`() {
         val airport = parseAirport(
             """
-            airports:
-              TEST:
-                location:
-                  latitude: 60.0
-                  longitude: 11.0
-                weatherFetchRadiusNm: 150.5
-                runwayThresholds: {}
+            location:
+              latitude: 60.0
+              longitude: 11.0
+            weatherFetchRadiusNm: 150.5
+            runwayThresholds: {}
             """.trimIndent()
         )
 
@@ -53,13 +50,11 @@ class AirportWeatherFetchRadiusTest {
         assertFailsWith<IllegalArgumentException> {
             parseAirport(
                 """
-                airports:
-                  TEST:
-                    location:
-                      latitude: 60.0
-                      longitude: 11.0
-                    weatherFetchRadiusNm: 0
-                    runwayThresholds: {}
+                location:
+                  latitude: 60.0
+                  longitude: 11.0
+                weatherFetchRadiusNm: 0
+                runwayThresholds: {}
                 """.trimIndent()
             )
         }
@@ -67,13 +62,11 @@ class AirportWeatherFetchRadiusTest {
         assertFailsWith<IllegalArgumentException> {
             parseAirport(
                 """
-                airports:
-                  TEST:
-                    location:
-                      latitude: 60.0
-                      longitude: 11.0
-                    weatherFetchRadiusNm: -10
-                    runwayThresholds: {}
+                location:
+                  latitude: 60.0
+                  longitude: 11.0
+                weatherFetchRadiusNm: -10
+                runwayThresholds: {}
                 """.trimIndent()
             )
         }
@@ -81,7 +74,5 @@ class AirportWeatherFetchRadiusTest {
 
     private fun parseAirport(yaml: String) = yamlMapper
         .readValue<AirportDataJson>(yaml)
-        .airports
-        .getValue("TEST")
-        .toDomain("TEST", StarYamlFile(emptyList()))
+        .toDomain("TEST")
 }

@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.model
+
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.mapper.toYaml
 import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml

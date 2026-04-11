@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=./airport.schema.yaml
+
+location:
+    latitude: 60.19250943987119
+    longitude: 11.096549971455543
+sequencingHorizon: PT60M
+lockedHorizon: PT10M
+feederFixes: ["LUNIP", "ADOPI", "ESEBA", "BELGU", "INREX", "RIPAM", "VALPU", "INSUV", "TITLA", "BAVAD", "GM402", "GM428", "GM432", "GM403", "GM422"]
+feederFixTimelineArrivalLabelLayoutId: "osloArr"
+
+runwayThresholds:
+    01L:
+        location:
+            latitude: 60.18501045995491
+            longitude: 11.073783755507158
+        elevation: 681
+        trueHeading: 16
+    01R:
+        location:
+            latitude: 60.17580319639779
+            longitude: 11.107782247775026
+        elevation: 681
+        trueHeading: 16
+    19L:
+        location:
+            latitude: 60.20116653568569
+            longitude: 11.12244616482607
+        elevation: 681
+        trueHeading: 196
+    19R:
+        location:
+            latitude: 60.21601904982423
+            longitude: 11.091636783048877
+        elevation: 681
+        trueHeading: 196
+
+# Speed and altitude values should be based on typical observed values
+arrivalProfiles:
+    01*:
+        - arrivalName: "*" # Applies to all arrival routes for 01L/01R
+          fixes:
+            # Standard approaches
+            - { fix: VALPU, speed: 200, altitude: 5000, role: IAF }
+            - { fix: INSUV, speed: 200, altitude: 5000, role: IAF }
+            - { fix: OGRAS, speed: 190, altitude: 4000, role: IF }
+            - { fix: NOSLA, speed: 190, altitude: 4000, role: IF }
+            - { fix: XIKLA, speed: 180, altitude: 3500 }
+            - { fix: XEMEN, speed: 180, altitude: 3500 }
+            # RNP AR 01L
+            - { fix: ELVUN, speed: 200, altitude: 5000, role: IAF }
+            - { fix: MONCI, speed: 200, altitude: 5000, role: IAF }
+            - { fix: ERULO, speed: 200, altitude: 5000, role: IAF }
+            - { fix: SUBZO, speed: 200, altitude: 5000, role: IAF }
+            # RNP AR 01R
+            - { fix: RUWOL, speed: 200, altitude: 5000, role: IAF }
+            - { fix: TAVRE, speed: 200, altitude: 5000, role: IAF }
+            - { fix: SIFOZ, speed: 200, altitude: 5000, role: IAF }
+            - { fix: LUVOX, speed: 200, altitude: 5000, role: IAF }
+        - arrivalName: "ADOPI*"
+          fixes:
+            - { fix: GM402, speed: 220, altitude: 10000 }
+            - { fix: GM455, speed: 220, altitude: 10000 }
+        - arrivalName: "BELGU*"
+          fixes:
+              - { fix: GM456, speed: 250, altitude: 12000 }
+              - { fix: GM400, speed: 220, altitude: 9000 }
+              - { fix: GM455, speed: 220, altitude: 9000 }
+        - arrivalName: "LUNIP*"
+          fixes:
+              - { fix: GM416, speed: 220, altitude: 11000 }
+              - { fix: GM414, speed: 220, altitude: 11000 }
+        - arrivalName: "ESEBA*"
+          fixes:
+              - { fix: GM403, speed: 220, altitude: 10000 }
+              - { fix: GM454, speed: 220, altitude: 10000 }
+        - arrivalName: "INREX*"
+          fixes:
+              - { fix: GM457, speed: 250, altitude: 12000 }
+              - { fix: GM401, speed: 250, altitude: 9000 }
+              - { fix: GM403, speed: 220, altitude: 9000 }
+              - { fix: GM454, speed: 220, altitude: 9000 }
+    19*:
+        - arrivalName: "*" # Applies to all arrival routes for 19L/19R
+          fixes:
+            # Standard approaches
+            - { fix: TITLA, speed: 200, altitude: 5000, role: IAF }
+            - { fix: BAVAD, speed: 200, altitude: 5000, role: IAF }
+            - { fix: OSPAD, speed: 190, altitude: 4000, role: IF }
+            - { fix: ODUDI, speed: 190, altitude: 4000, role: IF }
+            - { fix: XIVTA, speed: 180, altitude: 3500 }
+            - { fix: XINLO, speed: 180, altitude: 3500 }
+            # RNP AR 19L
+            - { fix: ZATCO, speed: 200, altitude: 5000 , role: IAF }
+            - { fix: AZZIT, speed: 200, altitude: 5000 , role: IAF }
+            - { fix: JIZLE, speed: 200, altitude: 5000 , role: IAF }
+            # RNP AR 19R
+            - { fix: EXWOD, speed: 200, altitude: 5000 , role: IAF }
+            - { fix: RIRUT, speed: 200, altitude: 5000 , role: IAF }
+            - { fix: ADGEL, speed: 200, altitude: 5000 , role: IAF }
+        - arrivalName: "RIPAM*"
+          fixes:
+              - { fix: GM451, speed: 250, altitude: 12000 }
+              - { fix: GM427, speed: 250, altitude: 9000 }
+              - { fix: GM428, speed: 220, altitude: 9000 }
+              - { fix: GM452, speed: 220, altitude: 9000 }
+        - arrivalName: "LUNIP*"
+          fixes:
+              - { fix: GM426, speed: 250, altitude: 9000 }
+              - { fix: GM453, speed: 220, altitude: 9000 }
+        - arrivalName: "ESEBA*"
+          fixes:
+              - { fix: GM422, speed: 220, altitude: 10000 }
+              - { fix: GM453, speed: 220, altitude: 10000 }
+        - arrivalName: "INREX*"
+          fixes:
+              - { fix: GM418, speed: 220, altitude: 11000 }
+              - { fix: GM421, speed: 220, altitude: 11000 }
+        - arrivalName: "ADOPI*"
+          fixes:
+              - { fix: GM428, speed: 220, altitude: 10000 }
+              - { fix: GM452, speed: 220, altitude: 10000 }
+        - arrivalName: "BELGU*"
+          fixes:
+              - { fix: GM432, speed: 220, altitude: 11000 }
+              - { fix: GM435, speed: 220, altitude: 11000 }

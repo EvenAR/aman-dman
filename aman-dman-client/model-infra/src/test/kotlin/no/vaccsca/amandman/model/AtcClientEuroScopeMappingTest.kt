@@ -1,0 +1,52 @@
+package no.vaccsca.amandman.model
+
+import kotlinx.datetime.Instant
+import no.vaccsca.amandman.model.atc.euroscope.ArrivalJson
+import no.vaccsca.amandman.model.atc.euroscope.FixPointJson
+import no.vaccsca.amandman.model.atc.toDomain
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+class AtcClientEuroScopeMappingTest {
+
+    @Test
+    fun `arrival mapping should preserve extracted route while keeping remaining waypoints filtered`() {
+        val mapped = ArrivalJson(
+            callsign = "SAS123",
+            icaoType = "B738",
+            assignedRunway = "19L",
+            assignedStar = "INREX4M",
+            assignedDirect = "NEXT",
+            trackingController = "ENGM_APP",
+            scratchPad = "A1",
+            latitude = 60.1,
+            longitude = 11.1,
+            flightLevel = 150,
+            pressureAltitude = 14500,
+            groundSpeed = 280,
+            track = 175,
+            route = listOf(
+                FixPointJson(name = "BYPASSED", latitude = 60.0, longitude = 10.0, isPassed = true),
+                FixPointJson(name = "F1", latitude = 60.5, longitude = 11.0, isPassed = true),
+                FixPointJson(name = "NEXT", latitude = 60.7, longitude = 11.5, isPassed = false),
+                FixPointJson(name = "OSPAD", latitude = 60.4, longitude = 11.2, isPassed = false),
+            ),
+            arrivalAirportIcao = "ENGM",
+            flightPlanTas = 450,
+        ).toDomain(receivedAt = Instant.parse("2026-04-08T18:00:00Z"))
+
+        assertNotNull(mapped)
+        assertEquals(4, mapped.extractedRoute.size)
+        assertEquals(listOf("BYPASSED", "F1", "NEXT", "OSPAD"), mapped.extractedRoute.map { it.id })
+        assertTrue(mapped.extractedRoute[0].isPassed)
+        assertFalse(mapped.extractedRoute[2].isPassed)
+
+        assertEquals(listOf("NEXT", "OSPAD"), mapped.remainingWaypoints.map { it.id })
+        assertEquals(60.7, mapped.remainingWaypoints[0].latLng.lat)
+        assertEquals(11.5, mapped.remainingWaypoints[0].latLng.lon)
+        assertEquals("NEXT", mapped.assignedDirect)
+    }
+}

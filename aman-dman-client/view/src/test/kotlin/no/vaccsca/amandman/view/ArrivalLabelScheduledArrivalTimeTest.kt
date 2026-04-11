@@ -1,3 +1,5 @@
+package no.vaccsca.amandman.view
+
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.config.LabelItem
@@ -25,7 +27,7 @@ class ArrivalLabelScheduledArrivalTimeTest {
     }
 
     @Test
-    fun `scheduledArrivalTime should render runway STA in UTC by default`() {
+    fun `scheduledArrivalTime should render runway STO in UTC by default`() {
         val label = createLabel(scheduledTime = Instant.parse("2026-03-07T12:34:56Z"))
 
         label.updateText()
@@ -70,7 +72,7 @@ class ArrivalLabelScheduledArrivalTimeTest {
     }
 
     @Test
-    fun `scheduledArrivalTime should render feeder fix STA when display scheduled time is overridden`() {
+    fun `scheduledArrivalTime should render feeder fix STO when display scheduled time is overridden`() {
         val label = createLabel(scheduledTime = Instant.parse("2026-03-07T12:34:56Z"))
         label.applyDisplayTimes(
             scheduledTime = Instant.parse("2026-03-07T11:22:33Z"),
@@ -135,7 +137,6 @@ class ArrivalLabelScheduledArrivalTimeTest {
             airportIcao = "ENGM",
             trackingController = null,
             assignedStar = "GODOS",
-            assignedStarOk = true,
             flightLevel = 100,
             pressureAltitude = 5000,
             groundSpeed = 230,
@@ -145,6 +146,8 @@ class ArrivalLabelScheduledArrivalTimeTest {
             landingIas = 145,
             assignedDirect = null,
             scratchPad = null,
+            assignedDirectIsIAF = false,
+            assignedDirectIsIF = false,
         )
 
         return ArrivalLabel(
