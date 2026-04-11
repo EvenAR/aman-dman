@@ -1,19 +1,19 @@
 package no.vaccsca.amandman.model.planning
 
+import no.vaccsca.amandman.model.aircraft.AircraftPerformance
+import no.vaccsca.amandman.model.aircraft.AircraftPosition
+import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
+import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
+import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.NavdataUtils.getInterpolatedSpeedExpectation
 import no.vaccsca.amandman.model.navigation.NavigationUtils.interpolatePositionAlongPath
 import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
-import no.vaccsca.amandman.model.aircraft.SpeedConversionUtils
-import no.vaccsca.amandman.model.weather.WeatherUtils
-import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
-import no.vaccsca.amandman.model.aircraft.AircraftPerformance
-import no.vaccsca.amandman.model.aircraft.AircraftPosition
-import no.vaccsca.amandman.model.airport.Airport
-import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
 import no.vaccsca.amandman.model.navigation.bearingTo
 import no.vaccsca.amandman.model.navigation.distanceTo
 import no.vaccsca.amandman.model.weather.SpatialWeatherField
+import no.vaccsca.amandman.model.weather.WeatherUtils
 import no.vaccsca.amandman.model.weather.WindVector
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
@@ -146,6 +146,11 @@ object DescentTrajectoryService {
                 probingDistance += stepLength
                 accumulatedTimeFromDestination += (stepLength / step.groundSpeed * 3600.0).roundToInt().seconds
 
+                // Get the expectation for this fix if it's the last step
+                val fixExpectation = if (isLastStep && earlierPoint.id != CURRENT_ID) {
+                    arrivalFixExpectationByName[earlierPoint.id]
+                } else null
+
                 trajectoryPoints +=
                         TrajectoryPoint(
                             latLng = step.position,
@@ -158,6 +163,9 @@ object DescentTrajectoryService {
                             heading = step.position.bearingTo(probePosition),
                             ias = step.ias,
                             fixId = if (isLastStep && earlierPoint.id != CURRENT_ID) earlierPoint.id else null,
+                            appliedAltitudeExpectation = fixExpectation?.typicalAltitude,
+                            appliedSpeedExpectation = fixExpectation?.typicalSpeedIas,
+                            fixRole = fixExpectation?.role,
                         )
 
                 probeAltitude = step.altitudeFt
