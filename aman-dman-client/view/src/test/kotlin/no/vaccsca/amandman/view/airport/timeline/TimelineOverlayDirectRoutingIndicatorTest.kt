@@ -15,7 +15,6 @@ class TimelineOverlayDirectRoutingIndicatorTest {
             arrivalEvent(
                 assignedDirectIsActive = true,
                 assignedDirectIsIF = true,
-                assignedDirectIsAfterFeederFix = true,
             )
         )
 
@@ -23,11 +22,10 @@ class TimelineOverlayDirectRoutingIndicatorTest {
     }
 
     @Test
-    fun `directRoutingIndicatorFor should return circle for active non IAF or IF direct after feeder`() {
+    fun `directRoutingIndicatorFor should return circle for active non IAF or IF direct`() {
         val indicator = directRoutingIndicatorFor(
             arrivalEvent(
                 assignedDirectIsActive = true,
-                assignedDirectIsAfterFeederFix = true,
             )
         )
 
@@ -40,7 +38,6 @@ class TimelineOverlayDirectRoutingIndicatorTest {
             arrivalEvent(
                 assignedDirectIsActive = false,
                 assignedDirectIsIF = true,
-                assignedDirectIsAfterFeederFix = true,
             )
         )
 
@@ -48,15 +45,15 @@ class TimelineOverlayDirectRoutingIndicatorTest {
     }
 
     @Test
-    fun `directRoutingIndicatorFor should return no symbol when active direct is not after feeder`() {
+    fun `directRoutingIndicatorFor should return triangle for active IAF direct`() {
         val indicator = directRoutingIndicatorFor(
             arrivalEvent(
                 assignedDirectIsActive = true,
-                assignedDirectIsAfterFeederFix = false,
+                assignedDirectIsIAF = true,
             )
         )
 
-        assertNull(indicator)
+        assertEquals(DirectRoutingIndicator.TRIANGLE, indicator)
     }
 
     @Test
@@ -75,7 +72,6 @@ class TimelineOverlayDirectRoutingIndicatorTest {
         assignedDirectIsActive: Boolean,
         assignedDirectIsIAF: Boolean = false,
         assignedDirectIsIF: Boolean = false,
-        assignedDirectIsAfterFeederFix: Boolean = false,
     ) = RunwayArrivalEvent(
         scheduledTime = Instant.parse("2026-04-08T18:05:00Z"),
         estimatedTime = Instant.parse("2026-04-08T18:03:00Z"),
@@ -99,6 +95,5 @@ class TimelineOverlayDirectRoutingIndicatorTest {
         assignedDirectIsIAF = assignedDirectIsIAF,
         assignedDirectIsIF = assignedDirectIsIF,
         assignedDirectIsActive = assignedDirectIsActive,
-        assignedDirectIsAfterFeederFix = assignedDirectIsAfterFeederFix,
     )
 }

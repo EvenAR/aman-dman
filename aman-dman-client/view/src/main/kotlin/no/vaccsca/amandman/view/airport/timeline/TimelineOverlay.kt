@@ -505,8 +505,7 @@ internal enum class DirectRoutingIndicator {
 internal fun directRoutingIndicatorFor(event: RunwayArrivalEvent): DirectRoutingIndicator? {
     if (!event.assignedDirectIsActive) return null
     if (event.assignedDirectIsIAF || event.assignedDirectIsIF) return DirectRoutingIndicator.TRIANGLE
-    if (event.assignedDirectIsAfterFeederFix) return DirectRoutingIndicator.CIRCLE
-    return null
+    return DirectRoutingIndicator.CIRCLE
 }
 
 internal fun directRoutingIndicatorAnchorX(

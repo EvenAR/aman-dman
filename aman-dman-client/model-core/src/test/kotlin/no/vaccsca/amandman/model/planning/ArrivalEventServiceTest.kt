@@ -2,7 +2,6 @@ package no.vaccsca.amandman.model.planning
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
-import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.atc.ExtractedRoutePoint
 import no.vaccsca.amandman.model.navigation.LatLng
@@ -10,19 +9,8 @@ import no.vaccsca.amandman.model.navigation.Waypoint
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.minutes
 
 class ArrivalEventServiceTest {
-
-    private val airport = Airport(
-        icao = "ENGM",
-        location = LatLng(60.2, 11.1),
-        runways = emptyMap(),
-        independentRunwaySystems = emptyList(),
-        sequencingHorizon = 30.minutes,
-        lockedHorizon = 10.minutes,
-        feederFixes = listOf("TITLA", "INREX"),
-    )
 
     @Test
     fun `assignedDirectRoutingState should mark active if direct remains in route`() {
@@ -35,11 +23,9 @@ class ArrivalEventServiceTest {
                 ),
                 remainingWaypoints = listOf(waypoint("OSPAD")),
             ),
-            airport = airport,
         )
 
         assertTrue(state.isActive)
-        assertTrue(state.isAfterFeederFix)
     }
 
     @Test
@@ -53,15 +39,13 @@ class ArrivalEventServiceTest {
                 ),
                 remainingWaypoints = listOf(waypoint("XIVTA")),
             ),
-            airport = airport,
         )
 
         assertFalse(state.isActive)
-        assertFalse(state.isAfterFeederFix)
     }
 
     @Test
-    fun `assignedDirectRoutingState should mark active non IAF or IF direct after feeder fix in extracted route`() {
+    fun `assignedDirectRoutingState should mark active when direct remains later in route`() {
         val state = assignedDirectRoutingState(
             arrival = arrival(
                 assignedDirect = "XIVTA",
@@ -73,15 +57,13 @@ class ArrivalEventServiceTest {
                 ),
                 remainingWaypoints = listOf(waypoint("XIVTA"), waypoint("19L")),
             ),
-            airport = airport,
         )
 
         assertTrue(state.isActive)
-        assertTrue(state.isAfterFeederFix)
     }
 
     @Test
-    fun `assignedDirectRoutingState should not mark direct before feeder fix as after feeder`() {
+    fun `assignedDirectRoutingState should mark active when direct is first remaining waypoint`() {
         val state = assignedDirectRoutingState(
             arrival = arrival(
                 assignedDirect = "GM418",
@@ -92,15 +74,13 @@ class ArrivalEventServiceTest {
                 ),
                 remainingWaypoints = listOf(waypoint("GM418"), waypoint("TITLA")),
             ),
-            airport = airport,
         )
 
         assertTrue(state.isActive)
-        assertFalse(state.isAfterFeederFix)
     }
 
     @Test
-    fun `assignedDirectRoutingState should not mark after feeder when direct is missing from extracted route`() {
+    fun `assignedDirectRoutingState should mark active when direct is missing from extracted route but still assigned in remaining waypoints`() {
         val state = assignedDirectRoutingState(
             arrival = arrival(
                 assignedDirect = "XIVTA",
@@ -110,11 +90,9 @@ class ArrivalEventServiceTest {
                 ),
                 remainingWaypoints = listOf(waypoint("XIVTA")),
             ),
-            airport = airport,
         )
 
         assertTrue(state.isActive)
-        assertFalse(state.isAfterFeederFix)
     }
 
     private fun arrival(
