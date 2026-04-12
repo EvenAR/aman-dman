@@ -9,13 +9,13 @@ import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
-import no.vaccsca.amandman.model.planning.SequencingLockEvaluator
+import no.vaccsca.amandman.model.planning.SequencingStateEvaluator
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
-class SequencingLockEvaluatorTest {
+class SequencingStateEvaluatorTest {
 
     private val lockedArea = AirportArea.fromBoundary(
         id = "commonLockedArea",
@@ -55,7 +55,7 @@ class SequencingLockEvaluatorTest {
 
     @Test
     fun `inside polygon without ceiling is locked`() {
-        val result = SequencingLockEvaluator.isLockedForSequencing(
+        val result = SequencingStateEvaluator.isInLockedSequenceWindow(
             airport = airportWithArea,
             arrival = arrival(position = LatLng(60.05, 11.05)),
             estimatedTime = Instant.parse("2026-04-12T12:20:00Z"),
@@ -67,7 +67,7 @@ class SequencingLockEvaluatorTest {
 
     @Test
     fun `outside polygon is not locked when area is configured`() {
-        val result = SequencingLockEvaluator.isLockedForSequencing(
+        val result = SequencingStateEvaluator.isInLockedSequenceWindow(
             airport = airportWithArea,
             arrival = arrival(position = LatLng(60.2, 11.2)),
             estimatedTime = Instant.parse("2026-04-12T12:05:00Z"),
@@ -89,7 +89,7 @@ class SequencingLockEvaluatorTest {
             )
         )
 
-        val result = SequencingLockEvaluator.isLockedForSequencing(
+        val result = SequencingStateEvaluator.isInLockedSequenceWindow(
             airport = airport,
             arrival = arrival(position = LatLng(60.05, 11.05), altitudeFt = 13000),
             estimatedTime = Instant.parse("2026-04-12T12:05:00Z"),
@@ -111,7 +111,7 @@ class SequencingLockEvaluatorTest {
             )
         )
 
-        val result = SequencingLockEvaluator.isLockedForSequencing(
+        val result = SequencingStateEvaluator.isInLockedSequenceWindow(
             airport = airport,
             arrival = arrival(position = LatLng(60.05, 11.05), altitudeFt = 12000),
             estimatedTime = Instant.parse("2026-04-12T12:20:00Z"),
@@ -123,7 +123,7 @@ class SequencingLockEvaluatorTest {
 
     @Test
     fun `falls back to locked horizon when no area is resolved`() {
-        val result = SequencingLockEvaluator.isLockedForSequencing(
+        val result = SequencingStateEvaluator.isInLockedSequenceWindow(
             airport = airportWithoutArea,
             arrival = arrival(position = LatLng(60.2, 11.2)),
             estimatedTime = Instant.parse("2026-04-12T12:05:00Z"),
@@ -131,6 +131,82 @@ class SequencingLockEvaluatorTest {
         )
 
         assertTrue(result)
+    }
+
+    @Test
+    fun `isInSequencingWindow - inside area is in window`() {
+        val airport = airportWithArea.copy(
+            runways = mapOf(
+                "19L" to runway.copy(
+                    arrivalProfiles = listOf(
+                        RunwayArrivalProfile(
+                            arrivalNamePattern = "*",
+                            sequencingAreaId = "commonLockedArea",
+                            fixExpectations = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val result = SequencingStateEvaluator.isInSequencingWindow(
+            airport = airport,
+            arrival = arrival(position = LatLng(60.05, 11.05)),
+            estimatedTime = Instant.parse("2026-04-12T13:00:00Z"),
+            now = Instant.parse("2026-04-12T12:00:00Z"),
+        )
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `isInSequencingWindow - outside area is not in window when area is configured`() {
+        val airport = airportWithArea.copy(
+            runways = mapOf(
+                "19L" to runway.copy(
+                    arrivalProfiles = listOf(
+                        RunwayArrivalProfile(
+                            arrivalNamePattern = "*",
+                            sequencingAreaId = "commonLockedArea",
+                            fixExpectations = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val result = SequencingStateEvaluator.isInSequencingWindow(
+            airport = airport,
+            arrival = arrival(position = LatLng(60.5, 11.5)),
+            estimatedTime = Instant.parse("2026-04-12T13:00:00Z"),
+            now = Instant.parse("2026-04-12T12:00:00Z"),
+        )
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `isInSequencingWindow - falls back to sequencing horizon when no area is configured`() {
+        val result = SequencingStateEvaluator.isInSequencingWindow(
+            airport = airportWithArea,
+            arrival = arrival(position = LatLng(60.5, 11.5)),
+            estimatedTime = Instant.parse("2026-04-12T12:25:00Z"),
+            now = Instant.parse("2026-04-12T12:00:00Z"),
+        )
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `isInSequencingWindow - outside horizon with no area is not in window`() {
+        val result = SequencingStateEvaluator.isInSequencingWindow(
+            airport = airportWithArea,
+            arrival = arrival(position = LatLng(60.5, 11.5)),
+            estimatedTime = Instant.parse("2026-04-12T12:35:00Z"),
+            now = Instant.parse("2026-04-12T12:00:00Z"),
+        )
+
+        assertFalse(result)
     }
 
     private fun arrival(

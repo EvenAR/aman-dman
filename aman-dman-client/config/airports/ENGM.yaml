@@ -41,6 +41,7 @@ arrivalProfiles:
   01*:
     - arrivalName: "*" # Applies to all arrival routes for 01L/01R
       frozenSequenceArea: commonFrozenArea
+      sequencingArea: commonSequencingArea
       fixes:
         # Standard approaches
         - { fix: VALPU, speed: 200, altitude: 5000, role: IAF }
@@ -85,6 +86,7 @@ arrivalProfiles:
   19*:
     - arrivalName: "*" # Applies to all arrival routes for 19L/19R
       frozenSequenceArea: commonFrozenArea
+      sequencingArea: commonSequencingArea
       fixes:
         # Standard approaches
         - { fix: TITLA, speed: 200, altitude: 5000, role: IAF }
@@ -155,3 +157,11 @@ areas:
       - N060.32.50.153 E012.03.23.779 N060.23.33.502 E012.05.33.473
       - N060.23.33.502 E012.05.33.473 N060.18.34.668 E012.03.47.360
       - N060.18.34.668 E012.03.47.360 N060.20.08.420 E011.55.20.376
+
+  commonSequencingArea:
+    boundary:
+      # Must end at the same point as it starts to form a closed polygon
+      - N062.10.29.357 E006.13.22.264 N062.08.59.956 E015.50.34.198
+      - N062.08.59.956 E015.50.34.198 N056.33.44.708 E016.01.03.869
+      - N056.33.44.708 E016.01.03.869 N056.37.28.211 E005.45.38.132
+      - N056.37.28.211 E005.45.38.132 N062.10.29.357 E006.13.22.264

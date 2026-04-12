@@ -45,7 +45,8 @@ class SequenceServiceTest {
 
         val aircraft = makeSequenceCandidate(
             callsign = "TEST123",
-            preferredTime = now + 35.minutes // Outside sequencing horizon (30 min threshold)
+            preferredTime = now + 35.minutes, // Outside sequencing horizon (30 min threshold)
+            isInSequencingWindow = false,
         )
 
         val updatedSequence = SequenceService.updateSequence(sequence, listOf(aircraft), defaultConfig)
@@ -238,7 +239,7 @@ class SequenceServiceTest {
         val frozenAircraft = makeSequenceCandidate(
             callsign = "FROZEN",
             preferredTime = now + 5.minutes,
-            isLockedForSequencing = true,
+            isInLockedSequenceWindow = true,
         )
         val sequence =
             listOf(
@@ -511,7 +512,7 @@ class SequenceServiceTest {
             callsign = "LOCKED",
             preferredTime = now + 12.minutes,
             assignedRunway = "19L",
-            isLockedForSequencing = true,
+            isInLockedSequenceWindow = true,
         )
         val currentSequence = listOf(
             SequencePlace(
@@ -545,13 +546,15 @@ class SequenceServiceTest {
         landingIas: Int = 150,
         wakeCategory: Char = 'M',
         assignedRunway: String? = null,
-        isLockedForSequencing: Boolean = false,
+        isInLockedSequenceWindow: Boolean = false,
+        isInSequencingWindow: Boolean = true,
     ) = AircraftSequenceCandidate(
         callsign = callsign,
         preferredTime = preferredTime,
         landingIas = landingIas,
         wakeCategory = wakeCategory,
         runway = assignedRunway,
-        isLockedForSequencing = isLockedForSequencing,
+        isInLockedSequenceWindow = isInLockedSequenceWindow,
+        isInSequencingWindow = isInSequencingWindow,
     )
 }

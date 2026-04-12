@@ -11,6 +11,9 @@ data class ArrivalProfileYaml(
     @field:JsonPropertyDescription("Optional airport area id that makes matching arrivals frozen for sequencing while inside the area")
     val frozenSequenceArea: String? = null,
 
+    @field:JsonPropertyDescription("Optional airport area id. Aircraft inside this area are included in the active sequencing window regardless of sequencingHorizon.")
+    val sequencingArea: String? = null,
+
     @field:NotNull
     val fixes: List<ArrivalProfileFixYaml> = emptyList(),
 )

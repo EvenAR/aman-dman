@@ -81,10 +81,20 @@ private fun List<ArrivalProfileYaml>.toDomainProfiles(
                 "$rowPrefix references unknown frozenSequenceArea '$frozenSequenceArea'."
             }
         }
+        val sequencingAreaId = profile.sequencingArea?.trim()
+        sequencingAreaId?.let { sequencingArea ->
+            require(sequencingArea.isNotBlank()) {
+                "$rowPrefix has a blank sequencingArea."
+            }
+            require(sequencingArea in availableAreaIds) {
+                "$rowPrefix references unknown sequencingArea '$sequencingArea'."
+            }
+        }
 
         RunwayArrivalProfile(
             arrivalNamePattern = normalizedArrivalName,
             frozenSequenceAreaId = frozenSequenceAreaId,
+            sequencingAreaId = sequencingAreaId,
             fixExpectations = profile.fixes.toDomainFixExpectations(
                 airportIcao = airportIcao,
                 runwayPattern = runwayPattern,

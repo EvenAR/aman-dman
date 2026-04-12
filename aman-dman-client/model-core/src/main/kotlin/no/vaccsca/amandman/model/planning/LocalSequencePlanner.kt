@@ -162,11 +162,16 @@ class LocalSequencePlanner(
                 landingIas = it.landingIas,
                 wakeCategory = it.wakeCategory,
                 runway = it.runway,
-                isLockedForSequencing = SequencingLockEvaluator.isLockedForSequencing(
+                isInLockedSequenceWindow = SequencingStateEvaluator.isInLockedSequenceWindow(
                     airport = airport,
                     arrival = arrival,
                     estimatedTime = it.estimatedTime,
                 ),
+                isInSequencingWindow = SequencingStateEvaluator.isInSequencingWindow(
+                    airport = airport,
+                    arrival = arrival,
+                    estimatedTime = it.estimatedTime,
+                )
             )
         }
 

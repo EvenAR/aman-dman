@@ -8,7 +8,8 @@ data class AircraftSequenceCandidate(
     val landingIas: Int,
     val wakeCategory: Char,
     val runway: String?,
-    val isLockedForSequencing: Boolean = false,
+    val isInLockedSequenceWindow: Boolean = false,
+    val isInSequencingWindow: Boolean = false,
 ) : SequenceCandidate(
     id = callsign,
     preferredTime = preferredTime,
