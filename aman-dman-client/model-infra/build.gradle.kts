@@ -17,6 +17,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.locationtech.jts:jts-core:1.20.0")
 
     implementation("edu.ucar:netcdf4:5.7.0")
     implementation("edu.ucar:cdm-core:5.7.0")

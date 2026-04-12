@@ -145,14 +145,17 @@ fun LabelItemSourceEnumYaml.toDomain() = when(this) {
 }
 
 fun AirportDataJson.toDomain(icao: String): Airport {
+    val airportAreas = areas.toAirportAreas(airportIcao = icao)
     val runwayProfilesByRunway = arrivalProfiles.toRunwayProfilesByRunway(
         airportIcao = icao,
         availableRunways = runwayThresholds.keys.map { it.uppercase() }.toSet(),
+        availableAreaIds = airportAreas.keys,
     )
 
     return Airport(
         icao = icao,
         location = LatLng(location.latitude, location.longitude),
+        areas = airportAreas,
         independentRunwaySystems = independentRunwaySystems?.map { it.toSet() } ?: listOf(runwayThresholds.keys),
         sequencingHorizon = sequencingHorizon?.toKotlinDuration() ?: 30.minutes,
         lockedHorizon = lockedHorizon?.toKotlinDuration() ?: 10.minutes,

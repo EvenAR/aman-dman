@@ -153,13 +153,20 @@ class LocalSequencePlanner(
         val (runwayArrivalEvents, nonSeq) = makeRunwayArrivalEvents(arrivals)
         nonSequencedList = nonSeq
 
-        val sequenceItems = runwayArrivalEvents.map {
+        val arrivalsByCallsign = arrivals.associateBy { it.callsign }
+        val sequenceItems = runwayArrivalEvents.mapNotNull {
+            val arrival = arrivalsByCallsign[it.callsign] ?: return@mapNotNull null
             AircraftSequenceCandidate(
                 callsign = it.callsign,
                 preferredTime = it.estimatedTime,
                 landingIas = it.landingIas,
                 wakeCategory = it.wakeCategory,
-                runway = it.runway
+                runway = it.runway,
+                isLockedForSequencing = SequencingLockEvaluator.isLockedForSequencing(
+                    airport = airport,
+                    arrival = arrival,
+                    estimatedTime = it.estimatedTime,
+                ),
             )
         }
 
@@ -181,7 +188,6 @@ class LocalSequencePlanner(
                     config = SequencingOptions(
                         minimumSeparationNm = minimumSpacingNm,
                         sequencingHorizon = airport.sequencingHorizon,
-                        lockedHorizon = airport.lockedHorizon
                     )
                 )
             )
@@ -353,7 +359,7 @@ class LocalSequencePlanner(
             preferredTime = timelineEvent.estimatedTime,
             landingIas = timelineEvent.landingIas,
             wakeCategory = timelineEvent.wakeCategory,
-            runway = newRunway ?: timelineEvent.runway
+            runway = newRunway ?: timelineEvent.runway,
         )
         return SequenceService.isTimeSlotAvailable(this.places, sequenceCandidate, scheduledTime, minimumSpacingNm)
     }

@@ -1,9 +1,12 @@
 package no.vaccsca.amandman.model.config.yaml
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Positive
 import java.time.Duration
 
+@JsonDeserialize(using = AirportDataJsonDeserializer::class)
 data class AirportDataJson(
     @field:NotNull
     val location: LocationJson,
@@ -26,6 +29,8 @@ data class AirportDataJson(
 
     // Reserved for future fixed-transit strategy, currently not used in projection.
     val feederFixTransitTimesMinutes: Map<String, Map<String, Int>>? = null,
+
+    val areas: Map<String, JsonNode> = emptyMap(),
 
     val arrivalProfiles: Map<String, List<ArrivalProfileYaml>> = emptyMap(),
 )

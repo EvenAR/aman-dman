@@ -8,7 +8,6 @@ import kotlin.time.Duration.Companion.seconds
 data class SequencingOptions(
     val minimumSeparationNm: Double,
     val sequencingHorizon: Duration,
-    val lockedHorizon: Duration
 )
 
 object SequenceService {
@@ -245,7 +244,6 @@ object SequenceService {
                 allSequencePlaces,
                 candidate as AircraftSequenceCandidate,
                 config.minimumSeparationNm,
-                config.lockedHorizon
             )
 
             allSequencePlaces.add(
@@ -294,12 +292,11 @@ object SequenceService {
         existingPlaces: List<SequencePlace>,
         newCandidate: AircraftSequenceCandidate,
         minimumSeparationNm: Double,
-        lockedHorizon: Duration
     ): Instant {
         var bestTime = newCandidate.preferredTime
 
         // AMAN Compliance: Check for aircraft in locked horizon that cannot be overtaken
-        val lockedAircraft = existingPlaces.filter { it.item.isInLockedHorizon(lockedHorizon) }
+        val lockedAircraft = existingPlaces.filter { it.item.isLockedForSequencing() }
         val lastLockedAircraft = lockedAircraft.maxByOrNull { it.scheduledTime }
 
         // If there are locked aircraft, new aircraft cannot be inserted before the last locked aircraft
@@ -345,7 +342,7 @@ object SequenceService {
             )
             // Only change time if there's a conflict (follower would be too close)
             // But don't push aircraft in locked horizon
-            if (follower.scheduledTime < requiredFollowerTime && !follower.item.isInLockedHorizon(lockedHorizon)) {
+            if (follower.scheduledTime < requiredFollowerTime && !follower.item.isLockedForSequencing()) {
                 // Move to an earlier time to avoid pushing the follower
                 val effectiveSpacing = if (areOnDifferentRunways(newCandidate, follower.item as AircraftSequenceCandidate)) {
                     minimumSeparationNm
@@ -418,13 +415,8 @@ object SequenceService {
         return remainingTime < sequencingHorizon
     }
 
-    /**
-     * Checks if the aircraft is within the Locked Horizon where order cannot be changed.
-     */
-    private fun SequenceCandidate.isInLockedHorizon(lockedHorizon: Duration): Boolean {
-        val remainingTime = this.preferredTime - NtpClock.now()
-        return remainingTime < lockedHorizon
-    }
+    private fun SequenceCandidate.isLockedForSequencing(): Boolean =
+        (this as? AircraftSequenceCandidate)?.isLockedForSequencing == true
 
     private val nmSpacingMap = mapOf(
         // Leader <> Follower

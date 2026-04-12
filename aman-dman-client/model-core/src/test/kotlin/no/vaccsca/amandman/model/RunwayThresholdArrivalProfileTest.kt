@@ -46,4 +46,35 @@ class RunwayThresholdArrivalProfileTest {
         assertEquals(220, runway.arrivalFixExpectationsFor("ESEBA4M")[0].typicalSpeedIas)
         assertEquals(180, runway.arrivalFixExpectationsFor("ESEBA4M")[1].typicalSpeedIas)
     }
+
+    @Test
+    fun `frozenSequenceAreaIdFor uses last matching non-null area id`() {
+        val runway = RunwayThreshold(
+            id = "19L",
+            latLng = LatLng(60.2, 11.1),
+            elevation = 681f,
+            trueHeading = 194f,
+            arrivalProfiles = listOf(
+                RunwayArrivalProfile(
+                    arrivalNamePattern = "*",
+                    frozenSequenceAreaId = "commonLockedArea",
+                    fixExpectations = emptyList(),
+                ),
+                RunwayArrivalProfile(
+                    arrivalNamePattern = "INREX*",
+                    frozenSequenceAreaId = "inrexInnerArea",
+                    fixExpectations = emptyList(),
+                ),
+                RunwayArrivalProfile(
+                    arrivalNamePattern = "INREX5*",
+                    fixExpectations = emptyList(),
+                ),
+            ),
+        )
+
+        assertEquals("inrexInnerArea", runway.frozenSequenceAreaIdFor("INREX4M"))
+        assertEquals("inrexInnerArea", runway.frozenSequenceAreaIdFor("INREX5M"))
+        assertEquals("commonLockedArea", runway.frozenSequenceAreaIdFor("ESEBA4M"))
+        assertEquals("commonLockedArea", runway.frozenSequenceAreaIdFor(null))
+    }
 }

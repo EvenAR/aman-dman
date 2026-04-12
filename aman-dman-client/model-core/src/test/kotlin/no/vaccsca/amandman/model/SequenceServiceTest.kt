@@ -18,7 +18,6 @@ class SequenceServiceTest {
     private val defaultConfig = SequencingOptions(
         minimumSeparationNm = 3.0,
         sequencingHorizon = 30.minutes,
-        lockedHorizon = 10.minutes
     )
 
     // Test 1: Aircraft entering AAH should be sequenced
@@ -236,8 +235,11 @@ class SequenceServiceTest {
     fun `Aircraft in frozen horizon should maintain their order`() {
         val now = NtpClock.now()
 
-        // Aircraft in frozen horizon (within 10 minutes)
-        val frozenAircraft = makeSequenceCandidate("FROZEN", now + 5.minutes)
+        val frozenAircraft = makeSequenceCandidate(
+            callsign = "FROZEN",
+            preferredTime = now + 5.minutes,
+            isLockedForSequencing = true,
+        )
         val sequence =
             listOf(
                 SequencePlace(frozenAircraft, now + 5.minutes, false)
@@ -502,18 +504,54 @@ class SequenceServiceTest {
         assertTrue(spacing >= minimumSpacing, "Should use minimum separation for different runways in manual movement")
     }
 
+    @Test
+    fun `Locked aircraft should not be overtaken by new arrivals`() {
+        val now = NtpClock.now()
+        val lockedAircraft = makeSequenceCandidate(
+            callsign = "LOCKED",
+            preferredTime = now + 12.minutes,
+            assignedRunway = "19L",
+            isLockedForSequencing = true,
+        )
+        val currentSequence = listOf(
+            SequencePlace(
+                item = lockedAircraft,
+                scheduledTime = lockedAircraft.preferredTime,
+                isManuallyAssigned = false,
+            )
+        )
+        val newArrival = makeSequenceCandidate(
+            callsign = "NEW",
+            preferredTime = now + 11.minutes,
+            assignedRunway = "19L",
+        )
+
+        val updatedSequence = SequenceService.updateSequence(
+            currentSequence = currentSequence,
+            candidates = listOf(lockedAircraft, newArrival),
+            config = defaultConfig,
+        )
+
+        val lockedPlace = updatedSequence.first { it.item.id == "LOCKED" }
+        val newPlace = updatedSequence.first { it.item.id == "NEW" }
+
+        assertTrue(newPlace.scheduledTime > lockedPlace.scheduledTime)
+    }
+
     // Helper function to create test aircraft sequence candidates
     private fun makeSequenceCandidate(
         callsign: String,
         preferredTime: Instant,
         landingIas: Int = 150,
         wakeCategory: Char = 'M',
-        assignedRunway: String? = null
+        assignedRunway: String? = null,
+        isLockedForSequencing: Boolean = false,
     ) = AircraftSequenceCandidate(
         callsign = callsign,
         preferredTime = preferredTime,
         landingIas = landingIas,
         wakeCategory = wakeCategory,
         runway = assignedRunway,
+        isLockedForSequencing = isLockedForSequencing,
     )
 }

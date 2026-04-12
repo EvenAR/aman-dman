@@ -29,7 +29,7 @@ interface AirportViewInterface {
     fun updateFeederFixState(feederFixState: FeederFixState)
 
     fun showAirportContextMenu(
-        cusomizedTimelines: List<TimelineConfig>,
+        customizedTimelines: List<TimelineConfig>,
         generatedFixTimelines: List<TimelineConfig>,
         screenPos: Point
     )

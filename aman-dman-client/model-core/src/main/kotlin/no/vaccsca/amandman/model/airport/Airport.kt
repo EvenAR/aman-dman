@@ -7,6 +7,7 @@ data class Airport(
     val icao: String,
     val location: LatLng,
     val runways: Map<String, RunwayThreshold>,
+    val areas: Map<String, AirportArea> = emptyMap(),
     val independentRunwaySystems: List<Set<String>>,
     val sequencingHorizon: Duration,
     val lockedHorizon: Duration,
@@ -48,11 +49,18 @@ data class RunwayThreshold(
 
         return mergedExpectations
     }
+
+    fun frozenSequenceAreaIdFor(assignedArrivalName: String?): String? =
+        arrivalProfiles
+            .filter { it.matches(assignedArrivalName) }
+            .mapNotNull { profile -> profile.frozenSequenceAreaId }
+            .lastOrNull()
 }
 
 data class RunwayArrivalProfile(
     val arrivalNamePattern: String,
     val fixExpectations: List<ArrivalFixExpectation>,
+    val frozenSequenceAreaId: String? = null,
 ) {
     fun matches(assignedArrivalName: String?): Boolean {
         val normalizedPattern = arrivalNamePattern.trim().uppercase()

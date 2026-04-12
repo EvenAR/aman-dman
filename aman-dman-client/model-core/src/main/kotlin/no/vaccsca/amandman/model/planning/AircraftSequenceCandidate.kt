@@ -7,7 +7,8 @@ data class AircraftSequenceCandidate(
     override val preferredTime: Instant,
     val landingIas: Int,
     val wakeCategory: Char,
-    val runway: String?
+    val runway: String?,
+    val isLockedForSequencing: Boolean = false,
 ) : SequenceCandidate(
     id = callsign,
     preferredTime = preferredTime,

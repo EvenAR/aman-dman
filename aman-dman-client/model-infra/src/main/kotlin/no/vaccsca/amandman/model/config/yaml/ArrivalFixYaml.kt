@@ -8,6 +8,9 @@ data class ArrivalProfileYaml(
     @field:JsonPropertyDescription("Arrival name or procedure name. One or multiple wildcards (*) can be used to match multiple arrival names")
     val arrivalName: String,
 
+    @field:JsonPropertyDescription("Optional airport area id that makes matching arrivals frozen for sequencing while inside the area")
+    val frozenSequenceArea: String? = null,
+
     @field:NotNull
     val fixes: List<ArrivalProfileFixYaml> = emptyList(),
 )

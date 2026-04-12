@@ -688,9 +688,10 @@ class AirportPresenterTimelineFormTest {
                 atcClient = AtcClientConnectionParameters(host = "127.0.0.1", port = 6809),
                 api = SharedStateConnectionParameters(host = "http://localhost:3000")
             ),
-            arrivalLabelLayouts = mapOf("ARR" to emptyList<LabelItem>()),
-            departureLabelLayouts = mapOf("DEP" to emptyList<LabelItem>()),
-            theme = Theme.FLATLAF_DARK
+            arrivalLabelLayouts = mapOf("ARR" to emptyList()),
+            departureLabelLayouts = mapOf("DEP" to emptyList()),
+            theme = Theme.FLATLAF_DARK,
+            planningSettings = PlanningSettings(true, 15.0)
         )
     }
 
@@ -808,11 +809,11 @@ class AirportPresenterTimelineFormTest {
         override fun updateDraggedLabel(timelineEvent: TimelineEvent, newInstant: Instant, isAvailable: Boolean) {}
         override fun updateFeederFixState(feederFixState: FeederFixState) {}
         override fun showAirportContextMenu(
-            cusomizedTimelines: List<TimelineConfig>,
+            customizedTimelines: List<TimelineConfig>,
             generatedFixTimelines: List<TimelineConfig>,
             screenPos: Point
         ) {
-            lastContextMenuConfiguredTimelines = cusomizedTimelines
+            lastContextMenuConfiguredTimelines = customizedTimelines
             lastContextMenuGeneratedTimelines = generatedFixTimelines
         }
 

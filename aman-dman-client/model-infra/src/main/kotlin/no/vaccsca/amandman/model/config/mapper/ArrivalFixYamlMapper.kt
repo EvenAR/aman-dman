@@ -14,6 +14,7 @@ private val RUNWAY_PATTERN_REGEX = Regex("^[A-Z0-9*]+$")
 internal fun Map<String, List<ArrivalProfileYaml>>.toRunwayProfilesByRunway(
     airportIcao: String,
     availableRunways: Set<String>,
+    availableAreaIds: Set<String>,
 ): Map<String, List<RunwayArrivalProfile>> {
     val profilesByRunway = availableRunways.associateWith { mutableListOf<RunwayArrivalProfile>() }
 
@@ -36,6 +37,7 @@ internal fun Map<String, List<ArrivalProfileYaml>>.toRunwayProfilesByRunway(
         val domainProfiles = profiles.toDomainProfiles(
             airportIcao = airportIcao,
             runwayPattern = runwayPattern,
+            availableAreaIds = availableAreaIds,
         )
 
         matchingRunways.forEach { runwayIdentifier ->
@@ -51,6 +53,7 @@ internal fun Map<String, List<ArrivalProfileYaml>>.toRunwayProfilesByRunway(
 private fun List<ArrivalProfileYaml>.toDomainProfiles(
     airportIcao: String,
     runwayPattern: String,
+    availableAreaIds: Set<String>,
 ): List<RunwayArrivalProfile> {
         val normalizedArrivalNames = mutableSetOf<String>()
 
@@ -69,9 +72,19 @@ private fun List<ArrivalProfileYaml>.toDomainProfiles(
         require(profile.fixes.isNotEmpty()) {
             "$rowPrefix must define at least one fix."
         }
+        val frozenSequenceAreaId = profile.frozenSequenceArea?.trim()
+        frozenSequenceAreaId?.let { frozenSequenceArea ->
+            require(frozenSequenceArea.isNotBlank()) {
+                "$rowPrefix has a blank frozenSequenceArea."
+            }
+            require(frozenSequenceArea in availableAreaIds) {
+                "$rowPrefix references unknown frozenSequenceArea '$frozenSequenceArea'."
+            }
+        }
 
         RunwayArrivalProfile(
             arrivalNamePattern = normalizedArrivalName,
+            frozenSequenceAreaId = frozenSequenceAreaId,
             fixExpectations = profile.fixes.toDomainFixExpectations(
                 airportIcao = airportIcao,
                 runwayPattern = runwayPattern,
