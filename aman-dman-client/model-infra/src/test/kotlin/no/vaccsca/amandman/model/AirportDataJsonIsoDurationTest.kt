@@ -1,10 +1,10 @@
 package no.vaccsca.amandman.model
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import kotlin.test.Test
 import kotlin.test.assertEquals

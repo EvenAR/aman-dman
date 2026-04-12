@@ -1,19 +1,9 @@
 package no.vaccsca.amandman.model.sharedstate
 
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
-import no.vaccsca.amandman.model.integration.IntegrationKind
-import no.vaccsca.amandman.model.integration.IntegrationStatus
-import no.vaccsca.amandman.model.integration.IntegrationStatusState
-import no.vaccsca.amandman.model.planning.AirportDataSource
+import kotlinx.coroutines.*
+import no.vaccsca.amandman.model.integration.*
 import org.slf4j.LoggerFactory
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Read-only data source that mirrors state from a remote master.
@@ -38,7 +28,7 @@ class RemoteDataMirror(
         scope.launch {
             while (isActive) {
                 fetchDataFromRemote()
-                delay(1000)
+                delay(1000.milliseconds)
             }
         }
     }

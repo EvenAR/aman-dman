@@ -16,12 +16,7 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.round
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
+import kotlin.math.*
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 

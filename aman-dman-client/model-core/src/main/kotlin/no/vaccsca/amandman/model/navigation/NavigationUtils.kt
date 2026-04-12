@@ -1,7 +1,5 @@
 package no.vaccsca.amandman.model.navigation
 
-import no.vaccsca.amandman.model.navigation.LatLng
-import no.vaccsca.amandman.model.navigation.bearingTo
 import kotlin.math.*
 
 object NavigationUtils {

@@ -7,15 +7,10 @@ import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.atc.ControllerInfoData
-import no.vaccsca.amandman.model.config.AirportTimelines
-import no.vaccsca.amandman.model.config.FeederFixTimeline
-import no.vaccsca.amandman.model.config.RunwayTimeline
-import no.vaccsca.amandman.model.config.SettingsProvider
-import no.vaccsca.amandman.model.config.TimelineDefaults
-import no.vaccsca.amandman.model.config.TimelineSettingsStore
+import no.vaccsca.amandman.model.config.*
+import no.vaccsca.amandman.model.integration.AirportDataSource
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
-import no.vaccsca.amandman.model.planning.AirportDataSource
 import no.vaccsca.amandman.model.planning.SequencePlanner
 import no.vaccsca.amandman.model.sharedstate.DataUpdateListener
 import no.vaccsca.amandman.model.timeline.CreateOrUpdateTimelineDto
@@ -29,7 +24,7 @@ import no.vaccsca.amandman.model.user.UserRole
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import org.slf4j.LoggerFactory
 import java.awt.Point
-import java.util.UUID
+import java.util.*
 import kotlin.time.Duration.Companion.seconds
 
 class AirportPresenter(

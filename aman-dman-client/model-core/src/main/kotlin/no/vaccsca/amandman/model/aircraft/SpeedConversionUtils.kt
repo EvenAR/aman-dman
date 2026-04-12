@@ -1,12 +1,10 @@
 package no.vaccsca.amandman.model.aircraft
 
 import no.vaccsca.amandman.model.weather.WindVector
-import kotlin.div
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
-import kotlin.times
 
 object SpeedConversionUtils {
     private const val P0_INHG = 29.92126          // Sea-level pressure [inHg]

@@ -1,12 +1,12 @@
 package no.vaccsca.amandman.model.planning
 
+import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.airport.Airport
 import no.vaccsca.amandman.model.atc.ExtractedRoutePoint
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
-import kotlinx.datetime.Instant
 import kotlin.math.cos
 
 interface FeederFixTimingStrategy {

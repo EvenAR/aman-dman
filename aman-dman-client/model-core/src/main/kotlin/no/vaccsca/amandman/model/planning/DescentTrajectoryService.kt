@@ -26,8 +26,8 @@ object DescentTrajectoryService {
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    private val CURRENT_ID = "CURRENT"
-    private val DECELERATION_RATE = 0.5
+    private const val CURRENT_ID = "CURRENT"
+    private const val DECELERATION_RATE = 0.5
     private val calmWindVector = WindVector(0, 0)
 
     /**
@@ -125,7 +125,6 @@ object DescentTrajectoryService {
 
         // Start from the last waypoint (the runway threshold) and work backward
         for (i in remainingRoute.lastIndex downTo 1) {
-            val laterPoint = remainingRoute[i]
             val earlierPoint = remainingRoute[i-1]
             val remainingRouteReversed = remainingRoute.subList(0, i).reversed()
 

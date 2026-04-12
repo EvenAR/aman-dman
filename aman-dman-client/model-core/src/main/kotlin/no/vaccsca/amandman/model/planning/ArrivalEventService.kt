@@ -2,12 +2,12 @@ package no.vaccsca.amandman.model.planning
 
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceProvider
-import no.vaccsca.amandman.model.airport.ArrivalFixRole
-import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
 import no.vaccsca.amandman.model.airport.Airport
+import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.airport.RunwayThreshold
 import no.vaccsca.amandman.model.atc.AtcClientArrivalData
+import no.vaccsca.amandman.model.navigation.NavigationUtils.isBehind
 import no.vaccsca.amandman.model.navigation.distanceTo
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.weather.SpatialWeatherField

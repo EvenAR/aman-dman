@@ -5,10 +5,10 @@ import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.integration.IntegrationDisplayStatus
 import no.vaccsca.amandman.model.integration.IntegrationKind
-import no.vaccsca.amandman.model.user.UserRole
 import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
+import no.vaccsca.amandman.model.user.UserRole
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours

@@ -1,23 +1,8 @@
 package no.vaccsca.amandman.model.planning
 
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.model.integration.AirportIntegrationStatuses
+import no.vaccsca.amandman.model.integration.AirportDataSource
 import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
-
-/**
- * Base interface for any airport data source.
- * Provides lifecycle management and data collection capabilities.
- * Both local planners and remote data mirrors implement this.
- */
-interface AirportDataSource {
-    val airportIcao: String
-    val isReadOnly: Boolean
-
-    fun start()
-    fun stop()
-    fun startDataCollection()
-    fun getIntegrationStatuses(): AirportIntegrationStatuses
-}
 
 /**
  * Interface for services that can actively plan and modify sequences.

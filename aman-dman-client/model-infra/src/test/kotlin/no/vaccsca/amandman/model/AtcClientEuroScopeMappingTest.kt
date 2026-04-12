@@ -4,11 +4,7 @@ import kotlinx.datetime.Instant
 import no.vaccsca.amandman.model.atc.euroscope.ArrivalJson
 import no.vaccsca.amandman.model.atc.euroscope.FixPointJson
 import no.vaccsca.amandman.model.atc.toDomain
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class AtcClientEuroScopeMappingTest {
 

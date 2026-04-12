@@ -183,21 +183,13 @@ class DescentProfileTest {
 
     @Test
     fun `Calculates bearing correctly`() {
-        LatLng(60.0, 0.0).bearingTo(LatLng(60.0, 1.0)).let {
-            assertEquals(90, it)
-        }
+        assertEquals(90, LatLng(60.0, 0.0).bearingTo(LatLng(60.0, 1.0)))
 
-        LatLng(60.0, 0.0).bearingTo(LatLng(61.0, 0.0)).let {
-            assertEquals(0, it)
-        }
+        assertEquals(0, LatLng(60.0, 0.0).bearingTo(LatLng(61.0, 0.0)))
 
-        LatLng(60.0, 0.0).bearingTo(LatLng(60.0, -1.0)).let {
-            assertEquals(270, it)
-        }
+        assertEquals(270, LatLng(60.0, 0.0).bearingTo(LatLng(60.0, -1.0)))
 
-        LatLng(60.0, 0.0).bearingTo(LatLng(59.0, 0.0)).let {
-            assertEquals(180, it)
-        }
+        assertEquals(180, LatLng(60.0, 0.0).bearingTo(LatLng(59.0, 0.0)))
     }
 
     @Test

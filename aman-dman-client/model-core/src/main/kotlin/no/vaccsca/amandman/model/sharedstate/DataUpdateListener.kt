@@ -1,9 +1,9 @@
 package no.vaccsca.amandman.model.sharedstate
 
-import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
-import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.airport.RunwayStatus
 import no.vaccsca.amandman.model.timeline.FeederFixState
+import no.vaccsca.amandman.model.timeline.event.NonSequencedEvent
+import no.vaccsca.amandman.model.timeline.event.timeline.TimelineEvent
 import no.vaccsca.amandman.model.weather.VerticalWeatherProfile
 
 /**

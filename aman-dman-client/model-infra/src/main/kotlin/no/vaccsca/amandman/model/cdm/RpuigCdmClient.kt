@@ -3,11 +3,7 @@ package no.vaccsca.amandman.model.cdm
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.*
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.integration.IntegrationStatus
 import no.vaccsca.amandman.model.integration.IntegrationStatusState

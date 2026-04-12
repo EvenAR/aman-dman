@@ -20,14 +20,7 @@ import java.awt.FlowLayout
 import java.awt.Point
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
-import javax.swing.JButton
-import javax.swing.JDesktopPane
-import javax.swing.JInternalFrame
-import javax.swing.JLabel
-import javax.swing.JPanel
-import javax.swing.JSpinner
-import javax.swing.SpinnerNumberModel
-import javax.swing.WindowConstants
+import javax.swing.*
 import kotlin.time.Duration
 
 class AirportView(

@@ -1,15 +1,15 @@
 package no.vaccsca.amandman
 
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel
-import no.vaccsca.amandman.model.config.SettingsRepository
-import no.vaccsca.amandman.model.config.TimelineSettingsRepository
-import no.vaccsca.amandman.presenter.MainPresenter
-import no.vaccsca.amandman.model.planning.AirportDataSourceManager
-import no.vaccsca.amandman.model.config.Theme
-import no.vaccsca.amandman.model.weather.NoaaApiClient
-import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedStateHttpClient
-import no.vaccsca.amandman.model.cdm.RpuigCdmClient
 import no.vaccsca.amandman.model.aircraft.AircraftPerformanceData
+import no.vaccsca.amandman.model.cdm.RpuigCdmClient
+import no.vaccsca.amandman.model.config.SettingsRepository
+import no.vaccsca.amandman.model.config.Theme
+import no.vaccsca.amandman.model.config.TimelineSettingsRepository
+import no.vaccsca.amandman.model.planning.AirportDataSourceManager
+import no.vaccsca.amandman.model.sharedstate.MasterSlaveSharedStateHttpClient
+import no.vaccsca.amandman.model.weather.NoaaApiClient
+import no.vaccsca.amandman.presenter.MainPresenter
 import no.vaccsca.amandman.view.AmanDmanMainFrame
 import org.slf4j.LoggerFactory
 import java.awt.AWTEvent

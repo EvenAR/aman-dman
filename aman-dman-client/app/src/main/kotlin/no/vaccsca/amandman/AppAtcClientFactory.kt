@@ -1,10 +1,10 @@
 package no.vaccsca.amandman
 
 import no.vaccsca.amandman.model.atc.AtcClient
+import no.vaccsca.amandman.model.atc.AtcClientEuroScope
 import no.vaccsca.amandman.model.atc.AtcClientFactory
 import no.vaccsca.amandman.model.atc.ControllerInfoData
 import no.vaccsca.amandman.model.config.SettingsProvider
-import no.vaccsca.amandman.model.atc.AtcClientEuroScope
 
 class AppAtcClientFactory(
     private val settingsProvider: SettingsProvider

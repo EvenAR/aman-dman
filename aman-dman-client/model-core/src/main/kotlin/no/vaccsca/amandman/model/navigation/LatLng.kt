@@ -1,6 +1,12 @@
 package no.vaccsca.amandman.model.navigation
 
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 data class LatLng(
     val lat: Double,
@@ -16,8 +22,8 @@ fun LatLng.distanceTo(latLng: LatLng): Double {
     val dlon = lon2 - lon1
     val dlat = lat2 - lat1
 
-    val a = Math.pow(Math.sin(dlat / 2), 2.0) + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(dlon / 2), 2.0)
-    val c = 2 * Math.asin(Math.sqrt(a))
+    val a = sin(dlat / 2).pow(2.0) + cos(lat1) * cos(lat2) * sin(dlon / 2).pow(2.0)
+    val c = 2 * asin(sqrt(a))
     val radius = 3440.065 // in nautical miles
     return radius * c
 }
@@ -30,10 +36,10 @@ fun LatLng.bearingTo(latLng: LatLng): Int {
 
     val dlon = lon2 - lon1
 
-    val y = Math.sin(dlon) * Math.cos(lat2)
-    val x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dlon)
+    val y = sin(dlon) * cos(lat2)
+    val x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dlon)
 
-    val bearing = Math.toDegrees(Math.atan2(y, x))
+    val bearing = Math.toDegrees(atan2(y, x))
 
     return ((bearing + 360) % 360).roundToInt()
 }

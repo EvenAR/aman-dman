@@ -16,7 +16,6 @@ class SpatialWeatherField(
     }
 
     val time: Instant = gridProfiles.first().time
-    val gridPointCount: Int = gridProfiles.size
 
     fun sampleWeather(position: LatLng, altitudeFt: Int): WeatherLayer? {
         val selection = selectProfiles(position)

@@ -1,9 +1,5 @@
 package no.vaccsca.amandman.model.atc
 
-import no.vaccsca.amandman.model.atc.AtcClientArrivalData
-import no.vaccsca.amandman.model.atc.AtcClientDepartureData
-import no.vaccsca.amandman.model.atc.AtcClientRunwaySelectionData
-import no.vaccsca.amandman.model.atc.ControllerInfoData
 import no.vaccsca.amandman.model.integration.IntegrationStatus
 import java.io.Closeable
 

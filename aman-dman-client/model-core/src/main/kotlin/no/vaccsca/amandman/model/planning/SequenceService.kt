@@ -2,9 +2,6 @@ package no.vaccsca.amandman.model.planning
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.NtpClock
-import no.vaccsca.amandman.model.planning.AircraftSequenceCandidate
-import no.vaccsca.amandman.model.planning.SequenceCandidate
-import no.vaccsca.amandman.model.planning.SequencePlace
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -366,10 +363,6 @@ object SequenceService {
         }
 
         return bestTime
-    }
-
-    private fun findSequenceItem(arrivals: List<SequenceCandidate>, callsign: String): SequenceCandidate? {
-        return arrivals.find { it.id == callsign }
     }
 
     /**

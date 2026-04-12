@@ -27,7 +27,7 @@ object WeatherUtils {
         // Interpolate wind direction with wrap-around
         val dir1 = lower.windVector.directionDeg.toFloat()
         val dir2 = upper.windVector.directionDeg.toFloat()
-        var delta = ((dir2 - dir1 + 540) % 360) - 180 // shortest path
+        val delta = ((dir2 - dir1 + 540) % 360) - 180 // shortest path
         val direction = (dir1 + ratio * delta + 360) % 360
 
         val speed = (1 - ratio) * lower.windVector.speedKts + ratio * upper.windVector.speedKts

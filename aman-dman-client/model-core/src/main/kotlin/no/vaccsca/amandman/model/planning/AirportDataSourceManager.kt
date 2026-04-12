@@ -1,7 +1,6 @@
 package no.vaccsca.amandman.model.planning
 
-import no.vaccsca.amandman.model.planning.AirportDataSource
-import no.vaccsca.amandman.model.planning.SequencePlanner
+import no.vaccsca.amandman.model.integration.AirportDataSource
 import org.slf4j.LoggerFactory
 
 /**
@@ -27,15 +26,7 @@ class AirportDataSourceManager {
         return dataSources.find { it.airportIcao == airportIcao }
     }
 
-    fun getSequencePlannerForAirport(airportIcao: String): SequencePlanner? {
-        return dataSources.find { it.airportIcao == airportIcao } as? SequencePlanner
-    }
-
     fun getAllSequencePlanners(): List<SequencePlanner> {
         return dataSources.filterIsInstance<SequencePlanner>()
-    }
-
-    fun getAll(): List<AirportDataSource> {
-        return dataSources.toList()
     }
 }

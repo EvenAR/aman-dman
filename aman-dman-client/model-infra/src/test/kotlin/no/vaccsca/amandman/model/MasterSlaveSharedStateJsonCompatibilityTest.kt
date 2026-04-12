@@ -9,11 +9,7 @@ import no.vaccsca.amandman.model.sharedstate.createSharedStateObjectMapper
 import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class MasterSlaveSharedStateJsonCompatibilityTest {
 

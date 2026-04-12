@@ -1,8 +1,8 @@
 package no.vaccsca.amandman.view.airport
 
-import no.vaccsca.amandman.common.TimelineConfig
-import no.vaccsca.amandman.common.RunwayTimelineConfig
 import no.vaccsca.amandman.common.FeederFixTimelineConfig
+import no.vaccsca.amandman.common.RunwayTimelineConfig
+import no.vaccsca.amandman.common.TimelineConfig
 import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.TimelineData
 import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent

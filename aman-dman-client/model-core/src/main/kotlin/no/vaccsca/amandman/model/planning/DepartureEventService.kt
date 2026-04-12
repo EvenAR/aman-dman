@@ -1,7 +1,7 @@
 package no.vaccsca.amandman.model.planning
 
-import no.vaccsca.amandman.model.cdm.CdmData
 import no.vaccsca.amandman.model.atc.AtcClientDepartureData
+import no.vaccsca.amandman.model.cdm.CdmData
 import no.vaccsca.amandman.model.timeline.event.timeline.DepartureEvent
 import org.slf4j.LoggerFactory
 

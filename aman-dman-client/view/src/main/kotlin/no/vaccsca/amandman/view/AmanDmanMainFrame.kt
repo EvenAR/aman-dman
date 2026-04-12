@@ -1,9 +1,9 @@
 package no.vaccsca.amandman.view
 
 import kotlinx.datetime.Instant
-import no.vaccsca.amandman.model.timeline.TimelineGroup
-import no.vaccsca.amandman.model.planning.TrajectoryPoint
 import no.vaccsca.amandman.model.atc.ControllerInfoData
+import no.vaccsca.amandman.model.planning.TrajectoryPoint
+import no.vaccsca.amandman.model.timeline.TimelineGroup
 import no.vaccsca.amandman.presenter.AirportViewInterface
 import no.vaccsca.amandman.presenter.MainPresenterInterface
 import no.vaccsca.amandman.presenter.MainViewInterface

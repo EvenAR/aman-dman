@@ -1,6 +1,6 @@
 package no.vaccsca.amandman.model
 
-import java.util.Properties
+import java.util.*
 
 internal object ClientVersion {
     val value: String by lazy {

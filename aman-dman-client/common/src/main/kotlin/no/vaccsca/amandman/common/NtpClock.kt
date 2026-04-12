@@ -2,12 +2,12 @@ package no.vaccsca.amandman.common
 
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import org.apache.commons.net.ntp.NTPUDPClient;
+import org.apache.commons.net.ntp.NTPUDPClient
 import org.apache.commons.net.ntp.TimeInfo
 import java.net.InetAddress
+import java.time.Duration.ofSeconds
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.time.Duration.ofSeconds
 
 object NtpClock : Clock {
 

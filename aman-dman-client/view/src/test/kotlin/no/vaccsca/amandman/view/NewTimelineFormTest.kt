@@ -12,16 +12,8 @@ import no.vaccsca.amandman.view.forms.NewTimelineForm
 import java.awt.Component
 import java.awt.Container
 import java.awt.Point
-import javax.swing.JButton
-import javax.swing.JComboBox
-import javax.swing.JList
-import javax.swing.JTextField
-import javax.swing.SwingUtilities
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import javax.swing.*
+import kotlin.test.*
 
 class NewTimelineFormTest {
 

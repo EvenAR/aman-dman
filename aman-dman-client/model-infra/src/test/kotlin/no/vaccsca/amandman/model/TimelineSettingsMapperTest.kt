@@ -2,11 +2,7 @@ package no.vaccsca.amandman.model
 
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.mapper.toYaml
-import no.vaccsca.amandman.model.config.yaml.AirportTimelinesYaml
-import no.vaccsca.amandman.model.config.yaml.FeederFixTimelineYaml
-import no.vaccsca.amandman.model.config.yaml.RunwayTimelineYaml
-import no.vaccsca.amandman.model.config.yaml.TimelineDefaultsYaml
-import no.vaccsca.amandman.model.config.yaml.TimelineSettingsYaml
+import no.vaccsca.amandman.model.config.yaml.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

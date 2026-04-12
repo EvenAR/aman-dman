@@ -1,7 +1,6 @@
 package no.vaccsca.amandman.model.navigation
 
 import no.vaccsca.amandman.model.airport.ArrivalFixExpectation
-import kotlin.collections.sumOf
 
 object NavdataUtils {
     /**
