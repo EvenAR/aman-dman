@@ -184,6 +184,7 @@ class TimelineScrollPane(
                     displayScheduledTime = timing.sto,
                     displayEstimatedTime = timing.eto,
                     anchorId = anchorFix,
+                    isAbeamPosition = timing.isAbeamTime,
                 )
             }
     }

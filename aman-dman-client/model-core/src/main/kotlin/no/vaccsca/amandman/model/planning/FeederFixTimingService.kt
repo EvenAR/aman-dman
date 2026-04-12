@@ -8,6 +8,7 @@ import no.vaccsca.amandman.model.timeline.FeederFixState
 import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import kotlin.math.cos
+import kotlin.math.sqrt
 
 interface FeederFixTimingStrategy {
     fun computeTimingsForArrival(
@@ -18,7 +19,9 @@ interface FeederFixTimingStrategy {
     ): Map<String, FeederFixTiming>
 }
 
-class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
+class DynamicFromTrajectoryFeederFixTimingStrategy(
+    private val maxAbeamDistanceNm: Double,
+) : FeederFixTimingStrategy {
     override fun computeTimingsForArrival(
         arrival: RunwayArrivalEvent,
         trajectory: List<TrajectoryPoint>,
@@ -67,7 +70,7 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
         // be operationally relevant to that feeder flow, so we anchor it by the first future abeam time.
         val projectedTime = trajectory
             .zipWithNext()
-            .firstNotNullOfOrNull { (start, end) -> projectTimeOntoSegment(start, end, bypassedFix.latLng) }
+            .firstNotNullOfOrNull { (start, end) -> projectTimeOntoSegment(start, end, bypassedFix.latLng, maxAbeamDistanceNm) }
             ?: return null
         if (projectedTime <= trajectory.first().time) {
             return null
@@ -80,14 +83,17 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
         start: TrajectoryPoint,
         end: TrajectoryPoint,
         feederFixPosition: LatLng,
+        maxDistanceNm: Double,
     ): Instant? {
         val projection = SegmentProjection.from(start.latLng, end.latLng, feederFixPosition) ?: return null
+        if (projection.distanceNm > maxDistanceNm) return null
         val timeDelta = end.time - start.time
         return start.time + timeDelta * projection.fractionAlongSegment
     }
 
     private data class SegmentProjection(
         val fractionAlongSegment: Double,
+        val distanceNm: Double,
     ) {
         companion object {
             fun from(start: LatLng, end: LatLng, target: LatLng): SegmentProjection? {
@@ -108,8 +114,13 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
                     return null
                 }
 
+                val closestX = fractionAlongSegment * endX
+                val closestY = fractionAlongSegment * endY
+                val distanceNm = sqrt((targetX - closestX) * (targetX - closestX) + (targetY - closestY) * (targetY - closestY))
+
                 return SegmentProjection(
                     fractionAlongSegment = fractionAlongSegment,
+                    distanceNm = distanceNm,
                 )
             }
         }
@@ -126,7 +137,7 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
 }
 
 class FeederFixTimingService(
-    private val timingStrategy: FeederFixTimingStrategy = DynamicFromTrajectoryFeederFixTimingStrategy(),
+    private val timingStrategy: FeederFixTimingStrategy,
 ) {
     fun buildState(
         airport: Airport,

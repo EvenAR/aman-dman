@@ -114,7 +114,7 @@ class TimelineOverlay(
             val displayEstimated = (sourceEvent as? RunwayEvent)?.estimatedTime?.let { canonicalEta ->
                 toDisplayInstant(sourceEvent, canonicalEta)
             }
-            copy.applyDisplayTimes(displayProposedTime, displayEstimated)
+            copy.applyDisplayTimes(displayProposedTime, displayEstimated, copy.isAbeamPosition)
             copy.updateText()
             copy.updateColors()
             copy.repaint()
@@ -237,7 +237,10 @@ class TimelineOverlay(
             val event = label.timelineEvent
             g.color = if (event is RunwayArrivalEvent && event.sequenceStatus == SequenceStatus.OK) Color.WHITE else Color.GRAY
             g.drawLine(labelX, label.y + label.preferredSize.height / 2, dotX, dotY)
-            g.fillOval(dotX - pointDiameter / 2, dotY - pointDiameter / 2, pointDiameter, pointDiameter)
+            // Don't draw the circle if the position is based on abeam time
+            if (!label.isAbeamPosition) {
+                g.fillOval(dotX - pointDiameter / 2, dotY - pointDiameter / 2, pointDiameter, pointDiameter)
+            }
         }
     }
 
@@ -339,7 +342,7 @@ class TimelineOverlay(
             if (existing == null) {
                 val newLabel = event.createLabel()
                 newLabel.font = baseFont
-                newLabel.applyDisplayTimes(sideEvent.displayScheduledTime, sideEvent.displayEstimatedTime)
+                newLabel.applyDisplayTimes(sideEvent.displayScheduledTime, sideEvent.displayEstimatedTime, sideEvent.isAbeamPosition)
                 newLabel.addMouseListener(labelMouseAdapter(newLabel))
                 newLabel.addMouseMotionListener(labelMouseMotionAdapter(newLabel))
                 newLabel.updateText()
@@ -348,7 +351,7 @@ class TimelineOverlay(
                 add(newLabel)
             } else {
                 existing.timelineEvent = event
-                existing.applyDisplayTimes(sideEvent.displayScheduledTime, sideEvent.displayEstimatedTime)
+                existing.applyDisplayTimes(sideEvent.displayScheduledTime, sideEvent.displayEstimatedTime, sideEvent.isAbeamPosition)
                 existing.updateText()
                 existing.updateColors()
             }
@@ -438,7 +441,7 @@ class TimelineOverlay(
         }
         copy.font = label.font
         copy.bounds = label.bounds
-        copy.applyDisplayTimes(label.displayScheduledTime, label.displayEstimatedTime)
+        copy.applyDisplayTimes(label.displayScheduledTime, label.displayEstimatedTime, label.isAbeamPosition)
         return copy
     }
 

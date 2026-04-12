@@ -15,11 +15,12 @@ fun AmanDmanSettingsYaml.toDomain(): AmanDmanSettings = AmanDmanSettings(
     arrivalLabelLayouts = arrivalLabelLayouts.mapValues { entry -> entry.value.map { it.toDomain() } },
     departureLabelLayouts = departureLabelLayouts?.mapValues { entry -> entry.value.map { it.toDomain() } } ?: emptyMap(),
     theme = theme?.toDomain() ?: Theme.FLATLAF_DARK,
-    planningSettings = planningSettings?.toDomain() ?: PlanningSettings(),
+    planningSettings = planningSettings.toDomain(),
 )
 
 fun PlanningSettingsYaml.toDomain() = PlanningSettings(
     useGroundspeedOnDirectRouting = useGroundspeedOnDirectRouting,
+    feederFixMaxAbeamDistanceNm = feederFixMaxAbeamDistanceNm,
 )
 
 fun TimelineSettingsYaml.toDomain(): Map<String, AirportTimelines> = timelines.mapValues { entry -> entry.value.toDomain() }

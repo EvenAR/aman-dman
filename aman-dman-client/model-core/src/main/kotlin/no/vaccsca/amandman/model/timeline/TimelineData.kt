@@ -15,4 +15,5 @@ data class TimelineDisplayEvent(
     val displayScheduledTime: Instant = event.scheduledTime,
     val displayEstimatedTime: Instant? = (event as? RunwayEvent)?.estimatedTime,
     val anchorId: String? = null,
+    val isAbeamPosition: Boolean = false,
 )

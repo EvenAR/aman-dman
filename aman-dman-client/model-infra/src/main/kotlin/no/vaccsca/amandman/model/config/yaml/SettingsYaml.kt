@@ -25,13 +25,15 @@ data class AmanDmanSettingsYaml(
 
     val theme: ThemeYaml?,
 
-    @field:Valid
-    val planningSettings: PlanningSettingsYaml? = null,
+    val planningSettings: PlanningSettingsYaml = PlanningSettingsYaml(),
 )
 
 data class PlanningSettingsYaml(
     @field:JsonPropertyDescription("When aircraft is given direct IF/IAF, base predictions on current speed instead of speed from performance model.")
     val useGroundspeedOnDirectRouting: Boolean = true,
+    @field:JsonPropertyDescription("Maximum perpendicular distance from the trajectory (NM) at which a feeder fix is considered abeam. Feeder fixes further away than this will not show on the feeder fix timeline.")
+    @field:DecimalMin(value = "0.0", inclusive = false)
+    val feederFixMaxAbeamDistanceNm: Double = 15.0,
 )
 
 data class TimelineSettingsYaml(

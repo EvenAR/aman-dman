@@ -41,7 +41,7 @@ class LocalSequencePlanner(
     private val cdmClient: CdmProvider,
     private val sharedState: MasterSlaveSharedState? = null,
     private val aircraftPerformanceProvider: AircraftPerformanceProvider,
-    private val planningSettings: PlanningSettings = PlanningSettings(),
+    private val planningSettings: PlanningSettings,
     private vararg val dataUpdateListeners: DataUpdateListener,
 ) : SequencePlanner {
 
@@ -56,7 +56,9 @@ class LocalSequencePlanner(
         }
     )
 
-    private val feederFixTimingService = FeederFixTimingService()
+    private val feederFixTimingService = FeederFixTimingService(
+        DynamicFromTrajectoryFeederFixTimingStrategy(planningSettings.feederFixMaxAbeamDistanceNm)
+    )
 
     private var arrivalsCache: List<RunwayArrivalEvent> = emptyList()
     private var extractedRoutesByCallsign: Map<String, List<ExtractedRoutePoint>> = emptyMap()

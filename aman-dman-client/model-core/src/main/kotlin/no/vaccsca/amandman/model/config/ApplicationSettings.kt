@@ -5,11 +5,12 @@ data class AmanDmanSettings(
     val arrivalLabelLayouts: Map<String, List<LabelItem>>,
     val departureLabelLayouts: Map<String, List<LabelItem>>,
     val theme: Theme,
-    val planningSettings: PlanningSettings = PlanningSettings(),
+    val planningSettings: PlanningSettings,
 )
 
 data class PlanningSettings(
-    val useGroundspeedOnDirectRouting: Boolean = true,
+    val useGroundspeedOnDirectRouting: Boolean,
+    val feederFixMaxAbeamDistanceNm: Double,
 )
 
 data class AirportTimelines(

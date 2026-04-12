@@ -33,6 +33,7 @@ abstract class TimelineLabel(
 
     var displayScheduledTime: Instant = timelineEvent.scheduledTime
     var displayEstimatedTime: Instant? = (timelineEvent as? RunwayEvent)?.estimatedTime
+    var isAbeamPosition: Boolean = false
 
     private var isHovered: Boolean = false
     private var isDragging: Boolean = false
@@ -71,9 +72,10 @@ abstract class TimelineLabel(
         }
     }
 
-    fun applyDisplayTimes(scheduledTime: Instant, estimatedTime: Instant?) {
+    fun applyDisplayTimes(scheduledTime: Instant, estimatedTime: Instant?, isAbeamPosition: Boolean = false) {
         displayScheduledTime = scheduledTime
         displayEstimatedTime = estimatedTime
+        this.isAbeamPosition = isAbeamPosition
     }
 
     private fun scheduleRepaintAfterTimeout() {

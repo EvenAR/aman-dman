@@ -23,9 +23,11 @@ class FeederFixTimingServiceTest {
     private val referenceEto = Instant.parse("2026-03-07T12:30:00Z")
     private val referenceSto = Instant.parse("2026-03-07T12:35:00Z")
 
+    val strategy = DynamicFromTrajectoryFeederFixTimingStrategy(maxAbeamDistanceNm = 15.0)
+    val service = FeederFixTimingService(strategy)
+
     @Test
     fun `buildState should derive feeder fix ETO and STO from trajectory points`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1", "F2")
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto)
 
@@ -60,7 +62,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `buildState should use abeam time for bypassed feeder fix after direct`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1")
         val arrival = sampleArrival(
             estimatedTime = referenceEto,
@@ -81,7 +82,7 @@ class FeederFixTimingServiceTest {
             extractedRouteProvider = {
                 listOf(
                     routePoint("OLD", LatLng(60.2, 9.5), isActive = false),
-                    routePoint("F1", LatLng(61.0, 11.0), isActive = false),
+                    routePoint("F1", LatLng(60.08, 11.0), isActive = false),
                     routePoint("NEXT", LatLng(60.0, 12.0), isActive = true),
                 )
             },
@@ -96,7 +97,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `buildState should ignore fixes that are not present in trajectory or extracted route`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1", "UNKNOWN")
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
 
@@ -125,7 +125,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `buildState should not create abeam timing when no direct is assigned`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1")
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto)
 
@@ -151,7 +150,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `buildState should not create abeam timing when trajectory cannot produce a projection`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1")
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
 
@@ -176,7 +174,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `buildState should remove abeam timing after aircraft has passed the feeder fix abeam point`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1")
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
 
@@ -203,7 +200,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `buildState should not recreate abeam timing from a later route bend after current abeam point`() {
-        val service = FeederFixTimingService()
         val airport = airportWithFixes("F1")
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
 
@@ -231,7 +227,6 @@ class FeederFixTimingServiceTest {
 
     @Test
     fun `dynamic strategy should use first matching fix occurrence`() {
-        val strategy = DynamicFromTrajectoryFeederFixTimingStrategy()
         val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto)
 
         val result = strategy.computeTimingsForArrival(
@@ -249,6 +244,64 @@ class FeederFixTimingServiceTest {
         assertEquals(Instant.parse("2026-03-07T12:12:00Z"), timing.eto)
         assertEquals(Instant.parse("2026-03-07T12:17:00Z"), timing.sto)
         assertFalse(timing.isAbeamTime)
+    }
+
+    @Test
+    fun `buildState should not create abeam timing when feeder fix is beyond max abeam distance`() {
+        val service = FeederFixTimingService(DynamicFromTrajectoryFeederFixTimingStrategy(maxAbeamDistanceNm = 5.0))
+        val airport = airportWithFixes("F1")
+        val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
+
+        val state = service.buildState(
+            airport = airport,
+            arrivals = listOf(arrival),
+            trajectoryProvider = {
+                listOf(
+                    // Straight east track at lat 60.0; F1 is ~120 NM north — well beyond 5 NM limit
+                    trajectoryPoint(fixId = null, time = referenceEto - 20.minutes, latLng = LatLng(60.0, 10.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = "19L", time = referenceEto, latLng = LatLng(60.0, 14.0)),
+                )
+            },
+            extractedRouteProvider = {
+                listOf(
+                    routePoint("F1", LatLng(62.0, 11.0), isActive = false),
+                    routePoint("NEXT", LatLng(60.0, 12.0), isActive = true),
+                )
+            },
+        )
+
+        assertNull(state.timingsByCallsign[arrival.callsign]?.get("F1"))
+    }
+
+    @Test
+    fun `buildState should create abeam timing when feeder fix is within max abeam distance`() {
+        val service = FeederFixTimingService(DynamicFromTrajectoryFeederFixTimingStrategy(maxAbeamDistanceNm = 5.0))
+        val airport = airportWithFixes("F1")
+        val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
+
+        val state = service.buildState(
+            airport = airport,
+            arrivals = listOf(arrival),
+            trajectoryProvider = {
+                listOf(
+                    // Straight east track at lat 60.0; F1 is ~3 NM north of the midpoint — within 5 NM limit
+                    trajectoryPoint(fixId = null, time = referenceEto - 20.minutes, latLng = LatLng(60.0, 10.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = "19L", time = referenceEto, latLng = LatLng(60.0, 14.0)),
+                )
+            },
+            extractedRouteProvider = {
+                listOf(
+                    routePoint("F1", LatLng(60.05, 11.0), isActive = false),
+                    routePoint("NEXT", LatLng(60.0, 12.0), isActive = true),
+                )
+            },
+        )
+
+        val timing = state.timingsByCallsign[arrival.callsign]?.get("F1")
+        assertNotNull(timing)
+        assertTrue(timing.isAbeamTime)
     }
 
     private fun airportWithFixes(vararg fixes: String): Airport = Airport(
