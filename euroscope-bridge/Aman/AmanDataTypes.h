@@ -15,7 +15,7 @@ struct RouteFix {
     std::string name;
     double latitude;
     double longitude;
-    bool isPassed;
+    bool isActive;
 };
 
 class AmanAircraft {

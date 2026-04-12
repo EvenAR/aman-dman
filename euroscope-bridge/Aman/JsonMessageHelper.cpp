@@ -69,7 +69,7 @@ const std::string JsonMessageHelper::getJsonOfArrivals(const std::vector<AmanAir
             pointObject.AddMember("name", point.name, allocator);
             pointObject.AddMember("latitude", point.latitude, allocator);
             pointObject.AddMember("longitude", point.longitude, allocator);
-            pointObject.AddMember("isPassed", point.isPassed, allocator);
+            pointObject.AddMember("isActive", point.isActive, allocator);
             routePoints.PushBack(pointObject, allocator);
         }
 

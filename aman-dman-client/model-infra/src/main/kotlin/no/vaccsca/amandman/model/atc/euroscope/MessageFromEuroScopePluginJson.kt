@@ -82,7 +82,7 @@ data class FixPointJson(
     val name: String,
     val latitude: Double,
     val longitude: Double,
-    val isPassed: Boolean,
+    val isActive: Boolean,
 )
 
 data class ControllerInfoJson(

@@ -80,9 +80,9 @@ class FeederFixTimingServiceTest {
             },
             extractedRouteProvider = {
                 listOf(
-                    routePoint("OLD", LatLng(60.2, 9.5), isPassed = true),
-                    routePoint("F1", LatLng(61.0, 11.0), isPassed = true),
-                    routePoint("NEXT", LatLng(60.0, 12.0), isPassed = false),
+                    routePoint("OLD", LatLng(60.2, 9.5), isActive = false),
+                    routePoint("F1", LatLng(61.0, 11.0), isActive = false),
+                    routePoint("NEXT", LatLng(60.0, 12.0), isActive = true),
                 )
             },
         )
@@ -111,8 +111,8 @@ class FeederFixTimingServiceTest {
             },
             extractedRouteProvider = {
                 listOf(
-                    routePoint("F1", LatLng(60.0, 11.0), isPassed = false),
-                    routePoint("NEXT", LatLng(60.0, 11.5), isPassed = false),
+                    routePoint("F1", LatLng(60.0, 11.0), isActive = false),
+                    routePoint("NEXT", LatLng(60.0, 11.5), isActive = false),
                 )
             },
         )
@@ -140,8 +140,8 @@ class FeederFixTimingServiceTest {
             },
             extractedRouteProvider = {
                 listOf(
-                    routePoint("F1", LatLng(61.0, 11.0), isPassed = true),
-                    routePoint("NEXT", LatLng(60.0, 12.0), isPassed = false),
+                    routePoint("F1", LatLng(61.0, 11.0), isActive = true),
+                    routePoint("NEXT", LatLng(60.0, 12.0), isActive = false),
                 )
             },
         )
@@ -165,8 +165,8 @@ class FeederFixTimingServiceTest {
             },
             extractedRouteProvider = {
                 listOf(
-                    routePoint("F1", LatLng(61.0, 11.0), isPassed = true),
-                    routePoint("NEXT", LatLng(60.0, 12.0), isPassed = false),
+                    routePoint("F1", LatLng(61.0, 11.0), isActive = true),
+                    routePoint("NEXT", LatLng(60.0, 12.0), isActive = false),
                 )
             },
         )
@@ -192,8 +192,36 @@ class FeederFixTimingServiceTest {
             },
             extractedRouteProvider = {
                 listOf(
-                    routePoint("F1", LatLng(61.0, 11.0), isPassed = true),
-                    routePoint("NEXT", LatLng(60.0, 13.0), isPassed = false),
+                    routePoint("F1", LatLng(61.0, 11.0), isActive = true),
+                    routePoint("NEXT", LatLng(60.0, 13.0), isActive = false),
+                )
+            },
+        )
+
+        assertNull(state.timingsByCallsign[arrival.callsign]?.get("F1"))
+    }
+
+    @Test
+    fun `buildState should not recreate abeam timing from a later route bend after current abeam point`() {
+        val service = FeederFixTimingService()
+        val airport = airportWithFixes("F1")
+        val arrival = sampleArrival(estimatedTime = referenceEto, scheduledTime = referenceSto, assignedDirect = "NEXT")
+
+        val state = service.buildState(
+            airport = airport,
+            arrivals = listOf(arrival),
+            trajectoryProvider = {
+                listOf(
+                    trajectoryPoint(fixId = null, time = referenceEto - 20.minutes, latLng = LatLng(60.0, 12.0)),
+                    trajectoryPoint(fixId = "TURN", time = referenceEto - 15.minutes, latLng = LatLng(60.0, 13.0)),
+                    trajectoryPoint(fixId = "NEXT", time = referenceEto - 10.minutes, latLng = LatLng(61.0, 12.0)),
+                    trajectoryPoint(fixId = "19L", time = referenceEto, latLng = LatLng(61.0, 13.0)),
+                )
+            },
+            extractedRouteProvider = {
+                listOf(
+                    routePoint("F1", LatLng(61.0, 12.0), isActive = true),
+                    routePoint("NEXT", LatLng(61.0, 12.0), isActive = false),
                 )
             },
         )
@@ -278,9 +306,9 @@ class FeederFixTimingServiceTest {
         heading = 180,
     )
 
-    private fun routePoint(id: String, latLng: LatLng, isPassed: Boolean): ExtractedRoutePoint = ExtractedRoutePoint(
+    private fun routePoint(id: String, latLng: LatLng, isActive: Boolean): ExtractedRoutePoint = ExtractedRoutePoint(
         id = id,
         latLng = latLng,
-        isPassed = isPassed,
+        isActive = isActive,
     )
 }

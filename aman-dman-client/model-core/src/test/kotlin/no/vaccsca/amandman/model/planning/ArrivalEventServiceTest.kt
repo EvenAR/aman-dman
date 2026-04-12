@@ -124,7 +124,7 @@ class ArrivalEventServiceTest {
     private fun routePoint(id: String, isPassed: Boolean) = ExtractedRoutePoint(
         id = id,
         latLng = LatLng(60.0, 11.0),
-        isPassed = isPassed,
+        isActive = isPassed,
     )
 
     private fun waypoint(id: String) = Waypoint(

@@ -120,14 +120,13 @@ std::vector<RouteFix> AmanPlugIn::findExtractedRoutePoints(CRadarTarget radarTar
 
     std::vector<RouteFix> route;
 
-    // Ignore waypoints prior to nextFixIndex
     for (int i = 0; i < routeLength; i++) {
         RouteFix fix;
         auto airwayName = extractedRoute.GetPointAirwayName(i);
         fix.name = extractedRoute.GetPointName(i);
         fix.latitude = extractedRoute.GetPointPosition(i).m_Latitude;
         fix.longitude = extractedRoute.GetPointPosition(i).m_Longitude;
-        fix.isPassed = i < nextFixIndex;
+        fix.isActive = i >= nextFixIndex;
         route.push_back(fix);
     }
     return route;

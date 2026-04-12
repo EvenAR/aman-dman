@@ -29,10 +29,10 @@ class AtcClientEuroScopeMappingTest {
             groundSpeed = 280,
             track = 175,
             route = listOf(
-                FixPointJson(name = "BYPASSED", latitude = 60.0, longitude = 10.0, isPassed = true),
-                FixPointJson(name = "F1", latitude = 60.5, longitude = 11.0, isPassed = true),
-                FixPointJson(name = "NEXT", latitude = 60.7, longitude = 11.5, isPassed = false),
-                FixPointJson(name = "OSPAD", latitude = 60.4, longitude = 11.2, isPassed = false),
+                FixPointJson(name = "BYPASSED", latitude = 60.0, longitude = 10.0, isActive = false),
+                FixPointJson(name = "F1", latitude = 60.5, longitude = 11.0, isActive = false),
+                FixPointJson(name = "NEXT", latitude = 60.7, longitude = 11.5, isActive = true),
+                FixPointJson(name = "OSPAD", latitude = 60.4, longitude = 11.2, isActive = true),
             ),
             arrivalAirportIcao = "ENGM",
             flightPlanTas = 450,
@@ -41,8 +41,8 @@ class AtcClientEuroScopeMappingTest {
         assertNotNull(mapped)
         assertEquals(4, mapped.extractedRoute.size)
         assertEquals(listOf("BYPASSED", "F1", "NEXT", "OSPAD"), mapped.extractedRoute.map { it.id })
-        assertTrue(mapped.extractedRoute[0].isPassed)
-        assertFalse(mapped.extractedRoute[2].isPassed)
+        assertFalse(mapped.extractedRoute[0].isActive)
+        assertTrue(mapped.extractedRoute[2].isActive)
 
         assertEquals(listOf("NEXT", "OSPAD"), mapped.remainingWaypoints.map { it.id })
         assertEquals(60.7, mapped.remainingWaypoints[0].latLng.lat)

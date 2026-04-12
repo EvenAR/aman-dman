@@ -439,7 +439,7 @@ internal fun ArrivalJson.toDomain(receivedAt: kotlinx.datetime.Instant = NtpCloc
             ),
             extractedRoute = extractedRoute,
             remainingWaypoints = extractedRoute
-                .filter { !it.isPassed }
+                .filter { it.isActive }
                 .map { Waypoint(it.id, it.latLng) },
             assignedRunway = assignedRunway,
             arrivalAirportIcao = arrivalAirportIcao,
@@ -454,5 +454,5 @@ internal fun ArrivalJson.toDomain(receivedAt: kotlinx.datetime.Instant = NtpCloc
 internal fun FixPointJson.toDomain(): ExtractedRoutePoint = ExtractedRoutePoint(
     id = name,
     latLng = LatLng(latitude, longitude),
-    isPassed = isPassed,
+    isActive = isActive,
 )

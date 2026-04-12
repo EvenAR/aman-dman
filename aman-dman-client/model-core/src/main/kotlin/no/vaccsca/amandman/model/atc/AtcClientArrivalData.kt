@@ -39,8 +39,13 @@ data class AtcClientArrivalData(
     val recvTimestamp: Instant,
 )
 
+/**
+ * @param id Fix name
+ * @param latLng Fix coordinates
+ * @param isActive Whether the point is active (i.e. not already passed or skipped according to the ATC client).
+ */
 data class ExtractedRoutePoint(
     val id: String,
     val latLng: LatLng,
-    val isPassed: Boolean,
+    val isActive: Boolean,
 )

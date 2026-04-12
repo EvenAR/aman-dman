@@ -8,7 +8,6 @@ import no.vaccsca.amandman.model.timeline.FeederFixTiming
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import kotlinx.datetime.Instant
 import kotlin.math.cos
-import kotlin.math.hypot
 
 interface FeederFixTimingStrategy {
     fun computeTimingsForArrival(
@@ -53,24 +52,22 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
         extractedRoute: List<ExtractedRoutePoint>,
         feederFix: String,
     ): FeederFixTiming? {
+        // Need at least two points to define a segment for projection
         if (trajectory.size < 2) return null
 
-        val assignedDirect = arrival.assignedDirect?.uppercase() ?: return null
-        val directIndex = extractedRoute.indexOfFirst { it.id.uppercase() == assignedDirect }
-        if (directIndex <= 0) return null
+        val nextWaypointIndex = extractedRoute.indexOfFirst { it.isActive }
+        if (nextWaypointIndex <= 0) return null
 
         val bypassedFix = extractedRoute
-            .take(directIndex)
-            .lastOrNull { point -> point.isPassed && point.id.uppercase() == feederFix }
+            .take(nextWaypointIndex)
+            .lastOrNull { point -> !point.isActive && point.id.uppercase() == feederFix }
             ?: return null
 
         // A direct past a feeder fix removes the explicit route crossing, but the aircraft can still
-        // be operationally relevant to that feeder flow, so we anchor it by the closest abeam time.
+        // be operationally relevant to that feeder flow, so we anchor it by the first future abeam time.
         val projectedTime = trajectory
             .zipWithNext()
-            .mapNotNull { (start, end) -> projectTimeOntoSegment(start, end, bypassedFix.latLng) }
-            .minByOrNull { it.distanceNm }
-            ?.time
+            .firstNotNullOfOrNull { (start, end) -> projectTimeOntoSegment(start, end, bypassedFix.latLng) }
             ?: return null
         if (projectedTime <= trajectory.first().time) {
             return null
@@ -83,24 +80,14 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
         start: TrajectoryPoint,
         end: TrajectoryPoint,
         feederFixPosition: LatLng,
-    ): ProjectedTime? {
+    ): Instant? {
         val projection = SegmentProjection.from(start.latLng, end.latLng, feederFixPosition) ?: return null
         val timeDelta = end.time - start.time
-        val projectedTime = start.time + timeDelta * projection.fractionAlongSegment
-        return ProjectedTime(
-            time = projectedTime,
-            distanceNm = projection.distanceNm,
-        )
+        return start.time + timeDelta * projection.fractionAlongSegment
     }
-
-    private data class ProjectedTime(
-        val time: Instant,
-        val distanceNm: Double,
-    )
 
     private data class SegmentProjection(
         val fractionAlongSegment: Double,
-        val distanceNm: Double,
     ) {
         companion object {
             fun from(start: LatLng, end: LatLng, target: LatLng): SegmentProjection? {
@@ -115,14 +102,14 @@ class DynamicFromTrajectoryFeederFixTimingStrategy : FeederFixTimingStrategy {
                 val segmentLengthSquared = endX * endX + endY * endY
                 if (segmentLengthSquared == 0.0) return null
 
-                val unclampedFraction = ((targetX - startX) * (endX - startX) + (targetY - startY) * (endY - startY)) / segmentLengthSquared
-                val clampedFraction = unclampedFraction.coerceIn(0.0, 1.0)
-                val projectedX = startX + (endX - startX) * clampedFraction
-                val projectedY = startY + (endY - startY) * clampedFraction
+                val fractionAlongSegment =
+                    ((targetX - startX) * (endX - startX) + (targetY - startY) * (endY - startY)) / segmentLengthSquared
+                if (fractionAlongSegment !in 0.0..1.0) {
+                    return null
+                }
 
                 return SegmentProjection(
-                    fractionAlongSegment = clampedFraction,
-                    distanceNm = hypot(targetX - projectedX, targetY - projectedY),
+                    fractionAlongSegment = fractionAlongSegment,
                 )
             }
         }
