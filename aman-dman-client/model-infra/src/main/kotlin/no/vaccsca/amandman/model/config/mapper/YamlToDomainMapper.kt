@@ -21,6 +21,7 @@ fun AmanDmanSettingsYaml.toDomain(): AmanDmanSettings = AmanDmanSettings(
 fun PlanningSettingsYaml.toDomain() = PlanningSettings(
     useGroundspeedOnDirectRouting = useGroundspeedOnDirectRouting,
     feederFixMaxAbeamDistanceNm = feederFixMaxAbeamDistanceNm,
+    turnAdvisoryBankAngleDeg = turnAdvisoryBankAngleDeg,
 )
 
 fun TimelineSettingsYaml.toDomain(): Map<String, AirportTimelines> = timelines.mapValues { entry -> entry.value.toDomain() }

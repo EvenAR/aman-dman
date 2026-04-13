@@ -69,9 +69,6 @@ private fun List<ArrivalProfileYaml>.toDomainProfiles(
         require(normalizedArrivalNames.add(normalizedArrivalName)) {
             "$rowPrefix duplicates arrivalName pattern $normalizedArrivalName."
         }
-        require(profile.fixes.isNotEmpty()) {
-            "$rowPrefix must define at least one fix."
-        }
         val frozenSequenceAreaId = profile.frozenSequenceArea?.trim()
         frozenSequenceAreaId?.let { frozenSequenceArea ->
             require(frozenSequenceArea.isNotBlank()) {
@@ -90,11 +87,25 @@ private fun List<ArrivalProfileYaml>.toDomainProfiles(
                 "$rowPrefix references unknown sequencingArea '$sequencingArea'."
             }
         }
+        val turnAdvisoryAreaIds = profile.turnAdvisoryAreas.mapIndexed { areaIndex, rawAreaId ->
+            val areaId = rawAreaId.trim()
+            require(areaId.isNotBlank()) {
+                "$rowPrefix has a blank turnAdvisoryAreas entry at index ${areaIndex + 1}."
+            }
+            require(areaId in availableAreaIds) {
+                "$rowPrefix references unknown turnAdvisoryAreas entry '$areaId'."
+            }
+            areaId
+        }
+        require(turnAdvisoryAreaIds.distinct().size == turnAdvisoryAreaIds.size) {
+            "$rowPrefix contains duplicate entries in turnAdvisoryAreas."
+        }
 
         RunwayArrivalProfile(
             arrivalNamePattern = normalizedArrivalName,
             frozenSequenceAreaId = frozenSequenceAreaId,
             sequencingAreaId = sequencingAreaId,
+            turnAdvisoryAreaIds = turnAdvisoryAreaIds,
             fixExpectations = profile.fixes.toDomainFixExpectations(
                 airportIcao = airportIcao,
                 runwayPattern = runwayPattern,

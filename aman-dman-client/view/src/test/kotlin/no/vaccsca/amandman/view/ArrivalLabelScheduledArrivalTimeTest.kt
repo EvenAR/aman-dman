@@ -2,6 +2,7 @@ package no.vaccsca.amandman.view
 
 import kotlinx.datetime.Instant
 import no.vaccsca.amandman.common.TimelineConfig
+import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.config.LabelItem
 import no.vaccsca.amandman.model.config.LabelItemSource
 import no.vaccsca.amandman.model.planning.SequenceStatus
@@ -13,11 +14,14 @@ import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.airport.timeline.labels.ArrivalLabel
 import no.vaccsca.amandman.view.entity.AircraftSelection
 import no.vaccsca.amandman.view.entity.SharedValue
+import java.awt.Color
 import java.awt.Point
 import javax.swing.JLabel
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class ArrivalLabelScheduledArrivalTimeTest {
 
@@ -120,11 +124,47 @@ class ArrivalLabelScheduledArrivalTimeTest {
         assertEquals("SAS1  ", labelText(label))
     }
 
+    @Test
+    fun `distance behind preceding should show countdown in green when turn advisory is active`() {
+        val label = createLabel(
+            scheduledTime = Instant.parse("2026-03-07T12:34:56Z"),
+            labelItems = listOf(LabelItem(source = LabelItemSource.DISTANCE_BEHIND_PRECEDING, width = 4)),
+            distanceToPreceding = 14f,
+            turnToIafAdvisoryTime = NtpClock.now() + 9.seconds,
+        )
+
+        label.updateText()
+
+        val text = labelText(label).trim()
+        assertTrue(text.startsWith("T"))
+        val countdownValue = text.removePrefix("T").toInt()
+        assertTrue(countdownValue in 8..9)
+        assertEquals(Color.GREEN, labelTextColor(label))
+    }
+
+    @Test
+    fun `distance behind preceding should show T in green once turn advisory time is reached`() {
+        val label = createLabel(
+            scheduledTime = Instant.parse("2026-03-07T12:34:56Z"),
+            labelItems = listOf(LabelItem(source = LabelItemSource.DISTANCE_BEHIND_PRECEDING, width = 4)),
+            distanceToPreceding = 14f,
+            turnToIafAdvisoryTime = NtpClock.now() - 1.seconds,
+        )
+
+        label.updateText()
+
+        assertEquals("T", labelText(label).trim())
+        assertEquals(Color.GREEN, labelTextColor(label))
+    }
+
     private fun labelText(label: ArrivalLabel): String = (label.components[0] as JLabel).text
+    private fun labelTextColor(label: ArrivalLabel): Color? = (label.components[0] as JLabel).foreground
 
     private fun createLabel(
         scheduledTime: Instant,
         labelItems: List<LabelItem> = listOf(LabelItem(source = LabelItemSource.SCHEDULED_ARRIVAL_TIME, width = 8)),
+        distanceToPreceding: Float? = null,
+        turnToIafAdvisoryTime: Instant? = null,
     ): ArrivalLabel {
         val arrivalEvent = RunwayArrivalEvent(
             scheduledTime = scheduledTime,
@@ -144,10 +184,12 @@ class ArrivalLabelScheduledArrivalTimeTest {
             withinActiveAdvisoryHorizon = true,
             sequenceStatus = SequenceStatus.OK,
             landingIas = 145,
+            distanceToPreceding = distanceToPreceding,
             assignedDirect = null,
             scratchPad = null,
             assignedDirectIsIAF = false,
             assignedDirectIsIF = false,
+            turnToIafAdvisoryTime = turnToIafAdvisoryTime,
         )
 
         return ArrivalLabel(

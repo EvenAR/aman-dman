@@ -58,6 +58,7 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
         assertEquals(SequenceStatus.OK, event.sequenceStatus)
         assertEquals(250, event.groundSpeed)
         assertFalse(event.assignedDirectIsActive)
+        assertNull(event.turnToIafAdvisoryTime)
     }
 
     @Test
@@ -90,6 +91,7 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
                             scratchPad = null,
                             assignedDirectIsIAF = false,
                             assignedDirectIsIF = false,
+                            turnToIafAdvisoryTime = Instant.parse("2026-04-06T09:58:00Z"),
                         ),
                     )
                 )
@@ -98,6 +100,7 @@ class MasterSlaveSharedStateJsonCompatibilityTest {
 
         assertFalse(json.contains("assignedStarOk"))
         assertTrue(json.contains("\"assignedDirectIsActive\":false"))
+        assertTrue(json.contains("\"turnToIafAdvisoryTime\":\"2026-04-06T09:58:00Z\""))
         assertFalse(json.contains("assignedDirectIsAfterFeederFix"))
     }
 

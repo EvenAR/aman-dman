@@ -8,6 +8,7 @@ import no.vaccsca.amandman.model.airport.ArrivalFixRole
 import no.vaccsca.amandman.model.config.mapper.toDomain
 import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import kotlin.test.Test
+import kotlin.test.assertFails
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -104,6 +105,34 @@ class ArrivalFixYamlMappingTest {
     }
 
     @Test
+    fun `arrival profile may omit fixes`() {
+        val airport = parseAirport(
+            arrivalProfilesYaml = """
+                arrivalProfiles:
+                  19L:
+                    - arrivalName: "*"
+            """.trimIndent()
+        )
+
+        assertEquals(1, airport.runways.getValue("19L").arrivalProfiles.size)
+        assertTrue(airport.runways.getValue("19L").arrivalProfiles.single().fixExpectations.isEmpty())
+    }
+
+    @Test
+    fun `arrival profile may define empty fixes list`() {
+        val airport = parseAirport(
+            arrivalProfilesYaml = """
+                arrivalProfiles:
+                  19L:
+                    - arrivalName: "*"
+                      fixes: []
+            """.trimIndent()
+        )
+
+        assertTrue(airport.runways.getValue("19L").arrivalProfiles.single().fixExpectations.isEmpty())
+    }
+
+    @Test
     fun `missing arrival profile map defaults to empty`() {
         val airport = yamlMapper.readValue<AirportDataJson>(
             """
@@ -133,6 +162,21 @@ class ArrivalFixYamlMappingTest {
                         - arrivalName: "*"
                           fixes:
                             - { fix: TITLA, role: IAF }
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `arrival profile grouped list format is rejected`() {
+        assertFails {
+            parseAirport(
+                arrivalProfilesYaml = """
+                    arrivalProfiles:
+                      - runways: ["19L", "19R"]
+                        arrivals:
+                          - arrivalName: "*"
+                            fixes: []
                 """.trimIndent()
             )
         }

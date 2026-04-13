@@ -9,9 +9,7 @@ import no.vaccsca.amandman.model.config.yaml.AirportDataJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class AirportAreaYamlMappingTest {
 
@@ -34,6 +32,7 @@ class AirportAreaYamlMappingTest {
               19L:
                 - arrivalName: "*"
                   frozenSequenceArea: commonLockedArea
+                  turnAdvisoryAreas: [commonLockedArea]
                   fixes:
                     - { fix: TITLA, role: IAF }
             """.trimIndent()
@@ -43,6 +42,7 @@ class AirportAreaYamlMappingTest {
         assertNotNull(area)
         assertEquals(4, area.boundary.size)
         assertEquals("commonLockedArea", airport.runways.getValue("19L").frozenSequenceAreaIdFor("INREX4M"))
+        assertEquals(listOf("commonLockedArea"), airport.runways.getValue("19L").turnAdvisoryAreaIdsFor("INREX4M"))
     }
 
     @Test
@@ -85,6 +85,29 @@ class AirportAreaYamlMappingTest {
                   19L:
                     - arrivalName: "*"
                       frozenSequenceArea: missingArea
+                      fixes:
+                        - { fix: TITLA, role: IAF }
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `unknown turnAdvisoryAreas reference is rejected`() {
+        assertFailsWith<IllegalArgumentException> {
+            parseAirport(
+                """
+                areas:
+                  commonLockedArea:
+                    boundary:
+                      - N060.00.00.000 E011.00.00.000 N060.00.00.000 E011.10.00.000
+                      - N060.00.00.000 E011.10.00.000 N060.10.00.000 E011.10.00.000
+                      - N060.10.00.000 E011.10.00.000 N060.10.00.000 E011.00.00.000
+                      - N060.10.00.000 E011.00.00.000 N060.00.00.000 E011.00.00.000
+                arrivalProfiles:
+                  19L:
+                    - arrivalName: "*"
+                      turnAdvisoryAreas: [missingArea]
                       fixes:
                         - { fix: TITLA, role: IAF }
                 """.trimIndent()

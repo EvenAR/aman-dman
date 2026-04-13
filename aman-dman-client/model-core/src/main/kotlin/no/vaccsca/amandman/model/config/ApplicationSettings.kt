@@ -11,6 +11,7 @@ data class AmanDmanSettings(
 data class PlanningSettings(
     val useGroundspeedOnDirectRouting: Boolean,
     val feederFixMaxAbeamDistanceNm: Double,
+    val turnAdvisoryBankAngleDeg: Double = 25.0,
 )
 
 data class AirportTimelines(

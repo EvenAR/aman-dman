@@ -34,6 +34,10 @@ data class PlanningSettingsYaml(
     @field:JsonPropertyDescription("Maximum perpendicular distance from the trajectory (NM) at which a feeder fix is considered abeam. Feeder fixes further away than this will not show on the feeder fix timeline.")
     @field:DecimalMin(value = "0.0", inclusive = false)
     val feederFixMaxAbeamDistanceNm: Double = 15.0,
+    @field:JsonPropertyDescription("Typical bank angle in degrees used for turn-to-IAF advisory calculations.")
+    @field:DecimalMin(value = "0.0", inclusive = false)
+    @field:DecimalMax(value = "90.0", inclusive = false)
+    val turnAdvisoryBankAngleDeg: Double = 25.0,
 )
 
 data class TimelineSettingsYaml(

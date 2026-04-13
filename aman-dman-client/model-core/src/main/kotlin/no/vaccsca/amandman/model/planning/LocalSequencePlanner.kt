@@ -198,12 +198,29 @@ class LocalSequencePlanner(
             )
         }
 
+        val now = NtpClock.now()
         arrivalsCache = runwayArrivalEvents.map { arrivalEvent ->
             val sequenceSchedule = sequenceSystems.flatMap { it.places }.find { it.item.id == arrivalEvent.callsign }?.scheduledTime
-            arrivalEvent.copy(
+            val eventWithSchedule = arrivalEvent.copy(
                 scheduledTime = sequenceSchedule ?: arrivalEvent.scheduledTime,
                 sequenceStatus = if (sequenceSchedule != null) SequenceStatus.OK else SequenceStatus.AWAITING_FOR_SEQUENCE,
             )
+            val arrival = arrivalsByCallsign[arrivalEvent.callsign]
+            val turnToIafAdvisoryTime = arrival?.let {
+                TurnAdvisoryService.turnToIafAdvisoryTime(
+                    airport = airport,
+                    assignedRunway = it.assignedRunway,
+                    assignedStar = it.assignedStar,
+                    currentPosition = it.currentPosition,
+                    estimatedRunwayTime = eventWithSchedule.estimatedTime,
+                    scheduledRunwayTime = eventWithSchedule.scheduledTime,
+                    trajectory = ArrivalEventService.getDescentProfileForCallsign(arrivalEvent.callsign),
+                    advisoryBankAngleDeg = planningSettings.turnAdvisoryBankAngleDeg,
+                    isDirectToIafActive = eventWithSchedule.assignedDirectIsIAF && eventWithSchedule.assignedDirectIsActive,
+                    now = now,
+                )
+            }
+            eventWithSchedule.copy(turnToIafAdvisoryTime = turnToIafAdvisoryTime)
         }
         notifyListeners()
     }

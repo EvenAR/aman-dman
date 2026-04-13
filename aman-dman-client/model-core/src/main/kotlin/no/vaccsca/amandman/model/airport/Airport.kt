@@ -61,6 +61,12 @@ data class RunwayThreshold(
             .filter { it.matches(assignedArrivalName) }
             .mapNotNull { profile -> profile.sequencingAreaId }
             .lastOrNull()
+
+    fun turnAdvisoryAreaIdsFor(assignedArrivalName: String?): List<String> =
+        arrivalProfiles
+            .filter { it.matches(assignedArrivalName) }
+            .flatMap { profile -> profile.turnAdvisoryAreaIds }
+            .distinct()
 }
 
 data class RunwayArrivalProfile(
@@ -68,6 +74,7 @@ data class RunwayArrivalProfile(
     val fixExpectations: List<ArrivalFixExpectation>,
     val frozenSequenceAreaId: String? = null,
     val sequencingAreaId: String? = null,
+    val turnAdvisoryAreaIds: List<String> = emptyList(),
 ) {
     fun matches(assignedArrivalName: String?): Boolean {
         val normalizedPattern = arrivalNamePattern.trim().uppercase()

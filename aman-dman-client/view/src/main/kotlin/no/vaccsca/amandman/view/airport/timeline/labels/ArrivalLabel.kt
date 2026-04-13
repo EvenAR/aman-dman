@@ -1,6 +1,7 @@
 package no.vaccsca.amandman.view.airport.timeline.labels
 
 import kotlinx.datetime.Instant
+import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.config.LabelItem
 import no.vaccsca.amandman.model.config.LabelItemSource
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
@@ -80,7 +81,8 @@ class ArrivalLabel(
                 LabelStyleOptions(text = arrival.remainingDistance.roundToInt().toString())
 
             LabelItemSource.DISTANCE_BEHIND_PRECEDING ->
-                LabelStyleOptions(text = (arrival.distanceToPreceding ?: arrival.remainingDistance).roundToInt().toString())
+                turnAdvisoryCountdownStyle(arrival)
+                    ?: LabelStyleOptions(text = (arrival.distanceToPreceding ?: arrival.remainingDistance).roundToInt().toString())
 
             LabelItemSource.DIRECT_ROUTING ->
                 LabelStyleOptions(text = arrival.assignedDirect ?: "")
@@ -133,6 +135,17 @@ class ArrivalLabel(
             timeToLoseOrGain < -TTL_TTG_THRESHOLD -> Color.GREEN
             else -> null
         }
+
+    private fun turnAdvisoryCountdownStyle(arrival: RunwayArrivalEvent): LabelStyleOptions? {
+        val advisoryTime = arrival.turnToIafAdvisoryTime ?: return null
+        val secondsUntilTurn = (advisoryTime - NtpClock.now()).inWholeMilliseconds / 1000.0
+        val text = if (secondsUntilTurn <= 0.0) {
+            "T"
+        } else {
+            "T${ceil(secondsUntilTurn).toInt()}"
+        }
+        return LabelStyleOptions(text = text, textColor = Color.GREEN)
+    }
 
     private fun formatTtlTtgValue(): String {
         val eto = displayEstimatedTime ?: arrivalEvent.estimatedTime

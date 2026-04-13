@@ -14,6 +14,9 @@ data class ArrivalProfileYaml(
     @field:JsonPropertyDescription("Optional airport area id. Aircraft inside this area are included in the active sequencing window regardless of sequencingHorizon.")
     val sequencingArea: String? = null,
 
+    @field:JsonPropertyDescription("Optional airport area ids. Aircraft inside any of these areas get a turn-to-IAF advisory timestamp.")
+    val turnAdvisoryAreas: List<String> = emptyList(),
+
     @field:NotNull
     val fixes: List<ArrivalProfileFixYaml> = emptyList(),
 )
