@@ -53,11 +53,11 @@ Please visit [the wiki](https://github.com/EvenAR/aman-dman/wiki) for more infor
 
 ### Screenshots
 
-<img width="784" height="790" alt="image" src="https://github.com/user-attachments/assets/482f24b2-2aab-427d-9371-3388335e988d" />
+<img width="856" height="799" alt="image" src="https://github.com/user-attachments/assets/cc760266-c81e-4550-a1f8-799a2922e14a" />
 
 Descent profile visualization used for debugging:
 
-<img width="798" height="599" alt="image" src="https://github.com/user-attachments/assets/9586e09d-173e-40ae-94ba-1db908f5ea60" />
+<img width="795" height="612" alt="image" src="https://github.com/user-attachments/assets/1bd157da-4d22-4590-8bf2-06bc3b3860da" />
 
 
 ### Contributing
