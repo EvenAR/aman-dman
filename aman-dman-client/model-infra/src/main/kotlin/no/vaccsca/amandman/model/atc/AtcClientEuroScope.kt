@@ -3,6 +3,7 @@ package no.vaccsca.amandman.model.atc
 import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import no.vaccsca.amandman.common.NtpClock
 import no.vaccsca.amandman.model.ClientVersion
 import no.vaccsca.amandman.model.aircraft.AircraftPosition
@@ -13,8 +14,11 @@ import no.vaccsca.amandman.model.integration.IntegrationStatusState
 import no.vaccsca.amandman.model.navigation.LatLng
 import no.vaccsca.amandman.model.navigation.Waypoint
 import org.slf4j.LoggerFactory
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.Closeable
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
@@ -34,19 +38,20 @@ class AtcClientEuroScope(
 
     private var isRunning = false
     private var socket: Socket? = null
-    private var writer: OutputStreamWriter? = null
-    private var reader: InputStreamReader? = null
+    private var writer: DataOutputStream? = null
+    private var reader: DataInputStream? = null
     private var isConnected = false
     private var isVersionValidated = false
-    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, exception ->
-        logger.error("Unhandled exception in AtcClientEuroScope coroutine: ${exception.message}", exception)
-    })
+    private val sendLock = Any()
+    private var scope = createScope()
     private val arrivalCallbacks = mutableMapOf<String, (List<AtcClientArrivalData>) -> Unit>()
     private val departuresCallbacks = mutableMapOf<String, (List<AtcClientDepartureData>) -> Unit>()
     private val runwayStatusCallbacks = mutableMapOf<String, (List<AtcClientRunwaySelectionData>) -> Unit>()
     private val latestMovementTimestampByAirport = ConcurrentHashMap<String, kotlinx.datetime.Instant>()
     private val loadingUntilByAirport = ConcurrentHashMap<String, kotlinx.datetime.Instant>()
     private val errorStatusByAirport = ConcurrentHashMap<String, IntegrationStatus>()
+    private val latestArrivalDetailsByCallsign = ConcurrentHashMap<String, ArrivalDetailsJson>()
+    private val latestRouteByCallsign = ConcurrentHashMap<String, List<FixPointJson>>()
 
     private val objectMapper = jacksonObjectMapper().apply {
         // Configure Jackson for large messages
@@ -61,9 +66,7 @@ class AtcClientEuroScope(
 
         // Reset state and create a new scope if needed
         if (scope.isActive.not()) {
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, exception ->
-                logger.error("Unhandled exception in AtcClientEuroScope coroutine: ${exception.message}", exception)
-            })
+            scope = createScope()
         }
 
         isRunning = true
@@ -71,22 +74,25 @@ class AtcClientEuroScope(
             while (isRunning) {
                 if (!isConnected) {
                     markAllSubscribedAirportsLoading()
-                    logger.info("Attempting to connect to $host:$port")
+                    val connectionHost = host.toEuroScopeConnectHost()
+                    logger.info("Attempting to connect to $connectionHost:$port")
                     try {
-                        socket = Socket(host, port)
+                        val newSocket = Socket(connectionHost, port).apply {
+                            receiveBufferSize = SOCKET_BUFFER_SIZE
+                            sendBufferSize = SOCKET_BUFFER_SIZE
+                            tcpNoDelay = true
+                        }
 
-                        // Configure socket for large messages
-                        socket!!.receiveBufferSize = 256 * 1024 // 256KB receive buffer
-                        socket!!.sendBufferSize = 64 * 1024    // 64KB send buffer
-                        socket!!.tcpNoDelay = true             // Disable Nagle's algorithm for faster small message sending
-
-                        writer = OutputStreamWriter(socket!!.getOutputStream(), Charsets.UTF_8)
-                        reader = InputStreamReader(socket!!.getInputStream(), Charsets.UTF_8)
+                        socket = newSocket
+                        writer = DataOutputStream(BufferedOutputStream(newSocket.getOutputStream(), STREAM_BUFFER_SIZE))
+                        reader = DataInputStream(BufferedInputStream(newSocket.getInputStream(), STREAM_BUFFER_SIZE))
                         isConnected = true
-                        logger.info("Connected to $host:$port (buffers: recv=${socket!!.receiveBufferSize}, send=${socket!!.sendBufferSize})")
+                        logger.info("Connected to $connectionHost:$port (buffers: recv=${newSocket.receiveBufferSize}, send=${newSocket.sendBufferSize})")
 
                         onConnectionEstablished()
-                        launch { receiveMessages() }
+                        val incomingMessages = Channel<String>(Channel.UNLIMITED)
+                        launch { processIncomingMessages(incomingMessages) }
+                        launch { receiveMessages(incomingMessages) }
                     } catch (e: Exception) {
                         logger.info("Connection to EuroScope failed (${e.message}). Will try again.")
                         delay(5000)
@@ -234,6 +240,8 @@ class AtcClientEuroScope(
 
     private fun onConnectionEstablished() {
         isVersionValidated = false
+        latestArrivalDetailsByCallsign.clear()
+        latestRouteByCallsign.clear()
         // A reconnect gets a fresh socket; re-register all airport subscriptions.
         reSubscribeToAllAirports()
     }
@@ -252,57 +260,62 @@ class AtcClientEuroScope(
     private fun sendMessage(message: MessageToEuroScopePluginJson) {
         try {
             val jsonMessage = objectMapper.writeValueAsString(message)
-            writer?.write(jsonMessage + "\n")
-            writer?.flush()
+            val payload = jsonMessage.toByteArray(Charsets.UTF_8)
+            if (payload.size > MAX_FRAME_SIZE) {
+                logger.error("Message too large for EuroScope bridge frame: ${payload.size} bytes")
+                return
+            }
+
+            synchronized(sendLock) {
+                writer?.apply {
+                    writeInt(payload.size)
+                    write(payload)
+                    flush()
+                }
+            }
         } catch (e: Exception) {
             logger.error("Failed to send message: ${e.message}", e)
         }
     }
 
-    private suspend fun receiveMessages() {
-        val buffer = CharArray(1024 * 64)
-        var messageBuffer = StringBuilder()
-
-        while (isRunning) {
-            try {
-                val bytesRead = reader?.read(buffer) ?: -1
-                if (bytesRead <= 0) {
-                    isConnected = false
-                    resetConnectionResources()
-                    return
+    private suspend fun receiveMessages(incomingMessages: Channel<String>) {
+        try {
+            while (isRunning) {
+                val messageLength = reader?.readInt() ?: -1
+                if (messageLength <= 0 || messageLength > MAX_FRAME_SIZE) {
+                    throw IllegalStateException("Invalid EuroScope frame length: $messageLength")
                 }
 
-                val messageChunk = String(buffer, 0, bytesRead)
-                messageBuffer.append(messageChunk)
-
-                val messages = messageBuffer.split("\n")
-                if (messages.isNotEmpty()) {
-                    for (i in 0 until messages.size - 1) {
-                        val message = messages[i]
-                        if (message.isNotBlank()) {
-                            handleIncomingMessage(message)
-                        }
-                    }
-
-                    // Keep the last partial message (if any)
-                    messageBuffer = StringBuilder(messages.last())
+                val payload = ByteArray(messageLength)
+                reader?.readFully(payload)
+                val message = payload.toString(Charsets.UTF_8)
+                if (message.isNotBlank() && incomingMessages.trySend(message).isFailure) {
+                    logger.warn("Dropped EuroScope message because the processor is closed")
                 }
-            } catch (e: SocketException) {
-                logger.error("SocketException: ${e.message}")
-                isConnected = false
-                resetConnectionResources()
-                return
-            } catch (e: SocketTimeoutException) {
-                logger.error("SocketTimeoutException: ${e.message}")
-                isConnected = false
-                resetConnectionResources()
-                return
-            } catch (e: Exception) {
-                logger.error("Unexpected error: ${e.message}")
-                isConnected = false
-                resetConnectionResources()
-                return
             }
+        } catch (e: SocketException) {
+            logger.error("SocketException: ${e.message}")
+            isConnected = false
+            resetConnectionResources()
+            return
+        } catch (e: SocketTimeoutException) {
+            logger.error("SocketTimeoutException: ${e.message}")
+            isConnected = false
+            resetConnectionResources()
+            return
+        } catch (e: Exception) {
+            logger.error("Unexpected error: ${e.message}")
+            isConnected = false
+            resetConnectionResources()
+            return
+        } finally {
+            incomingMessages.close()
+        }
+    }
+
+    private suspend fun processIncomingMessages(incomingMessages: Channel<String>) {
+        for (message in incomingMessages) {
+            handleIncomingMessage(message)
         }
     }
 
@@ -325,7 +338,9 @@ class AtcClientEuroScope(
 
                 is ArrivalsUpdateFromEuroScopePluginJson -> {
                     val arrivals = messageObj.inbounds.mapNotNull { arrival ->
-                        arrival.toDomain().also {
+                        val route = latestRouteByCallsign[arrival.callsign] ?: emptyList()
+
+                        arrival.toDomain(route, latestArrivalDetailsByCallsign[arrival.callsign]).also {
                             if (it == null) {
                                 logger.warn("Failed to parse arrival data for ${arrival.callsign}")
                             }
@@ -336,6 +351,14 @@ class AtcClientEuroScope(
                         markAirportDataReceived(icao)
                         arrivalCallbacks[icao]?.invoke(list)
                     }
+                }
+
+                is ArrivalDetailsUpdateFromEuroScopePluginJson -> {
+                    messageObj.details.forEach { latestArrivalDetailsByCallsign[it.callsign] = it }
+                }
+
+                is ArrivalRoutesUpdateFromEuroScopePluginJson -> {
+                    messageObj.routes.forEach { latestRouteByCallsign[it.callsign] = it.route }
                 }
 
                 is DeparturesUpdateFromEuroScopePluginJson -> {
@@ -423,34 +446,44 @@ class AtcClientEuroScope(
     }
 
     private fun resetConnectionResources() {
-        try {
-            reader?.close()
-        } catch (_: Exception) {
-        }
-        try {
-            writer?.close()
-        } catch (_: Exception) {
-        }
-        try {
-            socket?.close()
-        } catch (_: Exception) {
+        listOf<Closeable?>(reader, writer, socket).forEach { resource ->
+            try {
+                resource?.close()
+            } catch (_: Exception) {
+            }
         }
         reader = null
         writer = null
         socket = null
     }
+
+    private fun createScope() =
+        CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, exception ->
+            logger.error("Unhandled exception in AtcClientEuroScope coroutine: ${exception.message}", exception)
+        })
+
+    private companion object {
+        const val MAX_FRAME_SIZE = 16 * 1024 * 1024
+        const val SOCKET_BUFFER_SIZE = 256 * 1024
+        const val STREAM_BUFFER_SIZE = 64 * 1024
+    }
 }
 
-internal fun ArrivalJson.toDomain(receivedAt: kotlinx.datetime.Instant = NtpClock.now()): AtcClientArrivalData? {
+internal fun ArrivalJson.toDomain(
+    route: List<FixPointJson> = emptyList(),
+    details: ArrivalDetailsJson? = null,
+    receivedAt: kotlinx.datetime.Instant = NtpClock.now(),
+): AtcClientArrivalData? {
     return try {
+        val requiredDetails = details ?: return null
         val extractedRoute = route.map { point -> point.toDomain() }
         AtcClientArrivalData(
             callsign = callsign,
-            icaoType = icaoType,
-            assignedStar = assignedStar,
-            assignedDirect = assignedDirect,
-            trackingController = trackingController,
-            scratchPad = scratchPad,
+            icaoType = requiredDetails.icaoType,
+            assignedStar = requiredDetails.assignedStar,
+            assignedDirect = requiredDetails.assignedDirect,
+            trackingController = requiredDetails.trackingController,
+            scratchPad = requiredDetails.scratchPad,
             currentPosition = AircraftPosition(
                 latLng = LatLng(latitude, longitude),
                 flightLevel = flightLevel,
@@ -462,9 +495,9 @@ internal fun ArrivalJson.toDomain(receivedAt: kotlinx.datetime.Instant = NtpCloc
             remainingWaypoints = extractedRoute
                 .filter { it.isActive }
                 .map { Waypoint(it.id, it.latLng) },
-            assignedRunway = assignedRunway,
-            arrivalAirportIcao = arrivalAirportIcao,
-            flightPlanTas = flightPlanTas,
+            assignedRunway = requiredDetails.assignedRunway,
+            arrivalAirportIcao = requiredDetails.arrivalAirportIcao,
+            flightPlanTas = requiredDetails.flightPlanTas,
             recvTimestamp = receivedAt,
         )
     } catch (_: Exception) {
@@ -477,3 +510,9 @@ internal fun FixPointJson.toDomain(): ExtractedRoutePoint = ExtractedRoutePoint(
     latLng = LatLng(latitude, longitude),
     isActive = isActive,
 )
+
+private fun String.toEuroScopeConnectHost(): String =
+    when (trim().lowercase()) {
+        "", "localhost", "0.0.0.0", "::", "[::]" -> "127.0.0.1"
+        else -> this
+    }

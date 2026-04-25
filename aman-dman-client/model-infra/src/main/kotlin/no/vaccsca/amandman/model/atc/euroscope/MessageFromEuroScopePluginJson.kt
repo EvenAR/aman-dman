@@ -11,6 +11,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 @JsonSubTypes(
     JsonSubTypes.Type(value = PluginVersionJson::class, name = "pluginVersion"),
     JsonSubTypes.Type(value = ArrivalsUpdateFromEuroScopePluginJson::class, name = "arrivals"),
+    JsonSubTypes.Type(value = ArrivalDetailsUpdateFromEuroScopePluginJson::class, name = "arrivalDetails"),
+    JsonSubTypes.Type(value = ArrivalRoutesUpdateFromEuroScopePluginJson::class, name = "arrivalRoutes"),
     JsonSubTypes.Type(value = DeparturesUpdateFromEuroScopePluginJson::class, name = "departures"),
     JsonSubTypes.Type(value = RunwayStatusesUpdateFromEuroScopePluginJson::class, name = "runwayStatuses"),
     JsonSubTypes.Type(value = ControllerInfoFromEuroScopePluginJson::class, name = "controllerInfo"),
@@ -28,6 +30,14 @@ data class DeparturesUpdateFromEuroScopePluginJson(
 
 data class ArrivalsUpdateFromEuroScopePluginJson(
     val inbounds: List<ArrivalJson>
+) : MessageFromEuroScopePluginJson()
+
+data class ArrivalDetailsUpdateFromEuroScopePluginJson(
+    val details: List<ArrivalDetailsJson>
+) : MessageFromEuroScopePluginJson()
+
+data class ArrivalRoutesUpdateFromEuroScopePluginJson(
+    val routes: List<ArrivalRouteJson>
 ) : MessageFromEuroScopePluginJson()
 
 data class RunwayStatusesUpdateFromEuroScopePluginJson(
@@ -61,21 +71,29 @@ data class DepartureJson(
 
 data class ArrivalJson(
     val callsign: String,
-    val icaoType: String,
-    val assignedRunway: String?,
-    val assignedStar: String?,
-    val assignedDirect: String?,
-    val trackingController: String?,
-    val scratchPad: String?,
     val latitude: Double,
     val longitude: Double,
     val flightLevel: Int,
     val pressureAltitude: Int,
     val groundSpeed: Int,
     val track: Int,
-    val route: List<FixPointJson>,
+)
+
+data class ArrivalDetailsJson(
+    val callsign: String,
+    val icaoType: String,
+    val assignedRunway: String?,
+    val assignedStar: String?,
+    val assignedDirect: String?,
+    val trackingController: String?,
+    val scratchPad: String?,
     val arrivalAirportIcao: String,
     val flightPlanTas: Int?,
+)
+
+data class ArrivalRouteJson(
+    val callsign: String,
+    val route: List<FixPointJson>,
 )
 
 data class FixPointJson(

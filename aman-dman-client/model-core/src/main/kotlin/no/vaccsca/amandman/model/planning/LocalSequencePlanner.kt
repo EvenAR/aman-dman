@@ -26,6 +26,8 @@ import no.vaccsca.amandman.model.weather.WindProfileProvider
 import no.vaccsca.amandman.model.weather.WindProfileResult
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -50,10 +52,14 @@ class LocalSequencePlanner(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     private val executor = Executors.newSingleThreadExecutor { r -> Thread(r, "Planner-$airportIcao") }
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, e ->
+        logger.error("Unhandled exception in planner coroutine", e)
+    }
     private val scope = CoroutineScope(
-        SupervisorJob() + executor.asCoroutineDispatcher() + CoroutineExceptionHandler { _, e ->
-            logger.error("Unhandled exception in planner coroutine", e)
-        }
+        SupervisorJob() + executor.asCoroutineDispatcher() + coroutineExceptionHandler
+    )
+    private val commandScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + coroutineExceptionHandler
     )
 
     private val feederFixTimingService = FeederFixTimingService(
@@ -71,6 +77,11 @@ class LocalSequencePlanner(
     private var controllerInfo: ControllerInfoData? = null
     private var fetchCdmData = false
     private var cdmDepartures: List<CdmData>? = null
+    private var latestArrivalsData: List<AtcClientArrivalData> = emptyList()
+    private val pendingArrivalsUpdate = AtomicReference<List<AtcClientArrivalData>?>(null)
+    private val arrivalsUpdateScheduled = AtomicBoolean(false)
+    private val pendingDeparturesUpdate = AtomicReference<List<AtcClientDepartureData>?>(null)
+    private val departuresUpdateScheduled = AtomicBoolean(false)
 
     init {
         scope.runEvery(1.minutes) { if (fetchCdmData) refreshCdmData() }
@@ -85,6 +96,7 @@ class LocalSequencePlanner(
 
     override fun stop() {
         scope.cancel()
+        commandScope.cancel()
         executor.shutdown()
         atcClient.stopCollectingMovementsFor(airportIcao)
     }
@@ -135,8 +147,8 @@ class LocalSequencePlanner(
     override fun startDataCollection() {
         atcClient.collectDataFor(
             airportIcao,
-            onArrivalsReceived = { scope.launch { handleArrivalsUpdate(it) } },
-            onDeparturesReceived = { scope.launch { handleDeparturesUpdate(it) } },
+            onArrivalsReceived = ::scheduleArrivalsUpdate,
+            onDeparturesReceived = ::scheduleDeparturesUpdate,
             onRunwaySelectionChanged = { runways ->
                 val map = runways.associate { it.runway to RunwayStatus(it.allowArrivals, it.allowDepartures) }
                 dataUpdateListeners.forEach { it.onRunwayModesUpdated(airportIcao, map) }
@@ -145,7 +157,54 @@ class LocalSequencePlanner(
         )
     }
 
+    private fun scheduleArrivalsUpdate(arrivals: List<AtcClientArrivalData>) {
+        pendingArrivalsUpdate.set(arrivals)
+        if (arrivalsUpdateScheduled.compareAndSet(false, true)) {
+            scope.launch { drainArrivalsUpdates() }
+        }
+    }
+
+    private fun drainArrivalsUpdates() {
+        try {
+            val arrivals = pendingArrivalsUpdate.getAndSet(null)
+            if (arrivals != null) {
+            handleArrivalsUpdate(arrivals)
+            }
+        } finally {
+            arrivalsUpdateScheduled.set(false)
+            if (pendingArrivalsUpdate.get() != null && arrivalsUpdateScheduled.compareAndSet(false, true)) {
+                scope.launch { drainArrivalsUpdates() }
+            }
+        }
+    }
+
+    private fun scheduleDeparturesUpdate(departures: List<AtcClientDepartureData>) {
+        pendingDeparturesUpdate.set(departures)
+        if (departuresUpdateScheduled.compareAndSet(false, true)) {
+            scope.launch { drainDeparturesUpdates() }
+        }
+    }
+
+    private fun drainDeparturesUpdates() {
+        try {
+            val departures = pendingDeparturesUpdate.getAndSet(null)
+            if (departures != null) {
+            handleDeparturesUpdate(departures)
+            }
+        } finally {
+            departuresUpdateScheduled.set(false)
+            if (pendingDeparturesUpdate.get() != null && departuresUpdateScheduled.compareAndSet(false, true)) {
+                scope.launch { drainDeparturesUpdates() }
+            }
+        }
+    }
+
     private fun handleArrivalsUpdate(arrivals: List<AtcClientArrivalData>) {
+        latestArrivalsData = arrivals
+        rebuildArrivals(arrivals)
+    }
+
+    private fun rebuildArrivals(arrivals: List<AtcClientArrivalData>) {
         extractedRoutesByCallsign = arrivals.associate { arrival ->
             arrival.callsign to arrival.extractedRoute
         }
@@ -206,6 +265,14 @@ class LocalSequencePlanner(
             )
         }
         notifyListeners()
+    }
+
+    private fun rebuildArrivalsFromLatestDataOrNotify() {
+        if (latestArrivalsData.isNotEmpty()) {
+            rebuildArrivals(latestArrivalsData)
+        } else {
+            notifyListeners()
+        }
     }
 
     private fun handleDeparturesUpdate(departures: List<AtcClientDepartureData>) {
@@ -274,7 +341,7 @@ class LocalSequencePlanner(
         scope.launch {
             minimumSpacingNm = minimumSpacingDistanceNm
             sequenceSystems = sequenceSystems.map { it.copy(places = emptyList()) }
-            notifyListeners()
+            rebuildArrivalsFromLatestDataOrNotify()
             dataUpdateListeners.forEach { it.onMinimumSpacingUpdated(airportIcao, minimumSpacingDistanceNm) }
         }
     }
@@ -312,7 +379,7 @@ class LocalSequencePlanner(
     }
 
     override fun highlightActiveAreasOnRadarScreen() {
-        scope.launch {
+        commandScope.launch {
             if (airport.areas.isEmpty()) {
                 logger.warn("No areas configured for airport $airportIcao")
                 return@launch
@@ -371,7 +438,7 @@ class LocalSequencePlanner(
                 }
                 sequence.copy(places = updatedPlaces)
             }
-            notifyListeners()
+            rebuildArrivalsFromLatestDataOrNotify()
         }
     }
 

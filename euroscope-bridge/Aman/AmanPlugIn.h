@@ -11,7 +11,6 @@
 #include "AmanDataTypes.h"
 #include "AmanServer.h"
 #include "JsonMessageHelper.h"
-#include <set>
 
 using namespace EuroScopePlugIn;
 
@@ -48,6 +47,8 @@ private:
     std::string getFacilityString(int facilityType);
     
     std::vector<RouteFix> findExtractedRoutePoints(CRadarTarget radarTarget);
+    std::vector<RouteFix> findExtractedRoutePoints(CFlightPlan flightPlan);
+    AmanAircraft getArrivalDetails(CFlightPlan flightPlan);
 
     std::vector<AmanAircraft> getInboundsForAirport(const std::string& fixName);
     std::vector<DmanAircraft> getOutboundsFromAirport(const std::string& airport);
@@ -61,6 +62,9 @@ private:
     static std::vector<std::string> splitString(const std::string& string, const char delim);
 
     void sendUpdatedRunwayStatuses();
+    void sendInitialArrivalUpdates(const std::string& airportIcao);
+    void sendArrivalUpdate(CFlightPlan flightPlan);
+    bool isSubscribedArrival(CFlightPlan flightPlan);
     void removeExpiredPolygons();
 
     // Server methods
@@ -76,6 +80,8 @@ private:
     // EuroScope API
     virtual void OnTimer(int Counter);
     virtual void OnAirportRunwayActivityChanged(void);
+    virtual void OnFlightPlanFlightPlanDataUpdate(CFlightPlan FlightPlan);
+    virtual void OnFlightPlanControllerAssignedDataUpdate(CFlightPlan FlightPlan, int DataType);
     virtual CRadarScreen* OnRadarScreenCreated(const char* sDisplayName,
                                                bool NeedRadarContent,
                                                bool GeoReferenced,

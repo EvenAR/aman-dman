@@ -61,21 +61,19 @@ AmanPlugIn::~AmanPlugIn() {
 }
 
 void AmanPlugIn::OnTimer(int Counter) {
-    std::cout << "OnTimer called, Counter: " << Counter << std::endl;
+    drainInboundMessages();
     removeExpiredPolygons();
     
     for each(auto& airportIcao in airportsSubscribedTo) {
         auto inbounds = getInboundsForAirport(airportIcao);
         auto inboundsJson = jsonSerializer.getJsonOfArrivals(inbounds);
-        std::cout << "Enqueueing inbounds message: " << inboundsJson.substr(0, 100) << "..." << std::endl;
-        enqueueMessage(inboundsJson);
+        enqueueLatestMessage("arrivals:" + airportIcao, inboundsJson);
     }
 
     for each(auto & airportIcao in airportsSubscribedTo) {
         auto outbounds = getOutboundsFromAirport(airportIcao);
         auto outboundsJson = jsonSerializer.getJsonOfDepartures(outbounds);
-        std::cout << "Enqueueing outbounds message: " << outboundsJson.substr(0, 100) << "..." << std::endl;
-        enqueueMessage(outboundsJson);
+        enqueueLatestMessage("departures:" + airportIcao, outboundsJson);
     }
 
     auto me = this->ControllerMyself();
@@ -85,12 +83,20 @@ void AmanPlugIn::OnTimer(int Counter) {
         controllerInfo.callsign = me.GetCallsign();
         controllerInfo.facilityType = me.GetFacility();
         auto controllerInfoJson = jsonSerializer.getJsonOfControllerInfo(controllerInfo);
-        enqueueMessage(controllerInfoJson);
+        enqueueLatestMessage("controllerInfo", controllerInfoJson);
     }
 }
 
 void AmanPlugIn::OnAirportRunwayActivityChanged(void) {
     sendUpdatedRunwayStatuses();
+}
+
+void AmanPlugIn::OnFlightPlanFlightPlanDataUpdate(CFlightPlan FlightPlan) {
+    sendArrivalUpdate(FlightPlan);
+}
+
+void AmanPlugIn::OnFlightPlanControllerAssignedDataUpdate(CFlightPlan FlightPlan, int DataType) {
+    sendArrivalUpdate(FlightPlan);
 }
 
 CRadarScreen* AmanPlugIn::OnRadarScreenCreated(const char* sDisplayName,
@@ -129,7 +135,15 @@ int AmanPlugIn::getFirstViaFixIndex(CFlightPlanExtractedRoute extractedRoute, st
 }
 
 std::vector<RouteFix> AmanPlugIn::findExtractedRoutePoints(CRadarTarget radarTarget) {
-    auto extractedRoute = radarTarget.GetCorrelatedFlightPlan().GetExtractedRoute();
+    return findExtractedRoutePoints(radarTarget.GetCorrelatedFlightPlan());
+}
+
+std::vector<RouteFix> AmanPlugIn::findExtractedRoutePoints(CFlightPlan flightPlan) {
+    if (!flightPlan.IsValid()) {
+        return {};
+    }
+
+    auto extractedRoute = flightPlan.GetExtractedRoute();
     int closestFixIndex = extractedRoute.GetPointsCalculatedIndex();
     int assignedDirectFixIndex = extractedRoute.GetPointsAssignedIndex();
     int routeLength = extractedRoute.GetPointsNumber();
@@ -150,6 +164,28 @@ std::vector<RouteFix> AmanPlugIn::findExtractedRoutePoints(CRadarTarget radarTar
     return route;
 }
 
+AmanAircraft AmanPlugIn::getArrivalDetails(CFlightPlan flightPlan) {
+    AmanAircraft ac;
+    if (!flightPlan.IsValid()) {
+        return ac;
+    }
+
+    auto fpd = flightPlan.GetFlightPlanData();
+    auto controllerAssignedData = flightPlan.GetControllerAssignedData();
+
+    ac.callsign = flightPlan.GetCallsign();
+    ac.arrivalRunway = fpd.GetArrivalRwy();
+    ac.assignedStar = fpd.GetStarName();
+    ac.icaoType = fpd.GetAircraftFPType();
+    ac.assignedDirectRouting = controllerAssignedData.GetDirectToPointName();
+    ac.trackingController = flightPlan.GetTrackingControllerId();
+    ac.scratchPad = controllerAssignedData.GetScratchPadString();
+    ac.remainingRoute = findExtractedRoutePoints(flightPlan);
+    ac.arrivalAirportIcao = fpd.GetDestination();
+    ac.flightPlanTas = fpd.GetTrueAirspeed();
+    return ac;
+}
+
 std::vector<std::string> AmanPlugIn::splitString(const std::string& string, const char delim) {
     std::vector<std::string> output;
     size_t startServer;
@@ -165,8 +201,50 @@ void AmanPlugIn::sendUpdatedRunwayStatuses() {
     for each(auto& airportIcao in airportsSubscribedTo) {
         auto runwayStatuses = collectRunwayStatuses(airportIcao);
         auto runwaysJson = jsonSerializer.getJsonOfRunwayStatuses(runwayStatuses);
-        enqueueMessage(runwaysJson);
+        enqueueLatestMessage("runwayStatuses:" + airportIcao, runwaysJson);
     }
+}
+
+void AmanPlugIn::sendInitialArrivalUpdates(const std::string& airportIcao) {
+    auto inbounds = getInboundsForAirport(airportIcao);
+
+    auto detailsJson = jsonSerializer.getJsonOfArrivalDetailsUpdates(inbounds);
+    if (!detailsJson.empty()) {
+        enqueueLatestMessage("arrivalDetails:" + airportIcao, detailsJson);
+    }
+
+    auto routesJson = jsonSerializer.getJsonOfArrivalRouteUpdates(inbounds);
+    if (!routesJson.empty()) {
+        enqueueLatestMessage("arrivalRoutes:" + airportIcao, routesJson);
+    }
+}
+
+void AmanPlugIn::sendArrivalUpdate(CFlightPlan flightPlan) {
+    if (!isSubscribedArrival(flightPlan)) {
+        return;
+    }
+
+    auto arrival = getArrivalDetails(flightPlan);
+    auto callsign = std::string(flightPlan.GetCallsign());
+
+    auto detailsJson = jsonSerializer.getJsonOfArrivalDetailsUpdates({ arrival });
+    if (!detailsJson.empty()) {
+        enqueueLatestMessage("arrivalDetails:" + callsign, detailsJson);
+    }
+
+    auto routesJson = jsonSerializer.getJsonOfArrivalRouteUpdates({ arrival });
+    if (!routesJson.empty()) {
+        enqueueLatestMessage("arrivalRoutes:" + callsign, routesJson);
+    }
+}
+
+bool AmanPlugIn::isSubscribedArrival(CFlightPlan flightPlan) {
+    if (!flightPlan.IsValid()) {
+        return false;
+    }
+
+    auto destination = std::string(flightPlan.GetFlightPlanData().GetDestination());
+    return airportsSubscribedTo.find(destination) != airportsSubscribedTo.end();
 }
 
 void AmanPlugIn::onClientConnected() {
@@ -178,6 +256,7 @@ void AmanPlugIn::onClientConnected() {
 void AmanPlugIn::onRegisterAirport(const std::string& icao) {
     airportsSubscribedTo.insert(icao);
     sendUpdatedRunwayStatuses();
+    sendInitialArrivalUpdates(icao);
 }
 
 void AmanPlugIn::onUnregisterAirport(const std::string& icao) {

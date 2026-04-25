@@ -8,10 +8,18 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <windows.h>
+#include <ws2tcpip.h>
 
 #pragma comment(lib, "ws2_32.lib")  // Link with the Winsock library
+
+namespace {
+constexpr uint32_t MAX_FRAME_SIZE = 16 * 1024 * 1024;
+constexpr int SOCKET_BUFFER_SIZE = 256 * 1024;
+}
 
 // Helper function for debug logging in DLLs
 void DebugOut(const std::string& message) {
@@ -118,14 +126,8 @@ void AmanServer::serverLoop() {
             closesocket(listenSocket);
             listenSocket = INVALID_SOCKET;
         }
-        
-        // Set client socket to non-blocking mode to prevent blocking on large sends
-        u_long nonBlocking = 1;
-        if (ioctlsocket(clientSocket, FIONBIO, &nonBlocking) == SOCKET_ERROR) {
-            DebugOut("Failed to set client socket to non-blocking mode: " + std::to_string(WSAGetLastError()));
-        } else {
-            DebugOut("Client socket set to non-blocking mode");
-        }
+
+        configureClientSocket();
 
         clientConnected = true;
         DebugOut("Client connected successfully");
@@ -143,6 +145,12 @@ void AmanServer::serverLoop() {
         
         // Notify sender thread that client disconnected
         queueCondition.notify_all();
+        {
+            std::lock_guard<std::mutex> lock(inboundQueueMutex);
+            while (!inboundMessageQueue.empty()) {
+                inboundMessageQueue.pop();
+            }
+        }
         if (clientSocket != INVALID_SOCKET) {
             closesocket(clientSocket);
             clientSocket = INVALID_SOCKET;
@@ -157,25 +165,31 @@ void AmanServer::handleClientConnection() {
     DebugOut("Starting client communication loop...");
     
     while (isRunning && clientConnected && clientSocket != INVALID_SOCKET) {
-        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
-            buffer[bytesReceived] = '\0';
-            receivedData += buffer;
-            DebugOut("Received " + std::to_string(bytesReceived) + " bytes from client");
+            receivedData.append(buffer, bytesReceived);
             
-            // Process complete messages (assuming newline-delimited)
-            size_t pos = 0;
-            while ((pos = receivedData.find('\n')) != std::string::npos) {
-                std::string message = receivedData.substr(0, pos);
-                receivedData = receivedData.substr(pos + 1);
-                
+            while (receivedData.size() >= sizeof(uint32_t)) {
+                uint32_t networkLength = 0;
+                std::memcpy(&networkLength, receivedData.data(), sizeof(networkLength));
+                uint32_t messageLength = ntohl(networkLength);
+
+                if (messageLength == 0 || messageLength > MAX_FRAME_SIZE) {
+                    DebugOut("Invalid frame length from client: " + std::to_string(messageLength));
+                    onClientDisconnected();
+                    return;
+                }
+
+                const size_t frameLength = sizeof(uint32_t) + messageLength;
+                if (receivedData.size() < frameLength) {
+                    break;
+                }
+
+                std::string message = receivedData.substr(sizeof(uint32_t), messageLength);
+                receivedData.erase(0, frameLength);
+
                 if (!message.empty()) {
-                    DebugOut("Processing message: " + message);
-                    try {
-                        processMessage(message);
-                    } catch (const std::exception& e) {
-                        DebugOut("Error processing message: " + std::string(e.what()));
-                    }
+                    enqueueInboundMessage(message);
                 }
             }
         } else if (bytesReceived == 0) {
@@ -184,14 +198,7 @@ void AmanServer::handleClientConnection() {
             break;
         } else {
             int error = WSAGetLastError();
-            
-            // WSAEWOULDBLOCK is expected for non-blocking sockets when no data is available
-            if (error == WSAEWOULDBLOCK) {
-                // No data available right now, sleep briefly and continue
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                continue;
-            }
-            
+
             if (isRunning && clientConnected) {
                 DebugOut("Recv failed with error: " + std::to_string(error) + " (WSAECONNRESET=" + std::to_string(WSAECONNRESET) + ")");
             }
@@ -207,37 +214,75 @@ void AmanServer::handleClientConnection() {
     DebugOut("Client communication loop ended");
 }
 
+void AmanServer::configureClientSocket() {
+    int tcpNoDelay = 1;
+    if (setsockopt(clientSocket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&tcpNoDelay), sizeof(tcpNoDelay)) == SOCKET_ERROR) {
+        DebugOut("Failed to set TCP_NODELAY: " + std::to_string(WSAGetLastError()));
+    }
+
+    int sendBufferSize = SOCKET_BUFFER_SIZE;
+    if (setsockopt(clientSocket, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<const char*>(&sendBufferSize), sizeof(sendBufferSize)) == SOCKET_ERROR) {
+        DebugOut("Failed to set send buffer size: " + std::to_string(WSAGetLastError()));
+    }
+
+    int receiveBufferSize = SOCKET_BUFFER_SIZE;
+    if (setsockopt(clientSocket, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&receiveBufferSize), sizeof(receiveBufferSize)) == SOCKET_ERROR) {
+        DebugOut("Failed to set receive buffer size: " + std::to_string(WSAGetLastError()));
+    }
+}
+
+void AmanServer::enqueueInboundMessage(const std::string& data) {
+    std::lock_guard<std::mutex> lock(inboundQueueMutex);
+    inboundMessageQueue.push(data);
+}
+
+void AmanServer::drainInboundMessages() {
+    std::queue<std::string> messagesToProcess;
+    {
+        std::lock_guard<std::mutex> lock(inboundQueueMutex);
+        std::swap(messagesToProcess, inboundMessageQueue);
+    }
+
+    while (!messagesToProcess.empty()) {
+        auto message = messagesToProcess.front();
+        messagesToProcess.pop();
+
+        DebugOut("Processing client message (" + std::to_string(message.length()) + " bytes)");
+        try {
+            processMessage(message);
+        } catch (const std::exception& e) {
+            DebugOut("Error processing message: " + std::string(e.what()));
+        }
+    }
+}
+
 bool AmanServer::sendMessageSafely(const std::string& message) {
     if (clientSocket == INVALID_SOCKET || !clientConnected) {
         return false;
     }
-    
-    const char* data = message.c_str();
-    int totalBytes = (int)message.length();
+    if (message.length() > MAX_FRAME_SIZE) {
+        DebugOut("Message too large to send: " + std::to_string(message.length()) + " bytes");
+        return false;
+    }
+
+    uint32_t networkLength = htonl(static_cast<uint32_t>(message.length()));
+    std::string frame;
+    frame.resize(sizeof(networkLength) + message.length());
+    std::memcpy(&frame[0], &networkLength, sizeof(networkLength));
+    std::memcpy(&frame[sizeof(networkLength)], message.data(), message.length());
+
+    const char* data = frame.data();
+    int totalBytes = (int)frame.length();
     int bytesSent = 0;
-    int attempts = 0;
-    const int maxAttempts = 100; // Prevent infinite loops
-    
-    DebugOut("Starting to send message safely: " + std::to_string(totalBytes) + " bytes");
-    
-    while (bytesSent < totalBytes && clientConnected && attempts < maxAttempts) {
+    while (bytesSent < totalBytes && clientConnected && clientSocket != INVALID_SOCKET && isRunning) {
         int result = send(clientSocket, data + bytesSent, totalBytes - bytesSent, 0);
         
         if (result > 0) {
             bytesSent += result;
-            DebugOut("Sent " + std::to_string(result) + " bytes, total: " + std::to_string(bytesSent) + "/" + std::to_string(totalBytes));
         } else if (result == SOCKET_ERROR) {
             int error = WSAGetLastError();
-            if (error == WSAEWOULDBLOCK) {
-                // Socket buffer is full, wait a bit and retry
-                attempts++;
-                DebugOut("Socket would block, attempt " + std::to_string(attempts) + ", waiting...");
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                continue;
-            } else {
-                DebugOut("Send failed with error: " + std::to_string(error));
-                return false;
-            }
+            DebugOut("Send failed with error: " + std::to_string(error));
+            return false;
         } else {
             DebugOut("Send returned 0, connection closed");
             return false;
@@ -245,10 +290,9 @@ bool AmanServer::sendMessageSafely(const std::string& message) {
     }
     
     if (bytesSent == totalBytes) {
-        DebugOut("Message sent successfully: " + std::to_string(bytesSent) + " bytes");
         return true;
     } else {
-        DebugOut("Failed to send complete message: " + std::to_string(bytesSent) + "/" + std::to_string(totalBytes) + " bytes");
+        DebugOut("Failed to send complete frame: " + std::to_string(bytesSent) + "/" + std::to_string(totalBytes) + " bytes");
         return false;
     }
 }
@@ -261,8 +305,9 @@ void AmanServer::senderThreadLoop() {
         DebugOut("Sender thread waiting for client connection or messages...");
         
         // Wait for either a client to connect AND have messages, or for shutdown
-        queueCondition.wait(lock, [this] { 
-            return (!messageQueue.empty() && clientConnected) || !isRunning;        });
+        queueCondition.wait(lock, [this] {
+            return ((!messageQueue.empty() || !latestMessageKeys.empty()) && clientConnected) || !isRunning;
+        });
         
         if (!isRunning) {
             DebugOut("Sender thread stopping - isRunning false");
@@ -274,23 +319,37 @@ void AmanServer::senderThreadLoop() {
             continue;
         }
         
-        DebugOut("Sender thread woke up, queue size: " + std::to_string(messageQueue.size()));
+        DebugOut("Sender thread woke up, queue size: " + std::to_string(messageQueue.size()) +
+            ", latest queue size: " + std::to_string(latestMessageKeys.size()));
         
-        // Process all queued messages        while (!messageQueue.empty() && clientConnected && clientSocket != INVALID_SOCKET && isRunning) {
-            std::string message = messageQueue.front();
-            messageQueue.pop();
+        while ((!messageQueue.empty() || !latestMessageKeys.empty()) && clientConnected && clientSocket != INVALID_SOCKET && isRunning) {
+            std::string message;
+            if (!messageQueue.empty()) {
+                message = messageQueue.front();
+                messageQueue.pop();
+            } else {
+                auto key = latestMessageKeys.front();
+                latestMessageKeys.pop();
+                queuedLatestMessageKeys.erase(key);
+
+                auto latestMessage = latestMessagesByKey.find(key);
+                if (latestMessage == latestMessagesByKey.end()) {
+                    continue;
+                }
+
+                message = latestMessage->second;
+                latestMessagesByKey.erase(latestMessage);
+            }
+
             lock.unlock();
             
-            DebugOut("Sending message to client (length: " + std::to_string(message.length()) + "): " + message.substr(0, 50) + "...");
-            
-            // Send message to client using safe method for large messages
-            message += "\n"; // Add newline delimiter
             bool success = sendMessageSafely(message);
             
             if (!success) {
                 DebugOut("CRITICAL: Failed to send message, marking client as disconnected");
                 clientConnected = false;
-                // Don't break here - let the loop condition handle it            }
+                // Don't break here - let the loop condition handle it
+            }
             
             lock.lock();
         }
@@ -301,6 +360,11 @@ void AmanServer::senderThreadLoop() {
             while (!messageQueue.empty()) {
                 messageQueue.pop();
             }
+            while (!latestMessageKeys.empty()) {
+                latestMessageKeys.pop();
+            }
+            queuedLatestMessageKeys.clear();
+            latestMessagesByKey.clear();
         }
     }
     
@@ -334,6 +398,37 @@ void AmanServer::enqueueMessage(const std::string& data) {
         queueCondition.notify_one();
     } catch (const std::exception& e) {
         DebugOut("Error enqueueing message: " + std::string(e.what()));
+    }
+}
+
+void AmanServer::enqueueLatestMessage(const std::string& key, const std::string& data) {
+    static int messageCount = 0;
+    messageCount++;
+
+    bool shouldLog = (messageCount % 10 == 1);
+
+    if (shouldLog) {
+        DebugOut("enqueueLatestMessage called (#" + std::to_string(messageCount) + "), key: " + key);
+    }
+
+    if (!isRunning || !clientConnected) {
+        if (shouldLog) DebugOut("Latest message not queued - server not running or client not connected");
+        return;
+    }
+
+    try {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        latestMessagesByKey[key] = data;
+        if (queuedLatestMessageKeys.insert(key).second) {
+            latestMessageKeys.push(key);
+        }
+        if (shouldLog) {
+            DebugOut("Latest message queued, regular queue size: " + std::to_string(messageQueue.size()) +
+                ", latest queue size: " + std::to_string(latestMessageKeys.size()));
+        }
+        queueCondition.notify_one();
+    } catch (const std::exception& e) {
+        DebugOut("Error enqueueing latest message: " + std::string(e.what()));
     }
 }
 

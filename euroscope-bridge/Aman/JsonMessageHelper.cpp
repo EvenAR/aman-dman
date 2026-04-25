@@ -11,6 +11,24 @@
 
 using namespace rapidjson;
 
+namespace {
+void addNullableString(Value& object, const char* name, const std::string& value, Document::AllocatorType& allocator) {
+    if (!value.empty()) {
+        object.AddMember(Value(name, allocator).Move(), Value(value.c_str(), allocator).Move(), allocator);
+    } else {
+        object.AddMember(Value(name, allocator).Move(), Value(kNullType), allocator);
+    }
+}
+
+void addNullablePositiveInt(Value& object, const char* name, int value, Document::AllocatorType& allocator) {
+    if (value > 0) {
+        object.AddMember(Value(name, allocator).Move(), value, allocator);
+    } else {
+        object.AddMember(Value(name, allocator).Move(), Value(kNullType), allocator);
+    }
+}
+}
+
 const std::string JsonMessageHelper::getJsonOfPluginVersion(const std::string& version) {
     Document document;
     document.SetObject();
@@ -36,44 +54,12 @@ const std::string JsonMessageHelper::getJsonOfArrivals(const std::vector<AmanAir
         Value arrivalObject(kObjectType);
 
         arrivalObject.AddMember("callsign", inbound.callsign, allocator);
-        arrivalObject.AddMember("icaoType", inbound.icaoType, allocator);
         arrivalObject.AddMember("latitude", inbound.latitude, allocator);
         arrivalObject.AddMember("longitude", inbound.longitude, allocator);
         arrivalObject.AddMember("flightLevel", inbound.flightLevel, allocator);
         arrivalObject.AddMember("pressureAltitude", inbound.pressureAltitude, allocator);
         arrivalObject.AddMember("track", inbound.track, allocator);
         arrivalObject.AddMember("groundSpeed", inbound.groundSpeed, allocator);
-        arrivalObject.AddMember("arrivalAirportIcao", inbound.arrivalAirportIcao, allocator);
-
-        if (!inbound.scratchPad.empty())
-            arrivalObject.AddMember("scratchPad", inbound.scratchPad, allocator);
-
-        if (!inbound.assignedStar.empty())
-            arrivalObject.AddMember("assignedStar", inbound.assignedStar, allocator);
-
-        if (!inbound.assignedDirectRouting.empty())
-            arrivalObject.AddMember("assignedDirect", inbound.assignedDirectRouting, allocator);
-
-        if (!inbound.arrivalRunway.empty())
-            arrivalObject.AddMember("assignedRunway", inbound.arrivalRunway, allocator);
-
-        if (!inbound.trackingController.empty())
-            arrivalObject.AddMember("trackingController", inbound.trackingController, allocator);
-
-        if (inbound.flightPlanTas > 0)
-            arrivalObject.AddMember("flightPlanTas", inbound.flightPlanTas, allocator);
-
-        Value routePoints(kArrayType);
-        for (auto& point : inbound.remainingRoute) {
-            Value pointObject(kObjectType);
-            pointObject.AddMember("name", point.name, allocator);
-            pointObject.AddMember("latitude", point.latitude, allocator);
-            pointObject.AddMember("longitude", point.longitude, allocator);
-            pointObject.AddMember("isActive", point.isActive, allocator);
-            routePoints.PushBack(pointObject, allocator);
-        }
-
-        arrivalObject.AddMember("route", routePoints, allocator);
 
         arrivalsArray.PushBack(arrivalObject, allocator);
     }
@@ -86,6 +72,84 @@ const std::string JsonMessageHelper::getJsonOfArrivals(const std::vector<AmanAir
     document.Accept(writer);
 
     return sb.GetString();
+}
+
+const std::string JsonMessageHelper::getJsonOfArrivalDetailsUpdates(const std::vector<AmanAircraft>& aircraftList) {
+    Document document;
+    document.SetObject();
+    Value detailsArray(kArrayType);
+
+    Document::AllocatorType& allocator = document.GetAllocator();
+
+    for (const auto& inbound : aircraftList) {
+        Value detailsObject(kObjectType);
+        detailsObject.AddMember("callsign", inbound.callsign, allocator);
+        detailsObject.AddMember("icaoType", inbound.icaoType, allocator);
+        detailsObject.AddMember("arrivalAirportIcao", inbound.arrivalAirportIcao, allocator);
+        addNullableString(detailsObject, "assignedRunway", inbound.arrivalRunway, allocator);
+        addNullableString(detailsObject, "assignedStar", inbound.assignedStar, allocator);
+        addNullableString(detailsObject, "assignedDirect", inbound.assignedDirectRouting, allocator);
+        addNullableString(detailsObject, "trackingController", inbound.trackingController, allocator);
+        addNullableString(detailsObject, "scratchPad", inbound.scratchPad, allocator);
+        addNullablePositiveInt(detailsObject, "flightPlanTas", inbound.flightPlanTas, allocator);
+
+        detailsArray.PushBack(detailsObject, allocator);
+    }
+
+    if (detailsArray.Empty()) {
+        return "";
+    }
+
+    document.AddMember("type", "arrivalDetails", allocator);
+    document.AddMember("details", detailsArray, allocator);
+
+    StringBuffer sb;
+    Writer<StringBuffer> writer(sb);
+    document.Accept(writer);
+
+    return sb.GetString();
+}
+
+const std::string JsonMessageHelper::getJsonOfArrivalRouteUpdates(const std::vector<AmanAircraft>& aircraftList) {
+    Document document;
+    document.SetObject();
+    Value routesArray(kArrayType);
+
+    Document::AllocatorType& allocator = document.GetAllocator();
+
+    for (const auto& inbound : aircraftList) {
+        Value routeObject(kObjectType);
+        routeObject.AddMember("callsign", inbound.callsign, allocator);
+        addRoute(routeObject, inbound.remainingRoute, allocator);
+        routesArray.PushBack(routeObject, allocator);
+    }
+
+    if (routesArray.Empty()) {
+        return "";
+    }
+
+    document.AddMember("type", "arrivalRoutes", allocator);
+    document.AddMember("routes", routesArray, allocator);
+
+    StringBuffer sb;
+    Writer<StringBuffer> writer(sb);
+    document.Accept(writer);
+
+    return sb.GetString();
+}
+
+void JsonMessageHelper::addRoute(Value& arrivalObject, const std::vector<RouteFix>& route, Document::AllocatorType& allocator) {
+    Value routePoints(kArrayType);
+    for (const auto& point : route) {
+        Value pointObject(kObjectType);
+        pointObject.AddMember("name", point.name, allocator);
+        pointObject.AddMember("latitude", point.latitude, allocator);
+        pointObject.AddMember("longitude", point.longitude, allocator);
+        pointObject.AddMember("isActive", point.isActive, allocator);
+        routePoints.PushBack(pointObject, allocator);
+    }
+
+    arrivalObject.AddMember("route", routePoints, allocator);
 }
 
 const std::string JsonMessageHelper::getJsonOfRunwayStatuses(const std::vector<RunwayStatus>& runways) {
@@ -183,6 +247,8 @@ const std::string JsonMessageHelper::getJsonOfDepartures(const std::vector<DmanA
         departureObject.AddMember("estimatedDepartureTime", outbound.estimatedDepartureTime, allocator);
         departureObject.AddMember("icaoType", outbound.icaoType, allocator);
         departureObject.AddMember("wakeCategory", outbound.wakeCategory, allocator);
+        departureObject.AddMember("scratchPad", Value(kNullType), allocator);
+        departureObject.AddMember("trackingController", Value(kNullType), allocator);
 
         departuresArray.PushBack(departureObject, allocator);
     }
