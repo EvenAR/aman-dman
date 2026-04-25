@@ -1,10 +1,15 @@
 #include "stdafx.h"
 
 #include "AmanDataTypes.h"
+#include "AmanGraphicsOverlay.h"
 #include "AmanPlugIn.h"
 #include "windows.h"
 
 #include <algorithm>
+#include <chrono>
+#include <climits>
+#include <cctype>
+#include <cstdio>
 #include <ctime>
 #include <iterator>
 #include <regex>
@@ -57,6 +62,7 @@ AmanPlugIn::~AmanPlugIn() {
 
 void AmanPlugIn::OnTimer(int Counter) {
     std::cout << "OnTimer called, Counter: " << Counter << std::endl;
+    removeExpiredPolygons();
     
     for each(auto& airportIcao in airportsSubscribedTo) {
         auto inbounds = getInboundsForAirport(airportIcao);
@@ -85,6 +91,18 @@ void AmanPlugIn::OnTimer(int Counter) {
 
 void AmanPlugIn::OnAirportRunwayActivityChanged(void) {
     sendUpdatedRunwayStatuses();
+}
+
+CRadarScreen* AmanPlugIn::OnRadarScreenCreated(const char* sDisplayName,
+                                               bool NeedRadarContent,
+                                               bool GeoReferenced,
+                                               bool CanBeSaved,
+                                               bool CanBeCreated) {
+    if (!GeoReferenced) {
+        return NULL;
+    }
+
+    return new AmanGraphicsOverlay(this);
 }
 
 bool AmanPlugIn::hasCorrectDestination(CFlightPlanData fpd, std::vector<std::string> destinationAirports) {
@@ -182,6 +200,36 @@ void AmanPlugIn::onRequestAssignRunway(const std::string& callsign, const std::s
 
 }
 
+void AmanPlugIn::onShowPolygon(const PolygonDisplayRequest& polygon) {
+    if (polygon.boundary.size() < 3) {
+        DISPLAY_WARNING(("showPolygon boundary must contain at least 3 points: " + polygon.label).c_str());
+        return;
+    }
+
+    DisplayPolygon displayPolygon;
+    displayPolygon.label = polygon.label;
+    displayPolygon.boundary = polygon.boundary;
+    displayPolygon.lineColor = polygon.lineColor;
+    displayPolygon.lineWidth = polygon.lineWidth > 1 ? polygon.lineWidth : 1;
+    displayPolygon.hasFillColor = polygon.hasFillColor;
+    displayPolygon.fillColor = polygon.fillColor;
+    displayPolygon.expiresAt = std::chrono::steady_clock::now() + std::chrono::seconds(
+        polygon.durationSeconds > 1 ? polygon.durationSeconds : 1);
+
+    {
+        std::lock_guard<std::mutex> lock(polygonsMutex);
+        activePolygons.erase(
+            std::remove_if(
+                activePolygons.begin(),
+                activePolygons.end(),
+                [&polygon](const DisplayPolygon& activePolygon) {
+                    return activePolygon.label == polygon.label;
+                }),
+            activePolygons.end());
+        activePolygons.push_back(displayPolygon);
+    }
+}
+
 void AmanPlugIn::onSetCtot(const std::string& callSign, long ctot) {
     CRadarTarget rt = RadarTargetSelect(callSign.c_str());
     if (rt.IsValid()) {
@@ -200,11 +248,29 @@ void AmanPlugIn::onSetCtot(const std::string& callSign, long ctot) {
 void AmanPlugIn::onClientDisconnected() {
     // Remove all subscriptions when the client disconnects
     airportsSubscribedTo.clear();
+    {
+        std::lock_guard<std::mutex> lock(polygonsMutex);
+        activePolygons.clear();
+    }
 }
 
 void AmanPlugIn::onErrorProcessingMessage(const std::string& errorMessage) {
     // Display an error message to the user
     DISPLAY_WARNING(errorMessage.c_str());
+}
+
+void AmanPlugIn::removeExpiredPolygons() {
+    const auto now = std::chrono::steady_clock::now();
+
+    std::lock_guard<std::mutex> lock(polygonsMutex);
+    activePolygons.erase(
+        std::remove_if(
+            activePolygons.begin(),
+            activePolygons.end(),
+            [now](const DisplayPolygon& polygon) {
+                return polygon.expiresAt <= now;
+            }),
+        activePolygons.end());
 }
 
 std::vector<AmanAircraft> AmanPlugIn::getInboundsForAirport(const std::string& airportIcao) {

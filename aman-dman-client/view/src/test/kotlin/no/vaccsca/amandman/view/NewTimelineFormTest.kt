@@ -362,6 +362,7 @@ class NewTimelineFormTest {
         override fun beginRunwaySelection(runwayEvent: RunwayEvent, onSubmit: (runway: String?) -> Unit, onCancel: () -> Unit) {}
         override fun onToggleShowDepartures(selected: Boolean) {}
         override fun onReloadWindsClicked() {}
+        override fun onHighlightAreasOnRadarClicked() {}
         override fun onTabMenu(screenPos: Point) {}
         override fun onCreateNewTimelineClicked() {}
         override fun onAddTimelineButtonClicked(timelineConfig: TimelineConfig) {}

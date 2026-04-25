@@ -14,6 +14,7 @@ interface SequencePlanner : AirportDataSource {
     fun setMinimumSpacing(minimumSpacingDistanceNm: Double)
     fun refreshWeatherData()
     fun refreshCdmData()
+    fun highlightActiveAreasOnRadarScreen()
     fun suggestScheduledTime(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String?)
     fun reSchedule(callSign: String? = null)
     fun isTimeSlotAvailable(timelineEvent: TimelineEvent, scheduledTime: Instant, runway: String): Boolean

@@ -33,6 +33,7 @@ interface AirportPresenterInterface {
 
     fun onToggleShowDepartures(selected: Boolean)
     fun onReloadWindsClicked()
+    fun onHighlightAreasOnRadarClicked()
 
     fun onTabMenu(screenPos: Point)
     fun onCreateNewTimelineClicked()

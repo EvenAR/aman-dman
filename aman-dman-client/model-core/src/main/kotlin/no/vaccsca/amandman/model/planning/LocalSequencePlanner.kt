@@ -311,6 +311,27 @@ class LocalSequencePlanner(
         }
     }
 
+    override fun highlightActiveAreasOnRadarScreen() {
+        scope.launch {
+            if (airport.areas.isEmpty()) {
+                logger.warn("No areas configured for airport $airportIcao")
+                return@launch
+            }
+
+            airport.areas.forEach { (areaId, area) ->
+                logger.info("Sending area '$areaId' boundary to EuroScope for $airportIcao")
+                atcClient.showPolygon(
+                    label = areaId,
+                    boundary = area.boundary,
+                    color = "#00FFFF",
+                    lineWidth = 2,
+                    fillColor = "#00FFFF11",
+                    durationSeconds = 3
+                )
+            }
+        }
+    }
+
     override fun suggestScheduledTime(timelineEvent: TimelineEvent, scheduledTime: Instant, newRunway: String?) {
         if (timelineEvent !is RunwayArrivalEvent) {
             throw IllegalArgumentException("Only RunwayArrivalEvent is supported at the moment")

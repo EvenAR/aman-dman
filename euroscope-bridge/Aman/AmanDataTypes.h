@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 
 struct VerticalProfileSection {
     int maxAltitude;
@@ -68,4 +69,34 @@ struct ControllerInfo {
     std::string callsign;
     std::string positionId;
     int facilityType;
+};
+
+struct Coordinate {
+    double latitude;
+    double longitude;
+};
+
+struct DisplayColor {
+    COLORREF color;
+    unsigned char alpha;
+};
+
+struct PolygonDisplayRequest {
+    std::string label;
+    std::vector<Coordinate> boundary;
+    DisplayColor lineColor;
+    int lineWidth;
+    bool hasFillColor;
+    DisplayColor fillColor;
+    int durationSeconds;
+};
+
+struct DisplayPolygon {
+    std::string label;
+    std::vector<Coordinate> boundary;
+    DisplayColor lineColor;
+    int lineWidth;
+    bool hasFillColor;
+    DisplayColor fillColor;
+    std::chrono::steady_clock::time_point expiresAt;
 };

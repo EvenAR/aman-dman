@@ -20,3 +20,17 @@ data class AssignRunwayJson(
     val callsign: String,
     val runway: String,
 ) : MessageToEuroScopePluginJson("assignRunway")
+
+data class ShowPolygonJson(
+    val label: String,
+    val boundary: List<CoordinateJson>,
+    val color: String,
+    val lineWidth: Int,
+    val fillColor: String? = null,
+    val durationSeconds: Int,
+) : MessageToEuroScopePluginJson("showPolygon")
+
+data class CoordinateJson(
+    val latitude: Double,
+    val longitude: Double,
+)

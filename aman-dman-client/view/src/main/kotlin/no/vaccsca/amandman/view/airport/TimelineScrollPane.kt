@@ -9,6 +9,7 @@ import no.vaccsca.amandman.model.timeline.TimelineDisplayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayArrivalEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayEvent
 import no.vaccsca.amandman.model.timeline.event.timeline.RunwayFlightEvent
+import no.vaccsca.amandman.model.user.UserRole
 import no.vaccsca.amandman.presenter.AirportPresenterInterface
 import no.vaccsca.amandman.view.AmanPopupMenu
 import no.vaccsca.amandman.view.airport.timeline.TimelineView
@@ -268,6 +269,12 @@ class TimelineScrollPane(
             item("Show winds", action = {
                 presenter.onOpenMetWindowClicked()
             })
+
+            if (airportViewState.userRole == UserRole.MASTER || airportViewState.userRole == UserRole.LOCAL) {
+                item("Highlight areas on radar screen", action = {
+                    presenter.onHighlightAreasOnRadarClicked()
+                })
+            }
 
             separator()
 

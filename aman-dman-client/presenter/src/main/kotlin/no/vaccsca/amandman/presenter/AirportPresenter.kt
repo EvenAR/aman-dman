@@ -242,6 +242,11 @@ class AirportPresenter(
             ?: showReadOnlyMessage()
     }
 
+    override fun onHighlightAreasOnRadarClicked() {
+        sequencePlanner?.highlightActiveAreasOnRadarScreen()
+            ?: showReadOnlyMessage()
+    }
+
     override fun onTabMenu(screenPos: Point) {
         val customizedTimelines = savedTimelineConfigs.toList()
         val generatedFixTimelines = buildGeneratedFixTimelines()

@@ -136,6 +136,27 @@ class AtcClientEuroScope(
         )
     }
 
+    override fun showPolygon(
+        label: String,
+        boundary: List<LatLng>,
+        color: String,
+        lineWidth: Int,
+        fillColor: String?,
+        durationSeconds: Int
+    ) {
+        logger.info("Sending polygon '$label' to EuroScope (color=$color, lineWidth=$lineWidth, fillColor=$fillColor, duration=${durationSeconds}s)")
+        sendMessage(
+            ShowPolygonJson(
+                label = label,
+                boundary = boundary.map { CoordinateJson(it.lat, it.lon) },
+                color = color,
+                lineWidth = lineWidth,
+                fillColor = fillColor,
+                durationSeconds = durationSeconds
+            )
+        )
+    }
+
     override fun getIntegrationStatus(airportIcao: String): IntegrationStatus {
         errorStatusByAirport[airportIcao]?.let { return it }
 

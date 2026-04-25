@@ -8,6 +8,7 @@
 #include <atomic>
 #include <mutex>
 #include "EuroScopePlugIn.h"
+#include "AmanDataTypes.h"
 #include "AmanServer.h"
 #include "JsonMessageHelper.h"
 #include <set>
@@ -15,6 +16,7 @@
 using namespace EuroScopePlugIn;
 
 class AmanAircraft;
+class AmanGraphicsOverlay;
 class ExternalMessageHandler;
 
 class AmanPlugIn : public CPlugIn, public AmanServer {
@@ -34,6 +36,8 @@ private:
     std::atomic<bool> selectionPollingActive;
     std::mutex selectionMutex;
     std::string lastSelectedCallsign;
+    std::mutex polygonsMutex;
+    std::vector<DisplayPolygon> activePolygons;
     
     void selectionPollingLoop();
     void checkAndSendSelectionChange();
@@ -57,12 +61,14 @@ private:
     static std::vector<std::string> splitString(const std::string& string, const char delim);
 
     void sendUpdatedRunwayStatuses();
+    void removeExpiredPolygons();
 
     // Server methods
     void onClientConnected() override;
     void onRegisterAirport(const std::string& airportIcao) override;
     void onUnregisterAirport(const std::string& icao) override;
     void onRequestAssignRunway(const std::string& callsign, const std::string& runway) override;
+    void onShowPolygon(const PolygonDisplayRequest& polygon) override;
     void onSetCtot(const std::string& callSign, long ctot) override;
     void onClientDisconnected() override;
     void onErrorProcessingMessage(const std::string& errorMessage) override;
@@ -70,4 +76,11 @@ private:
     // EuroScope API
     virtual void OnTimer(int Counter);
     virtual void OnAirportRunwayActivityChanged(void);
+    virtual CRadarScreen* OnRadarScreenCreated(const char* sDisplayName,
+                                               bool NeedRadarContent,
+                                               bool GeoReferenced,
+                                               bool CanBeSaved,
+                                               bool CanBeCreated);
+
+    friend class AmanGraphicsOverlay;
 };

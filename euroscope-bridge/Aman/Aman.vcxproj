@@ -100,7 +100,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <ModuleDefinitionFile>.\Aman.def</ModuleDefinitionFile>
-      <AdditionalDependencies>$(SolutionDir)\lib\EuroScopePlugInDll.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)\lib\EuroScopePlugInDll.lib;Msimg32.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -128,7 +128,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ModuleDefinitionFile>.\Aman.def</ModuleDefinitionFile>
-      <AdditionalDependencies>$(SolutionDir)\lib\EuroScopePlugInDll.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)\lib\EuroScopePlugInDll.lib;Msimg32.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -142,6 +142,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Aman.cpp" />
+    <ClCompile Include="AmanGraphicsOverlay.cpp" />
     <ClCompile Include="AmanPlugIn.cpp" />
     <ClCompile Include="AmanServer.cpp" />
     <ClCompile Include="JsonMessageHelper.cpp" />
@@ -162,6 +163,7 @@
     <ClInclude Include="..\lib\include\EuroScopePlugIn.h" />
     <ClInclude Include="Aman.h" />
     <ClInclude Include="AmanDataTypes.h" />
+    <ClInclude Include="AmanGraphicsOverlay.h" />
     <ClInclude Include="AmanPlugIn.h" />
     <ClInclude Include="AmanServer.h" />
     <ClInclude Include="Constants.h" />

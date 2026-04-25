@@ -18,6 +18,9 @@
     <ClCompile Include="Aman.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="AmanGraphicsOverlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -77,6 +80,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AmanDataTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AmanGraphicsOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
