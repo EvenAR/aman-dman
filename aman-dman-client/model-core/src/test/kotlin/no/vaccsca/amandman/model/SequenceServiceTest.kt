@@ -471,31 +471,31 @@ class SequenceServiceTest {
     }
 
     @Test
-    fun `Locked aircraft should not be overtaken by new arrivals entering locked area`() {
+    fun `Frozen aircraft should not be overtaken by new arrivals entering frozen area`() {
         val now = NtpClock.now()
 
-        val lockedCandidate = makeSequenceCandidate(callsign = "LOCKED", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
-        val newFasterCandidate = makeSequenceCandidate(callsign = "NEW", preferredTime = lockedCandidate.preferredTime - 1.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+        val frozenCandidate = makeSequenceCandidate(callsign = "FROZEN", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+        val newFasterCandidate = makeSequenceCandidate(callsign = "NEW", preferredTime = frozenCandidate.preferredTime - 1.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
 
-        val initialSequence = listOf(SequencePlace(item = lockedCandidate, scheduledTime = lockedCandidate.preferredTime, isManuallyAssigned = false))
+        val initialSequence = listOf(SequencePlace(item = frozenCandidate, scheduledTime = frozenCandidate.preferredTime, isManuallyAssigned = false))
 
         val updatedSequence = SequenceService.updateSequence(
             currentSequence = initialSequence,
-            candidates = listOf(lockedCandidate, newFasterCandidate),
+            candidates = listOf(frozenCandidate, newFasterCandidate),
             config = defaultConfig,
         )
 
         val firstPlace = updatedSequence[0]
         val secondPlace = updatedSequence[1]
 
-        assertEquals("LOCKED", firstPlace.item.id)
+        assertEquals("FROZEN", firstPlace.item.id)
         assertEquals("NEW", secondPlace.item.id)
 
         assertTrue(secondPlace.scheduledTime > firstPlace.scheduledTime)
     }
 
     @Test
-    fun `Two aircraft entering locked area at the same time should be ordered by preferred arrival time`() {
+    fun `Two aircraft entering frozen area at the same time should be ordered by preferred arrival time`() {
         val now = NtpClock.now()
 
         val fast = makeSequenceCandidate(callsign = "FASTEST", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
@@ -520,6 +520,215 @@ class SequenceServiceTest {
         assertEquals("SLOWEST", createdSequence2[1].item.id)
     }
 
+    @Test
+    fun `Two aircraft in frozen area should not change places`() {
+        val now = NtpClock.now()
+
+        val aircraft1 = makeSequenceCandidate(callsign = "FIRST", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+        val aircraft2 = makeSequenceCandidate(callsign = "SECOND", preferredTime = aircraft1.preferredTime + 1.seconds, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+
+        val initialSequence = SequenceService.updateSequence(
+            currentSequence = emptyList(),
+            candidates = listOf(aircraft1, aircraft2),
+            config = defaultConfig,
+        )
+
+        assertEquals("FIRST", initialSequence[0].item.id)
+        assertEquals("SECOND", initialSequence[1].item.id)
+
+        val aircraft2overtaking1 = makeSequenceCandidate(callsign = "SECOND", preferredTime = aircraft1.preferredTime - 1.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+
+        val finalSequence = SequenceService.updateSequence(
+            currentSequence = initialSequence,
+            candidates = listOf(aircraft1, aircraft2overtaking1),
+            config = defaultConfig,
+        )
+
+        assertEquals("FIRST", finalSequence[0].item.id)
+        assertEquals("SECOND", finalSequence[1].item.id)
+    }
+
+    @Test
+    fun `Aircraft outside frozen area should never be placed in front of aircraft in frozen area, even if preferred time is earlier`() {
+        val now = NtpClock.now()
+
+        val frozen = makeSequenceCandidate(callsign = "FROZEN", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+        val newFaster = makeSequenceCandidate(callsign = "NEW", preferredTime = frozen.preferredTime - 1.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = false)
+
+        val initialSequence = SequenceService.updateSequence(
+            currentSequence = emptyList(),
+            candidates = listOf(frozen),
+            config = defaultConfig,
+        )
+
+        val updatedSequence = SequenceService.updateSequence(
+            currentSequence = initialSequence,
+            candidates = listOf(newFaster, frozen),
+            config = defaultConfig,
+        )
+
+        assertEquals("FROZEN", updatedSequence[0].item.id)
+        assertEquals("NEW", updatedSequence[1].item.id)
+    }
+
+    @Test
+    fun `When an aircraft enters the frozen area, the sequence remains unchanged if no aircraft is violating its position`() {
+        val now = NtpClock.now()
+
+        val firstAircraft = makeSequenceCandidate(
+            callsign = "A",
+            preferredTime = now + 10.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        val middleAircraft = makeSequenceCandidate(
+            callsign = "B",
+            preferredTime = now + 11.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        val lastAircraft = makeSequenceCandidate(
+            callsign = "C",
+            preferredTime = now + 12.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        // Initial sequencing
+        val initialSequence = SequenceService.updateSequence(
+            currentSequence = emptyList(),
+            candidates = listOf(firstAircraft, middleAircraft, lastAircraft),
+            config = defaultConfig,
+        )
+
+        // B enters frozen area
+        val middleAircraftFrozen = middleAircraft.copy(isInFrozenSequenceWindow = true)
+
+        val updatedSequence = SequenceService.updateSequence(
+            currentSequence = initialSequence,
+            candidates = listOf(firstAircraft, middleAircraftFrozen, lastAircraft),
+            config = defaultConfig,
+        )
+
+        // ✅ Sequence should NOT change
+        assertEquals("A", updatedSequence[0].item.id)
+        assertEquals("B", updatedSequence[1].item.id)
+        assertEquals("C", updatedSequence[2].item.id)
+    }
+
+    @Test
+    fun `When an aircraft enters the frozen area, aircraft outside scheduled ahead must be re-sequenced behind it`() {
+        val now = NtpClock.now()
+
+        val aircraftA = makeSequenceCandidate(
+            callsign = "A",
+            preferredTime = now + 10.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        val aircraftB = makeSequenceCandidate(
+            callsign = "B",
+            preferredTime = now + 11.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        val aircraftC = makeSequenceCandidate(
+            callsign = "C",
+            preferredTime = now + 12.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        // Force violation: A is scheduled BEFORE B
+        val initialSequence = listOf(
+            SequencePlace(
+                aircraftA,
+                scheduledTime = aircraftB.preferredTime - 1.minutes // A before B → violation
+            ),
+            SequencePlace(
+                aircraftB,
+                scheduledTime = aircraftB.preferredTime
+            ),
+            SequencePlace(
+                aircraftC,
+                scheduledTime = aircraftC.preferredTime
+            )
+        )
+
+        // B enters frozen area
+        val aircraftBFrozen = aircraftB.copy(isInFrozenSequenceWindow = true)
+
+        val updatedSequence = SequenceService.updateSequence(
+            currentSequence = initialSequence,
+            candidates = listOf(aircraftA, aircraftBFrozen, aircraftC),
+            config = defaultConfig,
+        )
+
+        // ✅ B must stay ahead of A now
+        assertEquals("B", updatedSequence[0].item.id)
+        assertEquals("A", updatedSequence[1].item.id)
+        assertEquals("C", updatedSequence[2].item.id)
+    }
+
+    @Test
+    fun `When multiple aircraft are in the frozen area, outside aircraft cannot be inserted before or between them`() {
+        val now = NtpClock.now()
+
+        val aircraftA = makeSequenceCandidate(
+            callsign = "A",
+            preferredTime = now + 10.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = false
+        )
+
+        val aircraftB = makeSequenceCandidate(
+            callsign = "B",
+            preferredTime = now + 11.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = true
+        )
+
+        val aircraftC = makeSequenceCandidate(
+            callsign = "C",
+            preferredTime = now + 12.minutes,
+            assignedRunway = "19L",
+            isInFrozenSequenceWindow = true
+        )
+
+        // ❗ Force violation:
+        // A is scheduled between B and C
+        val initialSequence = listOf(
+            SequencePlace(
+                aircraftB,
+                scheduledTime = now + 11.minutes
+            ),
+            SequencePlace(
+                aircraftA,
+                scheduledTime = now + 11.minutes + 30.seconds // between B and C
+            ),
+            SequencePlace(
+                aircraftC,
+                scheduledTime = now + 12.minutes
+            )
+        )
+
+        val updatedSequence = SequenceService.updateSequence(
+            currentSequence = initialSequence,
+            candidates = listOf(aircraftA, aircraftB, aircraftC),
+            config = defaultConfig,
+        )
+
+        // ✅ Frozen order must be preserved: B → C
+        // ✅ A must be moved AFTER both
+        assertEquals("B", updatedSequence[0].item.id)
+        assertEquals("C", updatedSequence[1].item.id)
+        assertEquals("A", updatedSequence[2].item.id)
+    }
+
     // Helper function to create test aircraft sequence candidates
     private fun makeSequenceCandidate(
         callsign: String,
@@ -535,7 +744,7 @@ class SequenceServiceTest {
         landingIas = landingIas,
         wakeCategory = wakeCategory,
         runway = assignedRunway,
-        isInLockedSequenceWindow = isInFrozenSequenceWindow,
+        isInFrozenSequenceWindow = isInFrozenSequenceWindow,
         isInSequencingWindow = isInSequencingWindow,
     )
 }

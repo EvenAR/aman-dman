@@ -27,7 +27,7 @@ object SequenceService {
     fun suggestScheduledTime(
         currentSequence: List<SequencePlace>,
         callsign: String,
-        scheduledTime: Instant,
+        suggestion: Instant,
         minimumSeparationNm: Double
     ): List<SequencePlace> {
         val oldIdx = currentSequence.indexOfFirst { it.item.id == callsign }
@@ -37,48 +37,40 @@ object SequenceService {
         updatedPlaces.removeAt(oldIdx)
 
         // Find the new index where the aircraft should be inserted (by requested time)
-        var insertIdx = updatedPlaces.indexOfFirst { it.scheduledTime > scheduledTime }
+        var insertIdx = updatedPlaces.indexOfFirst { it.scheduledTime > suggestion }
         if (insertIdx == -1) insertIdx = updatedPlaces.size
 
-        // Determine the earliest valid time at or after requested time, considering spacing with new leader
-        val prev = if (insertIdx > 0) updatedPlaces[insertIdx - 1] else null
-        var newTime = scheduledTime
-        if (prev != null) {
-            val minTime = calculateSafeLandingTime(
-                referenceTime = prev.scheduledTime,
-                leader = prev.item as AircraftSequenceCandidate,
-                follower = oldPlace.item as AircraftSequenceCandidate,
-                minimumSeparationNm = minimumSeparationNm
-            )
-            if (newTime < minTime) newTime = minTime
+        val prev = updatedPlaces.getOrNull(insertIdx - 1)
+        val newTime = if (prev == null) {
+            suggestion
+        } else {
+            maxOf(suggestion, safeLandingTimeAfter(prev, oldPlace, minimumSeparationNm))
         }
+
         // Insert the moved aircraft at the new index, marked as manually assigned
         updatedPlaces.add(insertIdx, oldPlace.copy(scheduledTime = newTime, isManuallyAssigned = true))
+        updatedPlaces.moveFollowersToSafeTimesAfter(insertIdx, minimumSeparationNm)
 
-        // Recalculate scheduled times for following aircraft, ensuring proper spacing
-        for (i in (insertIdx + 1) until updatedPlaces.size) {
-            val leader = updatedPlaces[i - 1]
-            val follower = updatedPlaces[i]
-            val minTime = calculateSafeLandingTime(
-                referenceTime = leader.scheduledTime,
-                leader = leader.item as AircraftSequenceCandidate,
-                follower = follower.item as AircraftSequenceCandidate,
-                minimumSeparationNm = minimumSeparationNm
-            )
+        return updatedPlaces
+    }
 
-            // Always move following aircraft if there's a spacing conflict, regardless of manual assignment
-            if (follower.scheduledTime < minTime) {
-                // For manually assigned aircraft, move them to the minimum safe time
-                // For auto-scheduled aircraft, try to keep preferred time if possible
-                val newScheduledTime = if (follower.isManuallyAssigned) {
-                    minTime
+    private fun MutableList<SequencePlace>.moveFollowersToSafeTimesAfter(
+        leaderIndex: Int,
+        minimumSeparationNm: Double,
+    ) {
+        for (i in (leaderIndex + 1) until size) {
+            val follower = this[i]
+            val safeTime = safeLandingTimeAfter(this[i - 1], follower, minimumSeparationNm)
+
+            if (follower.scheduledTime < safeTime) {
+                val scheduledTime = if (follower.isManuallyAssigned) {
+                    safeTime
                 } else {
-                    maxOf(minTime, follower.item.preferredTime)
+                    maxOf(safeTime, follower.item.preferredTime)
                 }
-                updatedPlaces[i] = follower.copy(scheduledTime = newScheduledTime)
+                this[i] = follower.copy(scheduledTime = scheduledTime)
             }
         }
-        return updatedPlaces
     }
 
     /**
@@ -139,227 +131,166 @@ object SequenceService {
         candidates: List<SequenceCandidate>,
         config: SequencingOptions
     ): List<SequencePlace> {
-        // Build a map of the latest candidate data by ID
-        val latestCandidateData = candidates.associateBy { it.id }
+        val entries = buildSequenceEntries(currentSequence, candidates)
+            .sortedWith(sequenceEntryComparator())
 
-        // Build a map of existing sequence places to preserve manual assignments and order
-        val existingPlacesByCandidate = currentSequence.associateBy { it.item.id }
+        return entries
+            .moveEntriesBehindFrozenSlotsTheyCannotPrecede(config.minimumSeparationNm)
+            .scheduleWithSpacing(config.minimumSeparationNm)
+    }
 
-        // Start with existing aircraft, but update them with latest candidate data
-        val allCandidates = mutableListOf<SequenceCandidate>()
+    private data class SequenceEntry(
+        val candidate: AircraftSequenceCandidate,
+        val existingPlace: SequencePlace?,
+        val originalIndex: Int?,
+    ) {
+        val desiredTime: Instant
+            get() {
+                val place = existingPlace
+                return if (place?.isManuallyAssigned == true) place.scheduledTime else candidate.preferredTime
+            }
 
-        // Add existing aircraft from sequence, but with updated candidate data if available
-        currentSequence.forEach { place ->
-            val updatedCandidate = latestCandidateData[place.item.id] ?: place.item
-            allCandidates.add(updatedCandidate)
+        val frozenSlotTime: Instant?
+            get() = if (candidate.isInFrozenSequenceWindow) existingPlace?.scheduledTime else null
+
+        val isManuallyAssigned: Boolean
+            get() = existingPlace?.isManuallyAssigned == true
+    }
+
+    private fun buildSequenceEntries(
+        currentSequence: List<SequencePlace>,
+        candidates: List<SequenceCandidate>,
+    ): List<SequenceEntry> {
+        val latestCandidatesById = candidates
+            .filterIsInstance<AircraftSequenceCandidate>()
+            .associateBy { it.id }
+
+        val existingEntries = currentSequence.mapIndexedNotNull { index, place ->
+            val updatedCandidate = latestCandidatesById[place.item.id] ?: return@mapIndexedNotNull null
+            if (!updatedCandidate.isInSequencingWindow) return@mapIndexedNotNull null
+
+            SequenceEntry(
+                candidate = updatedCandidate,
+                existingPlace = place,
+                originalIndex = index,
+            )
         }
 
-        // Add new candidates that are in sequencing horizon
         val existingIds = currentSequence.map { it.item.id }.toSet()
-        val newCandidates = candidates.filter { it.id !in existingIds && it.isInSequencingWindow() }
-        allCandidates.addAll(newCandidates)
-
-        // Remove aircraft that are no longer in sequencing horizon or no longer candidates
-        val activeCandidateIds = candidates.map { it.id }.toSet()
-        val filteredCandidates = allCandidates.filter { candidate ->
-            candidate.id in activeCandidateIds && candidate.isInSequencingWindow()
-        }
-
-        // Separate manually assigned and automatically scheduled aircraft
-        val manuallyAssignedCandidates = filteredCandidates.filter { candidate ->
-            existingPlacesByCandidate[candidate.id]?.isManuallyAssigned == true
-        }
-        val autoScheduledCandidates = filteredCandidates.filter { candidate ->
-            existingPlacesByCandidate[candidate.id]?.isManuallyAssigned != true
-        }
-
-        // For auto-scheduled aircraft, preserve their original sequence order rather than sorting by preferred time
-        val existingAutoScheduled = autoScheduledCandidates.filter { candidate ->
-            existingPlacesByCandidate.containsKey(candidate.id)
-        }
-        val newAutoScheduled = autoScheduledCandidates.filter { candidate ->
-            !existingPlacesByCandidate.containsKey(candidate.id)
-        }
-
-        // Preserve original order for existing auto-scheduled aircraft
-        val originalOrderMap = currentSequence.mapIndexed { index, place -> place.item.id to index }.toMap()
-        val sortedExistingAutoScheduled = existingAutoScheduled.sortedBy { originalOrderMap[it.id] ?: Int.MAX_VALUE }
-
-        // Sort new aircraft by preferred time
-        val sortedNewAutoScheduled = newAutoScheduled.sortedBy { it.preferredTime }
-
-        // Build the new sequence by preserving the original relative order while respecting manual assignments
-        // Create all sequence places first (both manual and auto)
-        val allSequencePlaces = mutableListOf<SequencePlace>()
-
-        // Add manually assigned aircraft with preserved scheduled times
-        manuallyAssignedCandidates.forEach { candidate ->
-            val existingPlace = existingPlacesByCandidate[candidate.id]!!
-            allSequencePlaces.add(
-                SequencePlace(
-                    item = candidate,
-                    scheduledTime = existingPlace.scheduledTime,
-                    isManuallyAssigned = true
+        val newEntries = latestCandidatesById.values
+            .filter { it.id !in existingIds && it.isInSequencingWindow }
+            .map { candidate ->
+                SequenceEntry(
+                    candidate = candidate,
+                    existingPlace = null,
+                    originalIndex = null,
                 )
-            )
-        }
-
-        // Add existing auto-scheduled aircraft, but respect their position relative to manually assigned aircraft
-        sortedExistingAutoScheduled.forEach { candidate ->
-            val originalIndex = originalOrderMap[candidate.id] ?: Int.MAX_VALUE
-
-            // Find the best time that doesn't violate spacing and respects original order
-            var bestTime = candidate.preferredTime
-
-            // Check spacing with manually assigned aircraft that were originally before this aircraft
-            val precedingManualAircraft = manuallyAssignedCandidates.filter { manualCandidate ->
-                val manualOriginalIndex = originalOrderMap[manualCandidate.id] ?: Int.MAX_VALUE
-                manualOriginalIndex < originalIndex
             }
 
-            for (precedingManual in precedingManualAircraft) {
-                val precedingPlace = existingPlacesByCandidate[precedingManual.id]!!
-                val minTime = calculateSafeLandingTime(
-                    referenceTime = precedingPlace.scheduledTime,
-                    leader = precedingManual as AircraftSequenceCandidate,
-                    follower = candidate as AircraftSequenceCandidate,
-                    minimumSeparationNm = config.minimumSeparationNm
-                )
-                bestTime = maxOf(bestTime, minTime)
-            }
-
-            allSequencePlaces.add(
-                SequencePlace(
-                    item = candidate,
-                    scheduledTime = bestTime,
-                    isManuallyAssigned = false
-                )
-            )
-        }
-
-        // Add new auto-scheduled aircraft
-        sortedNewAutoScheduled.forEach { candidate ->
-            val bestTime = findBestInsertionTime(
-                allSequencePlaces,
-                candidate as AircraftSequenceCandidate,
-                config.minimumSeparationNm,
-            )
-
-            allSequencePlaces.add(
-                SequencePlace(
-                    item = candidate,
-                    scheduledTime = bestTime,
-                    isManuallyAssigned = false
-                )
-            )
-        }
-
-        // Sort by scheduled time, but preserve relative order for aircraft with same time
-        allSequencePlaces.sortWith(compareBy<SequencePlace> { it.scheduledTime }.thenBy { place ->
-            originalOrderMap[place.item.id] ?: Int.MAX_VALUE
-        })
-
-        // Final pass: ensure spacing is maintained in the sorted sequence
-        for (i in 1 until allSequencePlaces.size) {
-            val leader = allSequencePlaces[i - 1]
-            val follower = allSequencePlaces[i]
-
-            val minTime = calculateSafeLandingTime(
-                referenceTime = leader.scheduledTime,
-                leader = leader.item as AircraftSequenceCandidate,
-                follower = follower.item as AircraftSequenceCandidate,
-                minimumSeparationNm = config.minimumSeparationNm
-            )
-
-            if (follower.scheduledTime < minTime) {
-                val adjustedTime = if (follower.isManuallyAssigned) {
-                    minTime // Move manually assigned aircraft to maintain spacing
-                } else {
-                    maxOf(minTime, follower.item.preferredTime) // Try to keep preferred time for auto-scheduled
-                }
-                allSequencePlaces[i] = follower.copy(scheduledTime = adjustedTime)
-            }
-        }
-
-        return allSequencePlaces.toList()
+        return existingEntries + newEntries
     }
 
-    /**
-     * Finds the best insertion time for a new aircraft, preventing overtaking of aircraft in locked horizon
-     */
-    private fun findBestInsertionTime(
-        existingPlaces: List<SequencePlace>,
-        newCandidate: AircraftSequenceCandidate,
+    private fun sequenceEntryComparator(): Comparator<SequenceEntry> =
+        compareBy<SequenceEntry> { it.desiredTime }
+            .thenBy { it.originalIndex ?: Int.MAX_VALUE }
+            .thenBy { it.candidate.id }
+
+    private fun List<SequenceEntry>.moveEntriesBehindFrozenSlotsTheyCannotPrecede(
         minimumSeparationNm: Double,
-    ): Instant {
-        var bestTime = newCandidate.preferredTime
+    ): List<SequenceEntry> {
+        val orderedEntries = toMutableList()
+        var index = 0
 
-        // AMAN Compliance: Check for aircraft in locked horizon that cannot be overtaken
-        val lockedAircraft = existingPlaces.filter { it.item.isInLockedSequenceWindow() }
-        val lastLockedAircraft = lockedAircraft.maxByOrNull { it.scheduledTime }
+        while (index < orderedEntries.size) {
+            val entry = orderedEntries[index]
+            val frozenSlotIndex = ((index + 1) until orderedEntries.size).lastOrNull { frozenIndex ->
+                val frozenEntry = orderedEntries[frozenIndex]
+                frozenEntry.candidate.isInFrozenSequenceWindow &&
+                    !entry.canRemainBeforeFrozenSlot(frozenEntry, minimumSeparationNm)
+            }
 
-        // If there are locked aircraft, new aircraft cannot be inserted before the last locked aircraft
-        if (lastLockedAircraft != null && bestTime <= lastLockedAircraft.scheduledTime) {
-            val minTimeAfterLocked = calculateSafeLandingTime(
-                referenceTime = lastLockedAircraft.scheduledTime,
-                leader = lastLockedAircraft.item as AircraftSequenceCandidate,
-                follower = newCandidate,
-                minimumSeparationNm = minimumSeparationNm
-            )
-            bestTime = maxOf(bestTime, minTimeAfterLocked)
-        }
-
-        // Check if there's a conflict with the leader (aircraft before preferred time)
-        val leader = existingPlaces
-            .filter { it.scheduledTime <= bestTime }
-            .maxByOrNull { it.scheduledTime }
-
-        if (leader != null) {
-            val requiredTime = calculateSafeLandingTime(
-                referenceTime = leader.scheduledTime,
-                leader = leader.item as AircraftSequenceCandidate,
-                follower = newCandidate,
-                minimumSeparationNm = minimumSeparationNm
-            )
-            // Only change time if there's a conflict (preferred time is too early)
-            if (bestTime < requiredTime) {
-                bestTime = requiredTime
+            if (frozenSlotIndex == null) {
+                index++
+            } else {
+                orderedEntries.removeAt(index)
+                orderedEntries.add(frozenSlotIndex, entry)
             }
         }
 
-        // Check if there's a conflict with the follower (aircraft after preferred time)
-        val follower = existingPlaces
-            .filter { it.scheduledTime > bestTime }
-            .minByOrNull { it.scheduledTime }
-
-        if (follower != null) {
-            val requiredFollowerTime = calculateSafeLandingTime(
-                referenceTime = bestTime,
-                leader = newCandidate,
-                follower = follower.item as AircraftSequenceCandidate,
-                minimumSeparationNm = minimumSeparationNm
-            )
-            // Only change time if there's a conflict (follower would be too close)
-            // But don't push aircraft in locked horizon
-            if (follower.scheduledTime < requiredFollowerTime && !follower.item.isInLockedSequenceWindow()) {
-                // Move to an earlier time to avoid pushing the follower
-                val effectiveSpacing = if (areOnDifferentRunways(newCandidate, follower.item as AircraftSequenceCandidate)) {
-                    minimumSeparationNm
-                } else {
-                    maxOf(
-                        nmSpacingMap[Pair(newCandidate.wakeCategory, (follower.item as AircraftSequenceCandidate).wakeCategory)] ?: 3.0,
-                        minimumSeparationNm
-                    )
-                }
-                bestTime = follower.scheduledTime - nmToDuration(
-                    effectiveSpacing,
-                    (follower.item as AircraftSequenceCandidate).landingIas
-                )
-            }
-        }
-
-        return bestTime
+        return orderedEntries
     }
+
+    private fun SequenceEntry.canRemainBeforeFrozenSlot(
+        frozenEntry: SequenceEntry,
+        minimumSeparationNm: Double,
+    ): Boolean {
+        if (candidate.isInFrozenSequenceWindow) {
+            return canFrozenAircraftRemainBefore(frozenEntry)
+        }
+
+        val frozenSlotTime = frozenEntry.frozenSlotTime ?: return true
+        val currentScheduledTime = existingPlace?.scheduledTime ?: return false
+        val earliestFrozenTime = calculateSafeLandingTime(
+            referenceTime = currentScheduledTime,
+            leader = candidate,
+            follower = frozenEntry.candidate,
+            minimumSeparationNm = minimumSeparationNm,
+        )
+
+        return frozenSlotTime >= earliestFrozenTime
+    }
+
+    private fun SequenceEntry.canFrozenAircraftRemainBefore(frozenEntry: SequenceEntry): Boolean {
+        val currentOrder = originalIndex
+        val frozenOrder = frozenEntry.originalIndex
+
+        return when {
+            currentOrder != null && frozenOrder != null -> currentOrder < frozenOrder
+            currentOrder == null && frozenOrder != null -> false
+            else -> true
+        }
+    }
+
+    private fun List<SequenceEntry>.scheduleWithSpacing(minimumSeparationNm: Double): List<SequencePlace> {
+        val places = mutableListOf<SequencePlace>()
+
+        for (entry in this) {
+            val leader = places.lastOrNull()
+            val earliestTime = if (leader == null) {
+                entry.desiredTime
+            } else {
+                val safeTime = calculateSafeLandingTime(
+                    referenceTime = leader.scheduledTime,
+                    leader = leader.item as AircraftSequenceCandidate,
+                    follower = entry.candidate,
+                    minimumSeparationNm = minimumSeparationNm,
+                )
+                maxOf(entry.desiredTime, safeTime)
+            }
+
+            places.add(
+                SequencePlace(
+                    item = entry.candidate,
+                    scheduledTime = earliestTime,
+                    isManuallyAssigned = entry.isManuallyAssigned,
+                )
+            )
+        }
+
+        return places
+    }
+
+    private fun safeLandingTimeAfter(
+        leader: SequencePlace,
+        follower: SequencePlace,
+        minimumSeparationNm: Double,
+    ): Instant =
+        calculateSafeLandingTime(
+            referenceTime = leader.scheduledTime,
+            leader = leader.item as AircraftSequenceCandidate,
+            follower = follower.item as AircraftSequenceCandidate,
+            minimumSeparationNm = minimumSeparationNm,
+        )
 
     /**
      * Calculates the final scheduled time for an aircraft based on runway assignment and wake turbulence category.
@@ -405,12 +336,6 @@ object SequenceService {
         // Return true if runways are different
         return runway1 != runway2
     }
-
-    private fun SequenceCandidate.isInLockedSequenceWindow(): Boolean =
-        (this as? AircraftSequenceCandidate)?.isInLockedSequenceWindow == true
-
-    private fun SequenceCandidate.isInSequencingWindow(): Boolean =
-        (this as? AircraftSequenceCandidate)?.isInSequencingWindow == true
 
     private val nmSpacingMap = mapOf(
         // Leader <> Follower
