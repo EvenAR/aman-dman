@@ -8,7 +8,6 @@ import no.vaccsca.amandman.model.planning.AircraftSequenceCandidate
 import no.vaccsca.amandman.model.planning.SequencePlace
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -20,7 +19,6 @@ class SequenceServiceTest {
         sequencingHorizon = 30.minutes,
     )
 
-    // Test 1: Aircraft entering AAH should be sequenced
     @Test
     fun `Aircraft entering AAH should be added to sequence`() {
         val sequence: List<SequencePlace> = emptyList()
@@ -37,7 +35,6 @@ class SequenceServiceTest {
         assertEquals("TEST123", updatedSequence[0].item.id)
     }
 
-    // Test 2: Aircraft outside sequencing horizon should not be sequenced
     @Test
     fun `Aircraft outside sequencing horizon should not be added to sequence`() {
         val sequence: List<SequencePlace> = emptyList()
@@ -54,7 +51,6 @@ class SequenceServiceTest {
         assertEquals(0, updatedSequence.size)
     }
 
-    // Test 3: Scheduled time should only be assigned when there's a conflict
     @Test
     fun `Aircraft with no conflicts should keep preferred time`() {
         val sequence: List<SequencePlace> = emptyList()
@@ -71,26 +67,27 @@ class SequenceServiceTest {
         assertEquals(aircraft.preferredTime, updatedSequence[0].scheduledTime)
     }
 
-    // Test 4: Scheduled time assigned when there's a spacing conflict
     @Test
     fun `Aircraft should get delayed scheduled time when spacing conflict exists`() {
         val now = NtpClock.now()
 
         // First aircraft already in sequence
-        val firstAircraft = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'H')
-        val sequence =
-            listOf(
-                SequencePlace(firstAircraft, now + 10.minutes, false)
-            )
+        val firstAircraft = makeSequenceCandidate(
+            callsign = "FIRST",
+            preferredTime = now + 10.minutes,
+            wakeCategory = 'H'
+        )
+
 
         // Second aircraft wants to land too close behind heavy aircraft
         val secondAircraft = makeSequenceCandidate(
             callsign = "SECOND",
-            preferredTime = now + 10.minutes + 30.seconds, // Too close behind Heavy
+            preferredTime = firstAircraft.preferredTime + 30.seconds, // Too close behind Heavy
             wakeCategory = 'M'
         )
 
-        val updatedSequence = SequenceService.updateSequence(sequence, listOf(firstAircraft, secondAircraft), defaultConfig)
+        val initialSequence = listOf(SequencePlace(firstAircraft, firstAircraft.preferredTime, false))
+        val updatedSequence = SequenceService.updateSequence(initialSequence, listOf(firstAircraft, secondAircraft), defaultConfig)
 
         assertEquals(2, updatedSequence.size)
         val secondPlace = updatedSequence.find { it.item.id == "SECOND" }!!
@@ -99,7 +96,6 @@ class SequenceServiceTest {
         assertTrue(secondPlace.scheduledTime > secondAircraft.preferredTime)
     }
 
-    // Test 5: Wake category spacing rules
     @Test
     fun `Wake category spacing should be correctly applied`() {
         val now = NtpClock.now()
@@ -130,69 +126,56 @@ class SequenceServiceTest {
         assertTrue(heavyToLightSpacing >= expectedHLSpacing)
     }
 
-    // Test 6: Existing aircraft should preserve their scheduled times when no conflicts
     @Test
-    fun `Existing aircraft should keep scheduled times when no conflicts exist`() {
+    fun `Existing aircraft should be scheduled to land at preferred time when no conflict exists`() {
         val now = NtpClock.now()
+        val preferredTime = now + 15.minutes
         val scheduledTime = now + 12.minutes
 
-        val aircraft = makeSequenceCandidate("TEST123", now + 15.minutes)
-        val sequence =
-            listOf(
-                SequencePlace(aircraft, scheduledTime, false)
-            )
-
-        // Update with same aircraft - should preserve existing scheduled time
-        val updatedSequence = SequenceService.updateSequence(sequence, listOf(aircraft), defaultConfig)
+        val sequenceCandidate = makeSequenceCandidate("TEST123", preferredTime)
+        val initialSequence = listOf(SequencePlace(sequenceCandidate, scheduledTime, false))
+        val updatedSequence = SequenceService.updateSequence(initialSequence, listOf(sequenceCandidate), defaultConfig)
 
         assertEquals(1, updatedSequence.size)
-        // The current implementation uses findBestInsertionTime which may recalculate
-        // So we just verify the aircraft is still in the sequence at a reasonable time
-        val place = updatedSequence[0]
-        assertEquals("TEST123", place.item.id)
-        assertFalse(place.isManuallyAssigned)
+        assertEquals(preferredTime, updatedSequence[0].scheduledTime)
     }
 
-    // Test 7: Manually assigned aircraft should stick to their slots
     @Test
     fun `Manually assigned aircraft should preserve their scheduled times`() {
         val now = NtpClock.now()
         val manualTime = now + 8.minutes
 
-        val aircraft = makeSequenceCandidate("MANUAL123", now + 15.minutes)
-        val sequence =
-            listOf(
-                SequencePlace(aircraft, manualTime, isManuallyAssigned = true)
-            )
-
-        val updatedSequence = SequenceService.updateSequence(sequence, listOf(aircraft), defaultConfig)
+        val sequenceCandidate = makeSequenceCandidate("MANUAL123", now + 15.minutes)
+        val initialSequence = listOf(SequencePlace(sequenceCandidate, manualTime, isManuallyAssigned = true))
+        val updatedSequence = SequenceService.updateSequence(initialSequence, listOf(sequenceCandidate), defaultConfig)
 
         assertEquals(1, updatedSequence.size)
         assertEquals(manualTime, updatedSequence[0].scheduledTime)
         assertTrue(updatedSequence[0].isManuallyAssigned)
     }
 
-    // Test 8: Manual movement should update following aircraft spacing
     @Test
     fun `Manual movement should adjust following aircraft when spacing conflict occurs`() {
         val now = NtpClock.now()
 
         val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'M')
-        val aircraft2 = makeSequenceCandidate("SECOND", now + 20.minutes, wakeCategory = 'L')
+        val aircraft2 = makeSequenceCandidate("SECOND", aircraft1.preferredTime + 10.minutes, wakeCategory = 'L')
 
-        val sequence =
-            listOf(
-                SequencePlace(aircraft1, now + 10.minutes, false),
-                SequencePlace(aircraft2, now + 20.minutes, false)
-            )
+        val sequencePlace1 = SequencePlace(aircraft1, scheduledTime = aircraft1.preferredTime, isManuallyAssigned = false)
+        val sequencePlace2 = SequencePlace(aircraft2, scheduledTime = aircraft2.preferredTime, isManuallyAssigned = false)
+        val initialSequence = listOf(sequencePlace1,sequencePlace2)
 
-        // Manually move FIRST to a later time, creating potential conflict with SECOND
+        // Manually move FIRST to 1 minute before SECOND
         val updatedSequence = SequenceService.suggestScheduledTime(
-            sequence, "FIRST", now + 19.minutes, 3.0
+            initialSequence, "FIRST", sequencePlace2.scheduledTime - 1.minutes, 3.0
         )
 
-        val firstPlace = updatedSequence.find { it.item.id == "FIRST" }!!
-        val secondPlace = updatedSequence.find { it.item.id == "SECOND" }!!
+        val firstPlace = updatedSequence[0]
+        val secondPlace = updatedSequence[1]
+
+        // Verify correct order
+        assertEquals("FIRST", firstPlace.item.id)
+        assertEquals("SECOND", secondPlace.item.id)
 
         assertTrue(firstPlace.isManuallyAssigned)
 
@@ -202,58 +185,45 @@ class SequenceServiceTest {
         assertTrue(spacing >= requiredSpacing)
     }
 
-    // Test 9: Aircraft should go back to preferred time when conflict is resolved
     @Test
     fun `Aircraft should return to preferred time when conflict is resolved`() {
         val now = NtpClock.now()
 
+        // Aircraft are initially too close
         val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes)
-        val aircraft2 = makeSequenceCandidate("SECOND", now + 10.minutes + 30.seconds) // Initially too close
+        val aircraft2 = makeSequenceCandidate("SECOND", aircraft1.preferredTime + 30.seconds)
 
-        // First update creates conflict
-        val sequence1 = SequenceService.updateSequence(emptyList(), listOf(aircraft1, aircraft2), defaultConfig)
-        val secondPlace1 = sequence1.find { it.item.id == "SECOND" }!!
+        // When inserted to sequence
+        val initialSequence = SequenceService.updateSequence(emptyList(), listOf(aircraft1, aircraft2), defaultConfig)
+        val aircraft2SequencePlace = initialSequence.find { it.item.id == "SECOND" }!!
 
         // SECOND should be delayed due to conflict
-        assertTrue(secondPlace1.scheduledTime > aircraft2.preferredTime)
+        assertTrue(aircraft2SequencePlace.scheduledTime > aircraft2.preferredTime)
 
-        // Now update FIRST to much earlier time, removing conflict
-        val updatedAircraft1 = aircraft1.copy(preferredTime = now + 5.minutes)
-        val sequence2 = SequenceService.updateSequence(
-            sequence1,
+        // FIRST gets a shortcut time, removing conflict
+        val updatedAircraft1 = aircraft1.copy(preferredTime = aircraft1.preferredTime - 5.minutes)
+        val finalSequence = SequenceService.updateSequence(
+            initialSequence,
             listOf(updatedAircraft1, aircraft2),
             defaultConfig
         )
 
-        val secondPlace2 = sequence2.find { it.item.id == "SECOND" }!!
+        val aircraft2NewSequencePlace = finalSequence.find { it.item.id == "SECOND" }!!
 
         // SECOND should now be able to use its preferred time
-        assertEquals(aircraft2.preferredTime, secondPlace2.scheduledTime)
+        assertEquals(aircraft2.preferredTime, aircraft2NewSequencePlace.scheduledTime)
     }
 
-    // Test 10: Frozen horizon should prevent reordering
     @Test
-    fun `Aircraft in frozen horizon should maintain their order`() {
+    fun `Aircraft in frozen area should maintain their order`() {
         val now = NtpClock.now()
 
-        val frozenAircraft = makeSequenceCandidate(
-            callsign = "FROZEN",
-            preferredTime = now + 5.minutes,
-            isInLockedSequenceWindow = true,
-        )
-        val sequence =
-            listOf(
-                SequencePlace(frozenAircraft, now + 5.minutes, false)
-            )
+        val frozenAircraft = makeSequenceCandidate(callsign = "FROZEN", preferredTime = now + 5.minutes, isInFrozenSequenceWindow = true)
+        val initialSequence = SequenceService.updateSequence(currentSequence = emptyList(), candidates = listOf(frozenAircraft), defaultConfig)
 
         // New aircraft wants to land earlier but should be placed after frozen aircraft
-        val newAircraft = makeSequenceCandidate("NEW", now + 3.minutes)
-
-        val updatedSequence = SequenceService.updateSequence(
-            sequence,
-            listOf(frozenAircraft, newAircraft),
-            defaultConfig
-        )
+        val newFasterAircraft = makeSequenceCandidate(callsign = "NEW", preferredTime = frozenAircraft.preferredTime - 3.minutes)
+        val updatedSequence = SequenceService.updateSequence(currentSequence = initialSequence,candidates = listOf(frozenAircraft, newFasterAircraft), defaultConfig)
 
         val sortedPlaces = updatedSequence.sortedBy { it.scheduledTime }
         assertEquals("FROZEN", sortedPlaces[0].item.id)
@@ -263,11 +233,11 @@ class SequenceServiceTest {
         assertTrue(sortedPlaces[1].scheduledTime > sortedPlaces[0].scheduledTime)
     }
 
-    // Test 11: Sequence stability - maintain relative order
     @Test
     fun `Existing aircraft should maintain relative order when possible`() {
         val now = NtpClock.now()
 
+        // Non-conflicting preferred times
         val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes)
         val aircraft2 = makeSequenceCandidate("SECOND", now + 15.minutes)
         val aircraft3 = makeSequenceCandidate("THIRD", now + 20.minutes)
@@ -292,13 +262,12 @@ class SequenceServiceTest {
         assertEquals("THIRD", sortedPlaces[2].item.id)
     }
 
-    // Test 12: TTL/TTG calculation (difference between preferred and scheduled)
     @Test
     fun `Should be able to calculate TTL when aircraft is delayed`() {
         val now = NtpClock.now()
 
         val aircraft1 = makeSequenceCandidate("LEADER", now + 10.minutes, wakeCategory = 'H')
-        val aircraft2 = makeSequenceCandidate("FOLLOWER", now + 10.minutes + 30.seconds, wakeCategory = 'L')
+        val aircraft2 = makeSequenceCandidate("FOLLOWER", aircraft1.preferredTime + 30.seconds, wakeCategory = 'L')
 
         val sequence = SequenceService.updateSequence(
             emptyList(),
@@ -317,7 +286,6 @@ class SequenceServiceTest {
         assertTrue(ttl >= expectedMinSpacing - 30.seconds) // Minus the initial 30s gap
     }
 
-    // Test 13: Remove aircraft from sequence
     @Test
     fun `Should remove aircraft from sequence`() {
         val now = NtpClock.now()
@@ -337,20 +305,18 @@ class SequenceServiceTest {
         assertEquals("KEEP", updatedSequence[0].item.id)
     }
 
-    // Test 14: Multiple aircraft entering AAH simultaneously
     @Test
-    fun `Multiple aircraft entering AAH should be properly spaced`() {
+    fun `Multiple aircraft entering sequencing are should be properly spaced`() {
         val now = NtpClock.now()
-        val sequence: List<SequencePlace> = emptyList()
 
         // Create aircraft with slightly different preferred times to ensure deterministic ordering
-        val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'H')
-        val aircraft2 = makeSequenceCandidate("SECOND", now + 10.minutes + 1.seconds, wakeCategory = 'M')
-        val aircraft3 = makeSequenceCandidate("THIRD", now + 10.minutes + 2.seconds, wakeCategory = 'L')
+        val aircraft1 = makeSequenceCandidate(callsign = "FIRST", preferredTime = now + 10.minutes, wakeCategory = 'H')
+        val aircraft2 = makeSequenceCandidate(callsign = "SECOND", preferredTime = aircraft1.preferredTime + 1.seconds, wakeCategory = 'M')
+        val aircraft3 = makeSequenceCandidate(callsign = "THIRD", preferredTime = aircraft2.preferredTime + 1.seconds, wakeCategory = 'L')
 
         val updatedSequence = SequenceService.updateSequence(
-            sequence,
-            listOf(aircraft1, aircraft2, aircraft3),
+            currentSequence = emptyList(),
+            candidates = listOf(aircraft1, aircraft2, aircraft3),
             defaultConfig
         )
 
@@ -377,7 +343,6 @@ class SequenceServiceTest {
         assertTrue(sortedPlaces[1].scheduledTime < sortedPlaces[2].scheduledTime)
     }
 
-    // Test 16: Aircraft on different runways should use minimum separation
     @Test
     fun `Aircraft on different runways should use minimum separation instead of wake spacing`() {
         val now = NtpClock.now()
@@ -386,7 +351,7 @@ class SequenceServiceTest {
         // Heavy aircraft on runway 09L
         val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
         // Light aircraft on runway 09R (different runway)
-        val light = makeSequenceCandidate("LIGHT", now + 10.minutes + 30.seconds, wakeCategory = 'L', assignedRunway = "09R")
+        val light = makeSequenceCandidate("LIGHT", heavy.preferredTime + 30.seconds, wakeCategory = 'L', assignedRunway = "09R")
 
         val updatedSequence = SequenceService.updateSequence(sequence, listOf(heavy, light), defaultConfig)
 
@@ -404,15 +369,14 @@ class SequenceServiceTest {
         assertTrue(spacing < wakeSpacing, "Should not use wake spacing for different runways")
     }
 
-    // Test 17: Aircraft on same runway should use wake category spacing
     @Test
     fun `Aircraft on same runway should use wake category spacing`() {
         val now = NtpClock.now()
         val sequence: List<SequencePlace> = emptyList()
 
         // Heavy and light aircraft both on runway 09L (same runway)
-        val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
-        val light = makeSequenceCandidate("LIGHT", now + 10.minutes + 30.seconds, wakeCategory = 'L', assignedRunway = "09L")
+        val heavy = makeSequenceCandidate(callsign = "HEAVY", preferredTime = now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
+        val light = makeSequenceCandidate(callsign = "LIGHT", preferredTime = heavy.preferredTime + 30.seconds, wakeCategory = 'L', assignedRunway = "09L")
 
         val updatedSequence = SequenceService.updateSequence(sequence, listOf(heavy, light), defaultConfig)
 
@@ -427,15 +391,14 @@ class SequenceServiceTest {
         assertTrue(spacing >= wakeSpacing, "Should use wake category spacing for same runway")
     }
 
-    // Test 18: Aircraft without runway assignment should use wake category spacing
     @Test
     fun `Aircraft without runway assignment should use wake category spacing`() {
         val now = NtpClock.now()
         val sequence: List<SequencePlace> = emptyList()
 
         // Aircraft without runway assignments
-        val heavy = makeSequenceCandidate("HEAVY", now + 10.minutes, wakeCategory = 'H', assignedRunway = null)
-        val light = makeSequenceCandidate("LIGHT", now + 10.minutes + 30.seconds, wakeCategory = 'L', assignedRunway = null)
+        val heavy = makeSequenceCandidate(callsign = "HEAVY", preferredTime = now + 10.minutes, wakeCategory = 'H', assignedRunway = null)
+        val light = makeSequenceCandidate(callsign = "LIGHT", preferredTime = heavy.preferredTime + 30.seconds, wakeCategory = 'L', assignedRunway = null)
 
         val updatedSequence = SequenceService.updateSequence(sequence, listOf(heavy, light), defaultConfig)
 
@@ -450,16 +413,15 @@ class SequenceServiceTest {
         assertTrue(spacing >= wakeSpacing, "Should use wake category spacing when no runway assigned")
     }
 
-    // Test 19: Mixed runway assignments should handle spacing correctly
     @Test
     fun `Mixed runway assignments should handle spacing correctly`() {
         val now = NtpClock.now()
         val sequence: List<SequencePlace> = emptyList()
 
         // First aircraft with runway assignment
-        val first = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
+        val first = makeSequenceCandidate(callsign = "FIRST", preferredTime = now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
         // Second aircraft without runway assignment
-        val second = makeSequenceCandidate("SECOND", now + 10.minutes + 30.seconds, wakeCategory = 'L', assignedRunway = null)
+        val second = makeSequenceCandidate(callsign = "SECOND", preferredTime = first.preferredTime + 30.seconds, wakeCategory = 'L', assignedRunway = null)
 
         val updatedSequence = SequenceService.updateSequence(sequence, listOf(first, second), defaultConfig)
 
@@ -479,22 +441,25 @@ class SequenceServiceTest {
     fun `Manual movement should respect runway-based spacing rules`() {
         val now = NtpClock.now()
 
-        val aircraft1 = makeSequenceCandidate("FIRST", now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
-        val aircraft2 = makeSequenceCandidate("SECOND", now + 20.minutes, wakeCategory = 'L', assignedRunway = "09R")
+        val aircraft1 = makeSequenceCandidate(callsign = "FIRST", preferredTime = now + 10.minutes, wakeCategory = 'H', assignedRunway = "09L")
+        val aircraft2 = makeSequenceCandidate(callsign = "SECOND", preferredTime = aircraft1.preferredTime + 10.minutes, wakeCategory = 'L', assignedRunway = "09R")
 
         val sequence =
             listOf(
-                SequencePlace(aircraft1, now + 10.minutes, false),
-                SequencePlace(aircraft2, now + 20.minutes, false)
+                SequencePlace(aircraft1, scheduledTime = aircraft1.preferredTime, isManuallyAssigned = false),
+                SequencePlace(aircraft2, scheduledTime = aircraft2.preferredTime, isManuallyAssigned = false)
             )
 
         // Manually move FIRST to a later time, creating potential conflict with SECOND
         val updatedSequence = SequenceService.suggestScheduledTime(
-            sequence, "FIRST", now + 19.minutes, 3.0
+            sequence, callsign = "FIRST", suggestion = aircraft2.preferredTime - 1.minutes, 3.0
         )
 
-        val firstPlace = updatedSequence.find { it.item.id == "FIRST" }!!
-        val secondPlace = updatedSequence.find { it.item.id == "SECOND" }!!
+        val firstPlace = updatedSequence[0]
+        val secondPlace = updatedSequence[1]
+
+        assertEquals("FIRST", firstPlace.item.id)
+        assertEquals("SECOND", secondPlace.item.id)
 
         assertTrue(firstPlace.isManuallyAssigned)
 
@@ -506,37 +471,53 @@ class SequenceServiceTest {
     }
 
     @Test
-    fun `Locked aircraft should not be overtaken by new arrivals`() {
+    fun `Locked aircraft should not be overtaken by new arrivals entering locked area`() {
         val now = NtpClock.now()
-        val lockedAircraft = makeSequenceCandidate(
-            callsign = "LOCKED",
-            preferredTime = now + 12.minutes,
-            assignedRunway = "19L",
-            isInLockedSequenceWindow = true,
-        )
-        val currentSequence = listOf(
-            SequencePlace(
-                item = lockedAircraft,
-                scheduledTime = lockedAircraft.preferredTime,
-                isManuallyAssigned = false,
-            )
-        )
-        val newArrival = makeSequenceCandidate(
-            callsign = "NEW",
-            preferredTime = now + 11.minutes,
-            assignedRunway = "19L",
-        )
+
+        val lockedCandidate = makeSequenceCandidate(callsign = "LOCKED", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+        val newFasterCandidate = makeSequenceCandidate(callsign = "NEW", preferredTime = lockedCandidate.preferredTime - 1.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+
+        val initialSequence = listOf(SequencePlace(item = lockedCandidate, scheduledTime = lockedCandidate.preferredTime, isManuallyAssigned = false))
 
         val updatedSequence = SequenceService.updateSequence(
-            currentSequence = currentSequence,
-            candidates = listOf(lockedAircraft, newArrival),
+            currentSequence = initialSequence,
+            candidates = listOf(lockedCandidate, newFasterCandidate),
             config = defaultConfig,
         )
 
-        val lockedPlace = updatedSequence.first { it.item.id == "LOCKED" }
-        val newPlace = updatedSequence.first { it.item.id == "NEW" }
+        val firstPlace = updatedSequence[0]
+        val secondPlace = updatedSequence[1]
 
-        assertTrue(newPlace.scheduledTime > lockedPlace.scheduledTime)
+        assertEquals("LOCKED", firstPlace.item.id)
+        assertEquals("NEW", secondPlace.item.id)
+
+        assertTrue(secondPlace.scheduledTime > firstPlace.scheduledTime)
+    }
+
+    @Test
+    fun `Two aircraft entering locked area at the same time should be ordered by preferred arrival time`() {
+        val now = NtpClock.now()
+
+        val fast = makeSequenceCandidate(callsign = "FASTEST", preferredTime = now + 12.minutes, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+        val slow = makeSequenceCandidate(callsign = "SLOWEST", preferredTime = fast.preferredTime + 1.seconds, assignedRunway = "19L", isInFrozenSequenceWindow = true)
+
+        val createdSequence = SequenceService.updateSequence(
+            currentSequence = emptyList(),
+            candidates = listOf(fast, slow),
+            config = defaultConfig,
+        )
+
+        assertEquals("FASTEST", createdSequence[0].item.id)
+        assertEquals("SLOWEST", createdSequence[1].item.id)
+
+        val createdSequence2 = SequenceService.updateSequence(
+            currentSequence = emptyList(),
+            candidates = listOf(slow, fast),
+            config = defaultConfig,
+        )
+
+        assertEquals("FASTEST", createdSequence2[0].item.id)
+        assertEquals("SLOWEST", createdSequence2[1].item.id)
     }
 
     // Helper function to create test aircraft sequence candidates
@@ -546,7 +527,7 @@ class SequenceServiceTest {
         landingIas: Int = 150,
         wakeCategory: Char = 'M',
         assignedRunway: String? = null,
-        isInLockedSequenceWindow: Boolean = false,
+        isInFrozenSequenceWindow: Boolean = false,
         isInSequencingWindow: Boolean = true,
     ) = AircraftSequenceCandidate(
         callsign = callsign,
@@ -554,7 +535,7 @@ class SequenceServiceTest {
         landingIas = landingIas,
         wakeCategory = wakeCategory,
         runway = assignedRunway,
-        isInLockedSequenceWindow = isInLockedSequenceWindow,
+        isInLockedSequenceWindow = isInFrozenSequenceWindow,
         isInSequencingWindow = isInSequencingWindow,
     )
 }
