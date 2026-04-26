@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <map>
 #include <thread>
 #include <atomic>
 #include <mutex>
@@ -29,6 +30,9 @@ private:
 
     std::set<std::string> airportsSubscribedTo;
     std::string pluginDirectory;
+
+    // Tracks the last known calculated fix index per callsign to detect when an aircraft passes a fix
+    std::map<std::string, int> lastCalculatedFixIndex;
 
     // Selection polling thread
     std::thread selectionPollingThread;
@@ -82,6 +86,7 @@ private:
     virtual void OnAirportRunwayActivityChanged(void);
     virtual void OnFlightPlanFlightPlanDataUpdate(CFlightPlan FlightPlan);
     virtual void OnFlightPlanControllerAssignedDataUpdate(CFlightPlan FlightPlan, int DataType);
+    virtual void OnRadarTargetPositionUpdate(CRadarTarget RadarTarget);
     virtual CRadarScreen* OnRadarScreenCreated(const char* sDisplayName,
                                                bool NeedRadarContent,
                                                bool GeoReferenced,

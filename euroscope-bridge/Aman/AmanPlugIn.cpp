@@ -327,6 +327,7 @@ void AmanPlugIn::onSetCtot(const std::string& callSign, long ctot) {
 void AmanPlugIn::onClientDisconnected() {
     // Remove all subscriptions when the client disconnects
     airportsSubscribedTo.clear();
+    lastCalculatedFixIndex.clear();
     {
         std::lock_guard<std::mutex> lock(polygonsMutex);
         activePolygons.clear();
@@ -562,5 +563,29 @@ void AmanPlugIn::checkAndSendSelectionChange() {
         
         auto selectionJson = jsonSerializer.getJsonOfAircraftSelection(selection);
         enqueueMessage(selectionJson);
+    }
+}
+
+void AmanPlugIn::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget) {
+    CFlightPlan fp = RadarTarget.GetCorrelatedFlightPlan();
+    if (!fp.IsValid() || !isSubscribedArrival(fp)) {
+        return;
+    }
+
+    auto callsign = std::string(RadarTarget.GetCallsign());
+    int currentIndex = fp.GetExtractedRoute().GetPointsCalculatedIndex();
+
+    auto it = lastCalculatedFixIndex.find(callsign);
+    if (it == lastCalculatedFixIndex.end()) {
+        // First time seeing this aircraft - store and send initial route
+        lastCalculatedFixIndex[callsign] = currentIndex;
+        sendArrivalUpdate(fp);
+        return;
+    }
+
+    if (it->second != currentIndex) {
+        // Aircraft has passed a fix - update stored index and send route update
+        it->second = currentIndex;
+        sendArrivalUpdate(fp);
     }
 }
